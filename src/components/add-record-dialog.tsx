@@ -178,7 +178,8 @@ export function AddRecordDialog({
   }, [kind]);
 
   const set = (name: string, value: string) => {
-    setValues((v) => ({ ...v, [name]: value }));
+    // Switching account invalidates any slice picked from the previous one.
+    setValues((v) => ({ ...v, [name]: value, ...(name === "account_id" ? { label_id: "" } : {}) }));
     setErrors((e) => {
       if (!e[name]) return e;
       const { [name]: _drop, ...rest } = e;
