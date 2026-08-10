@@ -14,6 +14,7 @@ export interface AppPrefs {
 
 interface SessionValue {
   unlocked: boolean;
+  hydrated: boolean;
   unlock: () => void;
   lock: () => void;
   prefs: AppPrefs;
@@ -70,12 +71,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SessionValue>(
     () => ({
       unlocked,
+      hydrated,
       unlock: () => setUnlocked(true),
       lock: () => setUnlocked(false),
       prefs,
       setPrefs: (patch) => setPrefsState((p) => ({ ...p, ...patch })),
     }),
-    [unlocked, prefs],
+    [unlocked, hydrated, prefs],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

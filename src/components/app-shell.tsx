@@ -206,12 +206,12 @@ export function AppShell({
   actions,
   children,
 }: PageProps) {
-  const { unlocked } = useSession();
+  const { unlocked, hydrated } = useSession();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!unlocked) navigate({ to: "/login" });
-  }, [unlocked, navigate]);
+    if (hydrated && !unlocked) navigate({ to: "/login" });
+  }, [unlocked, hydrated, navigate]);
 
   return (
     <div className="flex min-h-screen min-w-[1180px] bg-background">
