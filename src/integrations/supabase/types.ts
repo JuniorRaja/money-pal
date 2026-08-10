@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          credit_limit: number | null
+          currency_code: string
+          deleted_at: string | null
+          id: string
+          institution: string | null
+          is_active: boolean
+          is_primary: boolean
+          kind: Database["public"]["Enums"]["account_kind"]
+          modified_at: string
+          modified_by: string | null
+          name: string
+          opening_balance: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          credit_limit?: number | null
+          currency_code: string
+          deleted_at?: string | null
+          id?: string
+          institution?: string | null
+          is_active?: boolean
+          is_primary?: boolean
+          kind: Database["public"]["Enums"]["account_kind"]
+          modified_at?: string
+          modified_by?: string | null
+          name: string
+          opening_balance?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          credit_limit?: number | null
+          currency_code?: string
+          deleted_at?: string | null
+          id?: string
+          institution?: string | null
+          is_active?: boolean
+          is_primary?: boolean
+          kind?: Database["public"]["Enums"]["account_kind"]
+          modified_at?: string
+          modified_by?: string | null
+          name?: string
+          opening_balance?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       budget_templates: {
         Row: {
           category_id: string
@@ -207,6 +269,119 @@ export type Database = {
           {
             foreignKeyName: "fx_rates_quote_code_fkey"
             columns: ["quote_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      labels: {
+        Row: {
+          color_token: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          is_active: boolean
+          modified_at: string
+          modified_by: string | null
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color_token?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          name: string
+          user_id: string
+        }
+        Update: {
+          color_token?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          accent: string | null
+          assistant_context: boolean
+          assistant_tone: string
+          base_currency: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          display_name: string | null
+          email: string | null
+          is_active: boolean
+          modified_at: string
+          modified_by: string | null
+          number_format: string
+          reduce_motion: boolean
+          round_to_nearest: boolean
+          sidebar: string
+          theme: string
+          user_id: string
+          week_starts_on: number
+        }
+        Insert: {
+          accent?: string | null
+          assistant_context?: boolean
+          assistant_tone?: string
+          base_currency?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          display_name?: string | null
+          email?: string | null
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          number_format?: string
+          reduce_motion?: boolean
+          round_to_nearest?: boolean
+          sidebar?: string
+          theme?: string
+          user_id: string
+          week_starts_on?: number
+        }
+        Update: {
+          accent?: string | null
+          assistant_context?: boolean
+          assistant_tone?: string
+          base_currency?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          display_name?: string | null
+          email?: string | null
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          number_format?: string
+          reduce_motion?: boolean
+          round_to_nearest?: boolean
+          sidebar?: string
+          theme?: string
+          user_id?: string
+          week_starts_on?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_base_currency_fkey"
+            columns: ["base_currency"]
             isOneToOne: false
             referencedRelation: "currencies"
             referencedColumns: ["code"]
