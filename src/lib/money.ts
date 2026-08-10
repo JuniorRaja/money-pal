@@ -33,11 +33,13 @@ const dayFmt = new Intl.DateTimeFormat("en-IN", {
   day: "2-digit",
   month: "short",
   year: "numeric",
+  timeZone: "Asia/Kolkata",
 });
 const timeFmt = new Intl.DateTimeFormat("en-IN", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: true,
+  timeZone: "Asia/Kolkata",
 });
 
 export function formatDay(iso: string) {
