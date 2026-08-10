@@ -13,14 +13,16 @@ A production-shaped schema derived from the current mock data (accounts, transac
 7. **RLS everywhere**, owner-scoped via `auth.uid()`; master rows are read-only to `authenticated`.
 8. **Views/functions replace repeated math**: balances, net worth, monthly cashflow, budget progress, goal progress, holdings valuation.
 
-## Open questions (not assumed)
+## Other points to be considered
 
-- **FX for cross-currency roll-ups.** Net worth across accounts in different currencies needs rates. The script includes an `fx_rates` table and converts via it, defaulting to the user's base currency; if you'd rather show net worth grouped per currency (no conversion), say so and the view drops the conversion.
-- **Holdings pricing** — is unit price entered manually, or fetched from a market-data provider later? Script stores `last_price` + `priced_at` and derives value.
-- **Budget rollover** — does unspent budget carry to next month? Currently: no rollover.
-- **Goals** — funded by a linked account balance, or by explicit contribution rows? Script uses explicit `goal_contributions` (auditable) and derives `saved`.
-- **Imports** (Gmail/PDF/CSV) — real ingestion or demo-only? Tables are included for job/review tracking, but the parsing service is out of scope.
-- **Auth/2FA** — login is currently mock; the schema assumes Supabase `auth.users` as the identity source.
+- **FX for cross-currency roll-ups.** Net worth across accounts in different currencies needs rates. The script includes an `fx_rates` table and converts via it, defaulting to the user's base currency.
+- **Holdings pricing** — fetched from a market-data provider later. Script stores `last_price` + `priced_at` and derives value.
+- **Budget rollover** — no rollover.
+- **Goals** — funded by  explicit contribution rows. 
+- **Imports** (Gmail/PDF/CSV) — real ingestion Later.
+- **Auth/2FA** — Supabase auth.
+
+Create required supabase code. We shall wire supabase next.
 
 ## Technical section — full DDL
 
@@ -386,4 +388,4 @@ from public.holdings h where h.deleted_at is null;
 
 ## Rollout
 
-Ship as one migration (enums → master → user → ledger → plan → workshop → grants → functions → views → RLS), then a seed migration with literal `INSERT`s for currencies, categories and budget templates. The app's `src/data/repository.ts` stays the only boundary that changes — each function becomes a server function reading these views.
+Create migrations one by one (enums → master → user → ledger → plan → workshop → grants → functions → views → RLS), then a seed migration with literal `INSERT`s for currencies, categories and budget templates. The app's `src/data/repository.ts` stays the only boundary that changes — each function becomes a server function reading these views.
