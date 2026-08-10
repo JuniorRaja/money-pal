@@ -278,6 +278,51 @@
   background-size: 32px 32px;
 }
 
+/* Subtle card patterns — one per surface family, all keyed to the gold token. */
+@utility pattern-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--primary) 7%, transparent) 0 1px,
+    transparent 1px 9px
+  );
+}
+
+@utility pattern-arcs {
+  background-image: radial-gradient(
+    circle at 100% 100%,
+    transparent 0 34px,
+    color-mix(in oklab, var(--primary) 8%, transparent) 34px 35px,
+    transparent 35px 58px,
+    color-mix(in oklab, var(--primary) 7%, transparent) 58px 59px,
+    transparent 59px 82px,
+    color-mix(in oklab, var(--primary) 6%, transparent) 82px 83px,
+    transparent 83px
+  );
+}
+
+@utility pattern-steps {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--primary) 7%, transparent) 0 1px,
+    transparent 1px 14px
+  );
+}
+
+@utility pattern-weave {
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      color-mix(in oklab, var(--primary) 5%, transparent) 0 1px,
+      transparent 1px 12px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in oklab, var(--primary) 5%, transparent) 0 1px,
+      transparent 1px 12px
+    );
+}
+
+
 @keyframes rise-in {
   from {
     opacity: 0;
