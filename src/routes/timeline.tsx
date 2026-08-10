@@ -73,12 +73,13 @@ export function TimelinePage() {
                     const Icon = icons[e.kind];
                     return (
                       <li key={e.id} className="rise group relative pb-4">
-                        <span className="numeric absolute left-0 top-4 w-[72px] text-right text-[11px] text-muted-foreground">
+                        <span className="numeric absolute -left-[112px] top-4 w-[72px] text-right text-[11px] text-muted-foreground">
                           {formatTime(e.occurred_at)}
                         </span>
-                        <span className="absolute left-[81px] top-3.5 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform group-hover:scale-110">
+                        <span className="absolute -left-[31px] top-3.5 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-primary transition-transform group-hover:scale-110">
                           <Icon className="h-3 w-3" />
                         </span>
+
                         <div className="card-lift grain rounded-2xl border border-border bg-card px-4 py-3.5">
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
