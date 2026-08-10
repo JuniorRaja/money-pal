@@ -152,9 +152,20 @@ function Group({
   children: React.ReactNode;
 }) {
   return (
-    <Panel className="mt-6" title={title} action={<span className="text-xs text-muted-foreground">{count} accounts</span>}>
-      <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">{icon}</div>
+    <Panel
+      className="mt-6"
+      title={
+        <span className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/12 text-primary">
+            {icon}
+          </span>
+          {title}
+        </span>
+      }
+      action={<span className="text-xs text-muted-foreground">{count} accounts</span>}
+    >
       <div className="grid grid-cols-4 gap-5">{children}</div>
     </Panel>
   );
 }
+
