@@ -10,12 +10,12 @@ import { formatMoney, formatPct } from "@/lib/money";
 export const Route = createFileRoute("/investments")({
   head: () => ({
     meta: [
-      { title: "Investments — Money Mate Financial OS" },
+      { title: "Investments — Money Pal Financial OS" },
       {
         name: "description",
         content: "Holdings, allocation and returns across equity, funds, gold and fixed income.",
       },
-      { property: "og:title", content: "Investments — Money Mate" },
+      { property: "og:title", content: "Investments — Money Pal" },
       { property: "og:description", content: "What your money is doing while you sleep." },
     ],
   }),

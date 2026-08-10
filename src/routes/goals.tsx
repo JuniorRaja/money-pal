@@ -10,12 +10,12 @@ import { formatCompact, formatMoney } from "@/lib/money";
 export const Route = createFileRoute("/goals")({
   head: () => ({
     meta: [
-      { title: "Goals — Money Mate Financial OS" },
+      { title: "Goals — Money Pal Financial OS" },
       {
         name: "description",
         content: "Track savings goals, monthly contributions and projected finish dates.",
       },
-      { property: "og:title", content: "Goals — Money Mate" },
+      { property: "og:title", content: "Goals — Money Pal" },
       { property: "og:description", content: "Name what you're saving for, then watch it get closer." },
     ],
   }),
@@ -84,7 +84,7 @@ function GoalsPage() {
         })}
       </div>
 
-      <Panel className="mt-5" title="Suggestion from Money Mate">
+      <Panel className="mt-5" title="Suggestion from Money Pal">
         <div className="flex gap-3">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <p className="text-sm leading-relaxed text-foreground">
