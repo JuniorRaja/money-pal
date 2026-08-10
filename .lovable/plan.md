@@ -1,97 +1,139 @@
 # Money Pal — Postgres Schema Design
 
-A production-shaped relational schema to replace the mock seed layer, mapping 1:1 to the existing domain types in `src/data/schema.ts`. This plan is schema-only: no UI changes, no data swap yet.
+A production-shaped relational schema to replace the mock seed layer, mapping to the domain types in `src/data/schema.ts`. Schema only: no UI changes and no repository swap in this step.
 
-## Ground rules applied everywhere
+## Confirmed decisions
 
-- **Money as integers.** Every amount is `BIGINT` holding minor units (paise), never `float`/`numeric` for storage. A `currency CHAR(3)` column sits next to any amount-bearing row. Percentages/units that are genuinely fractional (holding units, day-change %) use `NUMERIC(18,6)` — exact decimal, still not float.
-- **Integer primary keys.** Every table uses `id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY`. Foreign keys are `INT`. The only UUID in the design is `owner_id` referencing `auth.users(id)`, which the auth system fixes as UUID (see Open questions).
-- **Audit columns on every table.**
-  `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`, `created_by UUID`, `modified_at TIMESTAMPTZ`, `modified_by UUID`, `deleted_at TIMESTAMPTZ`, `is_active BOOLEAN NOT NULL DEFAULT true`.
-  A shared trigger function stamps `modified_at`/`modified_by` on update and `created_by` on insert from `auth.uid()`. Deletes are soft: set `deleted_at` + `is_active = false`.
-- **Normalization.** Enumerated concepts (account kinds, transaction types, categories, labels, asset classes, timeline kinds, import sources) become lookup tables with integer PKs rather than free text, so joins and grouping stay cheap. Postgres enums are avoided because they cannot be extended by the app at runtime.
-- **RLS everywhere.** All app tables carry `owner_id UUID NOT NULL DEFAULT auth.uid()` and per-user policies (`owner_id = auth.uid()`) for select/insert/update/delete. Shared lookup tables are read-only to `authenticated`. Every `CREATE TABLE` ships with explicit `GRANT`s in the same migration.
+- User key: `auth.users` UUID. Every user-owned table carries `owner_id UUID NOT NULL DEFAULT auth.uid()`.
+- Audit actor columns (`created_by`, `modified_by`) are UUIDs of the auth user.
+- Multi-currency per account, presentation only — no FX table, no conversion. Cross-currency totals are grouped by currency, never summed together.
+- Balances are always derived from `opening_balance_minor + SUM(transactions)`. No stored balance column, no balance trigger.
+- Budgets are monthly only.
+- Database starts empty apart from global lookup rows.
+- Soft delete is universal: nothing is hard-deleted; every read filters `deleted_at IS NULL`.
 
-## Tables
+## Transfers: the two models
 
-**Reference / lookup (global, read-only to users)**
-- `currency` — code, symbol, minor-unit exponent.
-- `account_kind` — bank, cash, credit_card, investment, loan.
-- `transaction_type` — income, expense, transfer.
-- `asset_class` — equity, mutual_fund, gold, fixed_income, crypto.
-- `timeline_kind` — money, ai_insight, goal, bill, system.
-- `import_source_kind` — gmail, pdf, csv, manual.
-- `category_group` — income, essentials, lifestyle, transfer, investment.
+**A. One row, `from_account_id` + `to_account_id`**
 
-**User-owned core**
-- `app_user_profile` — display name, email, base currency, preferences (week start, number format, rounding, theme, accent, sidebar, reduce motion, assistant tone/context). One row per auth user.
-- `user_role` — separate roles table (never a role column on the profile), with a `has_role()` security-definer helper.
-- `category` — user-scoped, `category_group_id`, icon, colour token.
-- `label` — user-scoped tag, colour token.
-- `account` — name, institution, `account_kind_id`, `currency_code`, `credit_limit_minor`, `is_primary`, `opening_balance_minor`, `last_activity_at`.
-- `transaction` — `occurred_at`, merchant, descriptor, `amount_minor` (signed), `transaction_type_id`, `account_id`, `category_id`, `payment_method`, `source`, `confidence`, `note`, `attachment_count`, plus `transfer_group_id` so the two legs of a transfer link to each other.
-- `transaction_label` — many-to-many join (a transaction can carry more than one tag; today's model allows one).
-- `attachment` — file metadata per transaction (path, mime, size, uploaded_at).
+- Pros: one row per real-world event, impossible to half-delete, simplest to edit in the UI, matches today's mock most closely.
+- Cons: every balance query must read the row twice (once as an outflow for `from`, once as an inflow for `to`), so account/category maths needs a UNION or a view instead of a plain `SUM(amount)`. Cross-currency transfers (INR → EUR Wise) need two different amounts on one row, which the single-row shape handles awkwardly. Splits and per-leg fees have nowhere to live.
 
-**Planning**
-- `budget_period` — `period_start DATE` + `period_end DATE` (a real date range beats a `"2026-08"` string for indexing and range queries), scope (month/quarter/year).
-- `budget_line` — `budget_period_id`, `category_id`, `planned_minor`. Spend is **not** stored; it is derived (see below).
-- `goal` — name, blurb, `target_minor`, `target_date`, `account_id`, `monthly_contribution_minor`, icon.
-- `goal_contribution` — dated contributions; `saved` is the sum, not a stored field.
-- `holding` — name, `asset_class_id`, `units NUMERIC(18,6)`, `account_id`.
-- `holding_valuation` — dated `invested_minor` / `market_value_minor` snapshots, so performance charts read history instead of a single mutable row.
-- `account_balance_snapshot` — daily/periodic `balance_minor` per account; powers sparklines and net-worth history without recomputing the full ledger.
+**B. Two mirrored rows linked by `transfer_group_id`**
 
-**Workshop**
-- `import_source`, `import_job` (rows_done/rows_total/imported/duplicates/finished_at), `import_review_item` (kind, title, detail, action label, resolution state).
-- `timeline_event` — `occurred_at`, `timeline_kind_id`, title, detail, `amount_minor`, `account_id`, action label.
-- `assistant_conversation` / `assistant_message` — optional persistence for the AI Assistant.
+- Pros: the ledger stays uniform — one row = one account movement, so every balance, category, and report query is a single `SUM(amount_minor) WHERE account_id = …` with no special-casing. Cross-currency works naturally (−50,000 INR leg, +540 EUR leg). Per-leg fees and reconciliation flags fit without schema changes.
+- Cons: two rows must be created, edited and soft-deleted together (handled by a `transfer` RPC and a trigger that cascades soft delete to the group). Reports must exclude transfer rows from income/expense totals, or they double-count.
 
-## Making the maths cheap
+**Recommendation, and what this plan assumes: B.** Your multi-currency requirement (an INR bank and a EUR Wise account) effectively decides it — a single row cannot hold two currencies cleanly, and "efficient maths" is exactly what the uniform one-row-per-movement ledger buys. Say the word if you want A instead.
 
-- **Derived, not duplicated.** `budget_line.spent`, `goal.saved`, and account running balances are computed from the ledger rather than stored, so they can never drift.
-- **Rollup views** do the aggregation once:
-  - `v_transaction_enriched` — transaction joined to account, category, type, with `period_month DATE` precomputed.
-  - `v_monthly_rollup` — income / expense / net per user per month.
-  - `v_budget_status` — planned vs actual vs remaining per budget line.
-  - `v_net_worth` — assets, liabilities, net, per snapshot date.
-  - `v_portfolio_allocation` — value by asset class.
-  If any of these become slow at real volume, `v_monthly_rollup` is the first candidate for a materialized view refreshed on write.
-- **Integer arithmetic only.** All sums stay in minor units; division (savings rate, utilisation, allocation %) happens in the view with an explicit `NUMERIC` cast at the last step.
+## Conventions applied to every table
 
-## Indexing
+- `id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY`; all FKs `INT`.
+- Money: `BIGINT` minor units, column suffix `_minor`. Never float, never numeric for money.
+- Genuinely fractional non-money values (holding units, confidence, percentages) use `NUMERIC(18,6)`.
+- Audit block on every table: `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`, `created_by UUID NOT NULL DEFAULT auth.uid()`, `modified_at TIMESTAMPTZ`, `modified_by UUID`, `deleted_at TIMESTAMPTZ`, `is_active BOOLEAN NOT NULL DEFAULT true`.
+- RLS enabled on every table; user-owned tables use `owner_id = auth.uid()` for all four commands. Lookup tables are `SELECT`-only to `authenticated`. Explicit `GRANT`s ship in the same migration as each `CREATE TABLE`.
+- Lookup tables over Postgres enums, so values stay extensible at runtime.
 
-- Every FK gets an index.
-- `transaction (owner_id, occurred_at DESC)` — the main ledger scroll.
-- `transaction (owner_id, category_id, occurred_at)` — category breakdowns.
-- `transaction (owner_id, account_id, occurred_at)` — per-account views.
-- Partial indexes filtered on `deleted_at IS NULL` so soft-deleted rows cost nothing.
-- `budget_line (owner_id, budget_period_id, category_id)` unique.
-- `account_balance_snapshot (account_id, as_of_date)` unique.
-- Trigram index on `transaction.merchant` for the search box.
+## Full object inventory
 
-## Constraints
+### Extensions
+- `pg_trgm` — merchant search.
 
-- `CHECK` on sign conventions (expense amounts negative, income positive).
-- `CHECK (credit_limit_minor IS NULL OR credit_limit_minor > 0)`.
-- Unique `(owner_id, lower(name))` on `account`, `category`, `label`, `goal`.
-- FKs use `ON DELETE RESTRICT` for referenced masters (accounts, categories) so soft-delete stays the only removal path.
+### Lookup tables (global, seeded, read-only to users)
+1. `currency` — `code CHAR(3)` unique, `symbol`, `minor_unit_exponent SMALLINT`, `name`. Seeded: INR, EUR, USD, GBP, AED, SGD.
+2. `account_kind` — bank, cash, credit_card, investment, loan.
+3. `transaction_type` — income, expense, transfer.
+4. `category_group` — income, essentials, lifestyle, transfer, investment.
+5. `asset_class` — equity, mutual_fund, gold, fixed_income, crypto.
+6. `timeline_kind` — money, ai_insight, goal, bill, system.
+7. `import_source_kind` — gmail, pdf, csv, manual.
+8. `import_review_kind` — duplicate, unknown_merchant, large_transfer.
+9. `app_role` — user, admin (roles live in their own table, never on the profile).
 
-## Delivery
+### User-owned tables
+10. `user_profile` — `owner_id` unique, display name, email, `base_currency_code`, week start, number format, round-to-nearest, theme, accent, sidebar state, reduce motion, assistant tone, assistant context flag.
+11. `user_role` — `owner_id`, `app_role_id`, unique `(owner_id, app_role_id)`.
+12. `category` — `owner_id`, name, `category_group_id`, icon, colour token. Unique `(owner_id, lower(name))`.
+13. `label` — `owner_id`, name, colour token. Unique `(owner_id, lower(name))`.
+14. `account` — `owner_id`, name, institution, `account_kind_id`, `currency_code`, `opening_balance_minor`, `credit_limit_minor` (nullable), `is_primary`, `last_activity_at`.
+15. `transaction` — `owner_id`, `account_id`, `category_id`, `transaction_type_id`, `occurred_at TIMESTAMPTZ`, `occurred_on DATE GENERATED ALWAYS AS (occurred_at AT TIME ZONE 'Asia/Kolkata')::date STORED`, merchant, descriptor, `amount_minor BIGINT` (signed: negative = money out), `currency_code`, payment method, source, `confidence NUMERIC(4,3)`, note, `transfer_group_id INT NULL`.
+16. `transfer_group` — `owner_id`, occurred_at, note. Parent of the two legs.
+17. `transaction_label` — join table, unique `(transaction_id, label_id)`.
+18. `attachment` — `transaction_id`, storage path, mime, `size_bytes`, original filename.
+19. `budget` — `owner_id`, `period_month DATE` (always the 1st), unique `(owner_id, period_month)`.
+20. `budget_line` — `budget_id`, `category_id`, `planned_minor`. Unique `(budget_id, category_id)`. Spend is never stored.
+21. `goal` — `owner_id`, name, blurb, `target_minor`, `target_date`, `account_id`, `monthly_contribution_minor`, icon, `currency_code`.
+22. `goal_contribution` — `goal_id`, `contributed_on DATE`, `amount_minor`, optional `transaction_id`. `saved` is the SUM.
+23. `holding` — `owner_id`, `account_id`, name, `asset_class_id`, `units NUMERIC(18,6)`, `invested_minor`, `currency_code`.
+24. `holding_valuation` — `holding_id`, `as_of_date DATE`, `market_value_minor`, `day_change_pct NUMERIC(8,4)`. Unique `(holding_id, as_of_date)`.
+25. `account_balance_snapshot` — `account_id`, `as_of_date DATE`, `balance_minor`. Unique `(account_id, as_of_date)`. Cache for sparklines/net-worth history; the live balance is still derived.
+26. `import_source` — `owner_id`, `import_source_kind_id`, name, status, `last_synced_at`.
+27. `import_job` — `import_source_id`, title, `rows_done`, `rows_total`, `imported_count`, `duplicate_count`, `started_at`, `finished_at`.
+28. `import_review_item` — `import_job_id`, `import_review_kind_id`, title, detail, action label, `resolved_at`, `resolution`.
+29. `timeline_event` — `owner_id`, `occurred_at`, `timeline_kind_id`, title, detail, `amount_minor` nullable, `account_id` nullable, action label.
+30. `assistant_conversation` — `owner_id`, title, `last_message_at`.
+31. `assistant_message` — `conversation_id`, role, content, `token_count`.
 
-1. Enable Lovable Cloud (the app has no backend yet).
-2. Migration 1 — lookup tables + seed rows + grants.
-3. Migration 2 — core user-owned tables, audit trigger, RLS policies, grants.
-4. Migration 3 — planning/workshop tables, views, indexes.
-5. Generated types are then available; the swap of `src/data/repository.ts` from seed arrays to server functions is a **separate follow-up**, not part of this plan.
+### Views (all respect RLS through the underlying tables, defined `security_invoker = true`)
+- `v_transaction_enriched` — transaction + account + category + type + label array, `period_month` precomputed, soft-deleted rows excluded.
+- `v_account_balance` — `opening_balance_minor + COALESCE(SUM(amount_minor), 0)` per account, plus utilisation for credit cards.
+- `v_net_worth_by_currency` — assets, liabilities, net per currency (never cross-summed).
+- `v_monthly_rollup` — income, expense, net, savings rate per `period_month`, transfer rows excluded.
+- `v_budget_status` — planned vs actual vs remaining vs pace per budget line.
+- `v_goal_progress` — target, saved (sum of contributions), percent, months remaining.
+- `v_portfolio_allocation` — invested, current value, gain, weight by asset class using the latest valuation per holding.
+- `v_category_spend` — spend by category by month.
 
-## Open questions — please confirm, I have not assumed answers
+### Functions
+- `fn_touch_audit()` — trigger function: stamps `created_by` on insert, `modified_at`/`modified_by` on update; blocks changing `owner_id`.
+- `fn_soft_delete(table_name, id)` — helper marking `deleted_at = now()`, `is_active = false`.
+- `fn_cascade_transfer_soft_delete()` — trigger on `transaction`: soft-deleting one leg soft-deletes its sibling in the same `transfer_group`.
+- `has_role(_user_id uuid, _role text) RETURNS boolean` — `SECURITY DEFINER`, `STABLE`, `SET search_path = public`; used by admin policies so RLS never queries the policy's own table.
+- `fn_account_balance(_account_id int) RETURNS bigint` — `STABLE`, single-account derived balance.
+- `fn_current_month() RETURNS date` — first of the current month in Asia/Kolkata.
+- `fn_record_balance_snapshots(_as_of date)` — recomputes and upserts `account_balance_snapshot` for the caller's accounts.
+- `fn_create_transfer(_from_account_id int, _to_account_id int, _from_amount_minor bigint, _to_amount_minor bigint, _occurred_at timestamptz, _note text)` — `SECURITY INVOKER` RPC creating the `transfer_group` plus both legs atomically; validates both accounts belong to `auth.uid()`.
+- `fn_ensure_budget(_period_month date) RETURNS int` — returns the budget for a month, creating it if absent.
 
-1. **UUID vs INT for the user key.** You asked for INT primary keys. Auth users are UUID-keyed by the platform and cannot be changed. Preference: (a) `owner_id UUID` referencing `auth.users` directly on every table — simplest and standard; or (b) `app_user` table with an INT PK plus a UUID `auth_user_id`, and all FKs use the INT — matches your rule but adds a lookup join on every RLS policy. I lean (a) but will follow your call.
-2. **Multi-currency.** Everything is INR today. Should the schema support per-account currency plus an `fx_rate` table for conversion, or stay single-currency with the column present but unused?
-3. **Transfers.** Should a transfer be one row with `from_account_id`/`to_account_id`, or two mirrored rows linked by `transfer_group_id`? The second is more standard for ledger maths; the current mock uses a single signed row.
-4. **Balance source of truth.** Should `account.balance` be a stored, trigger-maintained column (fast reads, needs care) or always derived from opening balance + transactions (always correct, slower)? I proposed derived + snapshots.
-5. **Budgets.** Monthly only, or genuinely quarter/year periods too (the current UI has a switcher)?
-6. **`created_by` / `modified_by` type.** Same question as (1) — UUID of the auth user, or INT of an internal user table?
-7. **Historical data.** Do you want the schema seeded with the existing demo rows so the app looks populated immediately, or start empty?
-8. **Hard delete.** Should anything ever be hard-deleted (e.g. import jobs, assistant messages), or is soft delete universal?
+### Triggers
+- `trg_touch_audit` — BEFORE INSERT OR UPDATE on all 22 user-owned tables.
+- `trg_transfer_soft_delete` — AFTER UPDATE OF `deleted_at` on `transaction`.
+- `trg_account_activity` — AFTER INSERT on `transaction`, updates `account.last_activity_at`.
+- `trg_profile_on_signup` — AFTER INSERT on `auth.users`, `SECURITY DEFINER`, creates `user_profile` plus a default `user_role` of `user` and the default category set for the new user.
+
+### Indexes
+- Every FK column indexed.
+- `transaction (owner_id, occurred_at DESC) WHERE deleted_at IS NULL` — ledger scroll.
+- `transaction (owner_id, category_id, occurred_on) WHERE deleted_at IS NULL` — category reports.
+- `transaction (owner_id, account_id, occurred_on) WHERE deleted_at IS NULL` — per-account views and balances.
+- `transaction (transfer_group_id) WHERE transfer_group_id IS NOT NULL`.
+- GIN trigram on `transaction.merchant`.
+- `budget_line (budget_id, category_id)` unique; `budget (owner_id, period_month)` unique.
+- `holding_valuation (holding_id, as_of_date DESC)`; `account_balance_snapshot (account_id, as_of_date DESC)`.
+- `timeline_event (owner_id, occurred_at DESC) WHERE deleted_at IS NULL`.
+- Partial `is_active = true` indexes on the lookup-heavy tables.
+
+### Constraints
+- `transaction`: `CHECK (amount_minor <> 0)`; income rows positive, expense rows negative, enforced per `transaction_type_id`.
+- `account`: `CHECK (credit_limit_minor IS NULL OR credit_limit_minor > 0)`; `credit_limit_minor` required for `credit_card` kind.
+- `budget_line`, `goal`, `goal_contribution`: `CHECK (… _minor > 0)`.
+- `budget.period_month`: `CHECK (period_month = date_trunc('month', period_month)::date)`.
+- Transaction currency must match its account's currency.
+- FKs to masters (`account`, `category`) use `ON DELETE RESTRICT`; child rows (`transaction_label`, `attachment`, `budget_line`, legs of a transfer) use `ON DELETE CASCADE` for the physical FK while soft delete remains the application path.
+
+## Migration order
+
+1. Enable Lovable Cloud (the app currently has no backend).
+2. `01_foundation` — extensions, `fn_touch_audit`, `has_role`, all 9 lookup tables + seed rows + grants.
+3. `02_identity` — `user_profile`, `user_role`, `trg_profile_on_signup`, RLS + grants.
+4. `03_ledger` — `account`, `category`, `label`, `transfer_group`, `transaction`, `transaction_label`, `attachment`, triggers, constraints, indexes, RLS + grants.
+5. `04_planning` — `budget`, `budget_line`, `goal`, `goal_contribution`, `holding`, `holding_valuation`, `account_balance_snapshot`, RLS + grants.
+6. `05_workshop` — import tables, `timeline_event`, assistant tables, RLS + grants.
+7. `06_analytics` — all views and the calculation functions.
+
+The swap of `src/data/repository.ts` from seed arrays to server functions is a separate follow-up.
+
+## Remaining open question
+
+- Transfers: confirm model **B** (two mirrored legs) as described above, or tell me to use A.
