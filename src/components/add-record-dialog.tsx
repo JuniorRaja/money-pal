@@ -345,14 +345,17 @@ export function AddRecordDialog({
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Label (optional)">
+                <Field label="Slice (optional)">
                   <select
                     className={fieldBase}
+                    disabled={!values['account_id']}
                     value={values['label_id'] ?? ""}
                     onChange={(e) => set("label_id", e.target.value)}
                   >
-                    <option value="">None</option>
-                    {labels.map((l) => (
+                    <option value="">
+                      {values['account_id'] ? "Whole account" : "Pick an account first"}
+                    </option>
+                    {accountSlices.map((l) => (
                       <option key={l.id} value={l.id}>
                         {l.name}
                       </option>

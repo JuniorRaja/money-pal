@@ -27,10 +27,14 @@ import {
   getCategories,
   getGoals,
   getMonthlyRollups,
+  getSlices,
   getTimelineEvents,
   listTransactions,
+  allocationFor,
+  isSliceable,
   summariseCashflow,
   summariseNetWorth,
+  summariseOwnership,
 } from "@/data/repository";
 import type {
   Account,
@@ -38,6 +42,7 @@ import type {
   Category,
   Goal,
   MonthlyRollup,
+  Slice,
   TimelineEvent,
   Transaction,
 } from "@/data/schema";
@@ -69,13 +74,14 @@ export const Route = createFileRoute("/")({
       getTimelineEvents(),
       getCategories(),
     ]);
-    return { accounts, transactions, rollups, budgets, goals, events, categories };
+    const slices = await getSlices();
+    return { accounts, transactions, rollups, budgets, goals, events, categories, slices };
   },
   component: OverviewPage,
 });
 
 function OverviewPage() {
-  const { accounts, transactions, rollups, budgets, goals, events, categories } = Route.useLoaderData() as {
+  const { accounts, transactions, rollups, budgets, goals, events, categories, slices } = Route.useLoaderData() as {
     accounts: Account[];
     transactions: Transaction[];
     rollups: MonthlyRollup[];
@@ -83,8 +89,13 @@ function OverviewPage() {
     goals: Goal[];
     events: TimelineEvent[];
     categories: Category[];
+    slices: Slice[];
   };
   const nw = summariseNetWorth(accounts);
+  const ownership = summariseOwnership(
+    accounts,
+    accounts.filter((a) => isSliceable(a.kind)).map((a) => allocationFor(a, slices)),
+  );
   const cf = summariseCashflow(transactions);
   const planned = budgets.reduce((s, b) => s + b.planned, 0);
   const spent = budgets.reduce((s, b) => s + b.spent, 0);
@@ -112,11 +123,15 @@ function OverviewPage() {
           <div className="flex items-end justify-between">
             <div>
               <p className="numeric text-[46px] leading-none text-foreground">
-                {formatMoney(nw.net_worth, { whole: true })}
+                {formatMoney(ownership.owned, { whole: true })}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
                 Cash {formatCompact(nw.cash)} · Investments {formatCompact(nw.investments)} · Liabilities{" "}
                 {formatCompact(nw.liabilities)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Truly yours. {formatCompact(ownership.custodial)} held for others is out of this
+                figure; {formatCompact(ownership.earmarked)} is earmarked.
               </p>
             </div>
             <Sparkline points={[62, 64, 63, 68, 70, 69, 74, 77, 79, 82, 84, 88]} width={220} height={56} />
