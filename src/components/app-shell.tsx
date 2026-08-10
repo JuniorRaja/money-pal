@@ -6,24 +6,36 @@ import {
   Bot,
   ChevronRight,
   CircleDollarSign,
+  CreditCard,
   Download,
   Flag,
   Gauge,
   LayoutGrid,
   LineChart,
+  LineChart as LineChartIcon,
   Lock,
   Moon,
+  Plus,
   Search,
   Settings as SettingsIcon,
   Sparkles,
   Sun,
+  Target,
   Wallet,
 } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
+import { AddRecordDialog, type RecordKind } from "@/components/add-record-dialog";
 import { Signature, type SignatureKey } from "@/components/signature";
 import { useSession } from "@/components/session";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+
 
 const groups = [
   {
