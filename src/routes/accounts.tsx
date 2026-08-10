@@ -160,11 +160,54 @@ function AccountsPage() {
           <PlusCircle className="h-4 w-4" /> Add account
         </button>
       </Group>
+
+      <ManageSlicesDialog
+        account={manage}
+        slices={slices}
+        open={manage !== null}
+        onOpenChange={(next) => !next && setManage(null)}
+      />
     </AppShell>
   );
 }
 
+/** Slice breakdown strip shown inside a bank, cash or investment card. */
+function AccountSlices({
+  account,
+  slices,
+  onManage,
+}: {
+  account: Account;
+  slices: Slice[];
+  onManage: () => void;
+}) {
+  const rows = slices.filter((s) => s.account_id === account.id);
+  const allocation = allocationFor(account, slices);
+  return (
+    <div className="mt-4 border-t border-border/70 pt-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+          Slices · {rows.length}
+        </p>
+        <button
+          onClick={onManage}
+          className="flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-primary"
+        >
+          <Scissors className="h-3 w-3" /> Manage
+        </button>
+      </div>
+      <SliceBar
+        slices={rows}
+        unallocated={allocation.unallocated}
+        balance={account.balance}
+        format={(v) => formatMoney(v, { whole: true })}
+      />
+    </div>
+  );
+}
+
 function Group({
+
   title,
   count,
   icon,
