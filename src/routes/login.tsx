@@ -8,13 +8,13 @@ import { useSession } from "@/components/session";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Unlock Money Mate — Private Finance OS" },
+      { title: "Unlock Money Pal — Private Finance OS" },
       {
         name: "description",
         content:
-          "Unlock the Money Mate ledger with a passphrase and a six digit code. Everything stays on this machine.",
+          "Unlock the Money Pal ledger with a passphrase and a six digit code. Everything stays on this machine.",
       },
-      { property: "og:title", content: "Unlock Money Mate" },
+      { property: "og:title", content: "Unlock Money Pal" },
       { property: "og:description", content: "Passphrase and 2FA unlock for your local finance ledger." },
     ],
   }),
@@ -165,7 +165,7 @@ function LoginPage() {
       <div className="relative isolate flex w-[54%] flex-col justify-end overflow-hidden bg-accent/60 p-12">
         <Signature variant="login" />
         <div className="relative border-t border-border/60 pt-6 text-xs text-muted-foreground">
-          <p>Money Mate 0.9.4 · Local database</p>
+          <p>Money Pal 0.9.4 · Local database</p>
           <p className="mt-1">~/Library/MoneyMate/ledger.db</p>
         </div>
       </div>

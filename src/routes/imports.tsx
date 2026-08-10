@@ -19,12 +19,12 @@ import type { ImportJob, ImportReviewItem, ImportSource, ImportSourceKind } from
 export const Route = createFileRoute("/imports")({
   head: () => ({
     meta: [
-      { title: "Import Center — Money Mate Financial OS" },
+      { title: "Import Center — Money Pal Financial OS" },
       {
         name: "description",
         content: "Bring in statements from Gmail, PDFs and CSVs, then review what needs a human eye.",
       },
-      { property: "og:title", content: "Import Center — Money Mate" },
+      { property: "og:title", content: "Import Center — Money Pal" },
       { property: "og:description", content: "Bring your money in from everywhere, cleanly." },
     ],
   }),

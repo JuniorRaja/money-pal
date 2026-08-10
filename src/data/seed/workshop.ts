@@ -69,7 +69,7 @@ export const importReviewItems: ImportReviewItem[] = [
     id: "rev_large_mom",
     kind: "large_transfer",
     title: "Large transfer \u00b7 \u20B95,000 to Mom",
-    detail: "Money Mate suggests allocating this to the Mom label rather than Personal.",
+    detail: "Money Pal suggests allocating this to the Mom label rather than Personal.",
     action_label: "Accept",
   },
 ];

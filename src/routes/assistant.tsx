@@ -11,12 +11,12 @@ import { askAssistant } from "@/lib/assistant.functions";
 export const Route = createFileRoute("/assistant")({
   head: () => ({
     meta: [
-      { title: "AI Assistant — Money Mate Financial OS" },
+      { title: "AI Assistant — Money Pal Financial OS" },
       {
         name: "description",
-        content: "Ask Money Mate about spending, budgets and goals — answered from your own ledger.",
+        content: "Ask Money Pal about spending, budgets and goals — answered from your own ledger.",
       },
-      { property: "og:title", content: "AI Assistant — Money Mate" },
+      { property: "og:title", content: "AI Assistant — Money Pal" },
       { property: "og:description", content: "Ask anything about your money. Answers come from your ledger." },
     ],
   }),
@@ -107,7 +107,7 @@ function AssistantPage() {
             ))}
             {busy && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Money Mate is reading your ledger...
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Money Pal is reading your ledger...
               </div>
             )}
             {error && (
