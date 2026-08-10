@@ -10,7 +10,7 @@ export function Panel({
   bodyClassName,
   children,
 }: {
-  title?: string;
+  title?: React.ReactNode;
   action?: ReactNode;
   className?: string;
   bodyClassName?: string;
