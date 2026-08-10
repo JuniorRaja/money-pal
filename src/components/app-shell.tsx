@@ -87,7 +87,7 @@ function Sidebar() {
         <Monogram />
         {!collapsed && (
           <div className="leading-tight">
-            <p className="text-sm font-semibold tracking-tight text-sidebar-foreground">money-mate</p>
+            <p className="text-sm font-semibold tracking-tight text-sidebar-foreground">money-pal</p>
             <p className="text-[11px] text-muted-foreground">Financial OS</p>
           </div>
         )}
@@ -172,7 +172,7 @@ function TopBar({ searchPlaceholder }: { searchPlaceholder: string }) {
         className="flex h-10 items-center gap-2 rounded-full border border-primary/30 bg-card px-4 text-sm font-medium text-foreground shadow-sm transition-colors hover:border-primary/60 hover:bg-accent"
       >
         <Sparkles className="h-4 w-4 text-primary" />
-        Ask Money Mate
+        Ask Money Pal
       </Link>
       <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground">
         <Bell className="h-4 w-4" />
@@ -235,7 +235,7 @@ export function AppShell({
           )}
           <div className={actions ? "" : "pt-8"}>{children}</div>
           <footer className="mt-8 flex items-center gap-2 text-[11px] text-muted-foreground">
-            Money Mate 0.9.4
+            Money Pal 0.9.4
             <ChevronRight className="h-3 w-3" />
             Demo ledger, pinned to 07 Aug 2026
           </footer>

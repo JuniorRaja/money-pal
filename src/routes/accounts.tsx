@@ -10,13 +10,13 @@ import { formatMoney, formatPct } from "@/lib/money";
 export const Route = createFileRoute("/accounts")({
   head: () => ({
     meta: [
-      { title: "Accounts — Money Mate Financial OS" },
+      { title: "Accounts — Money Pal Financial OS" },
       {
         name: "description",
         content:
           "Every bank account, card, investment and loan you hold, with balances, utilisation and trends.",
       },
-      { property: "og:title", content: "Accounts — Money Mate" },
+      { property: "og:title", content: "Accounts — Money Pal" },
       { property: "og:description", content: "Everything you own, owe, and keep aside — in one place." },
     ],
   }),

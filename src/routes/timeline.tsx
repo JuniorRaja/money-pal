@@ -11,12 +11,12 @@ import { formatDay, formatMoney, formatTime } from "@/lib/money";
 export const Route = createFileRoute("/timeline")({
   head: () => ({
     meta: [
-      { title: "Timeline — Money Mate Financial OS" },
+      { title: "Timeline — Money Pal Financial OS" },
       {
         name: "description",
         content: "A chronological feed of money movements, AI insights, goal progress and bills.",
       },
-      { property: "og:title", content: "Timeline — Money Mate" },
+      { property: "og:title", content: "Timeline — Money Pal" },
       { property: "og:description", content: "Your financial story, told in order." },
     ],
   }),
@@ -122,7 +122,7 @@ export function TimelinePage() {
           </Panel>
           <Panel title="Quiet hours">
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Money Mate holds non-urgent notices between 10 PM and 8 AM, then delivers them in one calm
+              Money Pal holds non-urgent notices between 10 PM and 8 AM, then delivers them in one calm
               digest.
             </p>
           </Panel>

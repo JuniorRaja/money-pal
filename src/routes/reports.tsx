@@ -22,12 +22,12 @@ import { formatMoney } from "@/lib/money";
 export const Route = createFileRoute("/reports")({
   head: () => ({
     meta: [
-      { title: "Reports — Money Mate Financial OS" },
+      { title: "Reports — Money Pal Financial OS" },
       {
         name: "description",
         content: "Income versus expense trends, savings rate and category breakdowns you can export.",
       },
-      { property: "og:title", content: "Reports — Money Mate" },
+      { property: "og:title", content: "Reports — Money Pal" },
       { property: "og:description", content: "The long view: trends, ratios and exportable summaries." },
     ],
   }),
