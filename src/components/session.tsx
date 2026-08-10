@@ -35,7 +35,7 @@ const defaultPrefs: AppPrefs = {
 
 const SessionContext = createContext<SessionValue | null>(null);
 
-const STORAGE_KEY = "money-mate.session";
+const STORAGE_KEY = "money-pal.session";
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [unlocked, setUnlocked] = useState(false);

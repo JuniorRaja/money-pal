@@ -87,7 +87,7 @@ function Sidebar() {
         <Monogram />
         {!collapsed && (
           <div className="leading-tight">
-            <p className="text-sm font-semibold tracking-tight text-sidebar-foreground">money-mate</p>
+            <p className="text-sm font-semibold tracking-tight text-sidebar-foreground">money-pal</p>
             <p className="text-[11px] text-muted-foreground">Financial OS</p>
           </div>
         )}

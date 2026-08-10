@@ -72,7 +72,7 @@ function LoginPage() {
             <circle cx="20" cy="8" r="2" fill="currentColor" />
           </svg>
           <div className="leading-tight">
-            <p className="text-sm font-semibold tracking-tight">money-mate</p>
+            <p className="text-sm font-semibold tracking-tight">money-pal</p>
             <p className="text-[11px] text-muted-foreground">Financial OS</p>
           </div>
         </div>
