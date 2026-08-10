@@ -92,15 +92,17 @@ export function filterTransactions(rows: Transaction[], filter: TransactionFilte
   });
 }
 
-export const listTransactions = (filter: TransactionFilter = {}) =>
-  ok<Transaction[]>(
-    filterTransactions(transactions, filter).sort((a, b) =>
-      a.occurred_at < b.occurred_at ? 1 : -1,
-    ),
-  );
+export const listTransactions = async (filter: TransactionFilter = {}) => {
+  const rows = await resolve<Transaction[]>(liveTransactions, transactions);
+  return filterTransactions(rows, filter).sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1));
+};
 
 export const getBudgets = (period: string = CURRENT_PERIOD) =>
-  ok<BudgetPeriod[]>(budgetPeriods.filter((b) => b.period === period));
+  resolve<BudgetPeriod[]>(
+    () => liveBudgets(period),
+    budgetPeriods.filter((b) => b.period === period),
+  );
+
 
 export interface NetWorthSummary {
   cash: Paise;
