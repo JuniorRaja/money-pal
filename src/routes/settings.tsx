@@ -82,7 +82,7 @@ function SettingsPage() {
                       }`}
                     >
                       <div
-                        className={`mb-3 h-20 rounded-xl border border-border ${
+                        className={`mb-3 h-14 rounded-xl border border-border ${
                           mode === "light" ? "bg-[oklch(0.98_0.008_84)]" : "bg-[oklch(0.22_0.012_84)]"
                         }`}
                       />
@@ -208,7 +208,7 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-border/60 py-3 last:border-0">
+    <div className="flex items-center justify-between border-b border-border/60 py-2.5 last:border-0">
       <div>
         <p className="text-sm text-foreground">{label}</p>
         <p className="text-xs text-muted-foreground">{hint}</p>
@@ -241,7 +241,7 @@ function Choice({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-border/60 py-3">
+    <div className="flex items-center justify-between border-b border-border/60 py-2.5">
       <p className="text-sm text-foreground">{label}</p>
       <div className="flex gap-1 rounded-lg border border-border p-1">
         {options.map((o) => (
