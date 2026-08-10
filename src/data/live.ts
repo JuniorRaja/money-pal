@@ -14,12 +14,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
   Account,
+  AccountAllocation,
   BudgetPeriod,
   Category,
   Goal,
   Holding,
   Label,
   MonthlyRollup,
+  Slice,
   TimelineEvent,
   Transaction,
 } from "@/data/schema";
@@ -132,11 +134,61 @@ export const liveCategories = () =>
 
 export const liveLabels = () =>
   live<Label[]>(async () => {
-    const { data, error } = await supabase.from("labels").select("id, name, color_token");
+    const { data, error } = await supabase
+      .from("labels")
+      .select("id, name, color_token, account_id, kind, is_default");
     if (error) throw error;
     if (!data?.length) return null;
     return data.map(
-      (row): Label => ({ id: row.id, name: row.name, color_token: row.color_token ?? "chart-2" }),
+      (row): Label => ({
+        id: row.id,
+        name: row.name,
+        color_token: row.color_token ?? "chart-2",
+        account_id: row.account_id ?? null,
+        kind: (row.kind as Label["kind"]) ?? "owned",
+        is_default: Boolean(row.is_default),
+      }),
+    );
+  });
+
+/** Slices of every account, with amounts derived in SQL. */
+export const liveSlices = () =>
+  live<Slice[]>(async () => {
+    const { data, error } = await supabase.from("v_account_slices").select("*");
+    if (error) throw error;
+    if (!data?.length) return null;
+    return data.map(
+      (row): Slice => ({
+        id: row.slice_id as string,
+        account_id: row.account_id as string,
+        name: row.name as string,
+        kind: row.kind as Slice["kind"],
+        color_token: (row.color_token as string | null) ?? "chart-2",
+        is_default: Boolean(row.is_default),
+        amount: Number(row.amount ?? 0),
+        target_amount: row.target_amount === null ? null : Number(row.target_amount),
+        target_date: (row.target_date as string | null) ?? null,
+      }),
+    );
+  });
+
+/** Allocated vs unallocated money per account. */
+export const liveAllocations = () =>
+  live<AccountAllocation[]>(async () => {
+    const { data, error } = await supabase.from("v_account_allocation").select("*");
+    if (error) throw error;
+    if (!data?.length) return null;
+    return data.map(
+      (row): AccountAllocation => ({
+        account_id: row.account_id as string,
+        balance: Number(row.balance ?? 0),
+        allocated: Number(row.allocated ?? 0),
+        unallocated: Number(row.unallocated ?? 0),
+        slice_count: Number(row.slice_count ?? 0),
+        owned: Number(row.owned_amount ?? 0),
+        custodial: Number(row.custodial_amount ?? 0),
+        earmarked: Number(row.earmarked_amount ?? 0),
+      }),
     );
   });
 
