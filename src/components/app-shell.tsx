@@ -214,27 +214,34 @@ export function AppShell({
   }, [unlocked, hydrated, navigate]);
 
   return (
-    <div className="flex min-h-screen min-w-[1180px] bg-background">
+    <div className="flex h-screen min-w-[1180px] overflow-hidden bg-background">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="relative isolate overflow-hidden border-b border-border/70 bg-gradient-to-b from-accent/50 to-background px-10 pb-8 pt-7">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="relative isolate shrink-0 overflow-hidden border-b border-border/70 bg-gradient-to-b from-accent/50 to-background px-10 pb-6 pt-6">
           <Signature variant={signature} />
           <div className="relative flex items-start justify-between gap-6">
             <div>
-              <h1 className="text-[42px] leading-none text-foreground">{title}</h1>
+              <h1 className="text-[38px] leading-none text-foreground">{title}</h1>
               <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
             </div>
             <TopBar searchPlaceholder={searchPlaceholder} />
           </div>
-          {actions && <div className="relative mt-6 flex flex-wrap items-center gap-3">{actions}</div>}
         </header>
-        <main className="flex-1 px-10 py-8">{children}</main>
-        <footer className="flex items-center gap-2 px-10 pb-6 text-[11px] text-muted-foreground">
-          Money Mate 0.9.4
-          <ChevronRight className="h-3 w-3" />
-          Demo ledger, pinned to 07 Aug 2026
-        </footer>
+        <main className="min-h-0 flex-1 overflow-y-auto px-10 pb-8">
+          {actions && (
+            <div className="sticky top-0 z-20 -mx-10 mb-6 flex flex-wrap items-center gap-3 border-b border-border/70 bg-background/90 px-10 py-3 backdrop-blur">
+              {actions}
+            </div>
+          )}
+          <div className={actions ? "" : "pt-8"}>{children}</div>
+          <footer className="mt-8 flex items-center gap-2 text-[11px] text-muted-foreground">
+            Money Mate 0.9.4
+            <ChevronRight className="h-3 w-3" />
+            Demo ledger, pinned to 07 Aug 2026
+          </footer>
+        </main>
       </div>
     </div>
   );
 }
+

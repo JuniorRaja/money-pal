@@ -1,11 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, FileSpreadsheet, FileText, Mail, PencilLine, Upload } from "lucide-react";
+import {
+  CheckCircle2,
+  FileSpreadsheet,
+  FileText,
+  Mail,
+  MoreHorizontal,
+  PencilLine,
+  Upload,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { Bar, Panel, StatCard } from "@/components/mm-ui";
+import { Bar, Panel } from "@/components/mm-ui";
 import { getImportJobs, getImportReviewItems, getImportSources } from "@/data/repository";
 import type { ImportJob, ImportReviewItem, ImportSource, ImportSourceKind } from "@/data/schema";
+
 
 export const Route = createFileRoute("/imports")({
   head: () => ({
@@ -63,34 +72,32 @@ function ImportsPage() {
         </button>
       }
     >
-      <div className="grid grid-cols-4 gap-5">
-        <StatCard label="Rows imported" value={String(jobs.reduce((s, j) => s + j.imported, 0))} hint="last 30 days" />
-        <StatCard label="Duplicates caught" value={String(jobs.reduce((s, j) => s + j.duplicates, 0))} hint="auto-merged" />
-        <StatCard label="Needs review" value={String(review.length)} hint="waiting on you" />
-        <StatCard label="Connected sources" value={String(sources.length)} hint="Gmail, PDF, CSV" />
-      </div>
-
-      <div className="mt-5 grid grid-cols-4 gap-5">
-        {sources.map((s) => {
-          const Icon = sourceIcon[s.kind];
-          return (
-            <div key={s.id} className="card-lift grain rounded-2xl border border-border bg-card p-5">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/12 text-primary">
+      <Panel title="Connected sources" bodyClassName="p-0">
+        <ul className="divide-y divide-border/60">
+          {sources.map((s) => {
+            const Icon = sourceIcon[s.kind];
+            return (
+              <li
+                key={s.id}
+                className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-accent/40"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
                   <Icon className="h-4 w-4" />
                 </span>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground">{s.name}</p>
                   <p className="text-xs text-muted-foreground">{s.status}</p>
                 </div>
-              </div>
-              <button className="mt-5 w-full rounded-lg border border-border py-2 text-xs text-foreground transition-colors hover:bg-accent">
-                Sync now
-              </button>
-            </div>
-          );
-        })}
-      </div>
+                <button className="rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent">
+                  Sync now
+                </button>
+                <SourceMenu />
+              </li>
+            );
+          })}
+        </ul>
+      </Panel>
+
 
       <div className="mt-5 grid grid-cols-12 gap-5">
         <Panel className="col-span-7" title="Parsing activity">
@@ -143,3 +150,36 @@ function ImportsPage() {
     </AppShell>
   );
 }
+
+function SourceMenu() {
+  const [open, setOpen] = useState(false);
+  const items = ["Sync settings", "Rename source", "Pause syncing", "Disconnect"];
+  return (
+    <div className="relative">
+      <button
+        aria-label="Source options"
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && (
+        <ul className="rise absolute right-0 top-9 z-30 w-44 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg">
+          {items.map((i) => (
+            <li key={i}>
+              <button
+                className={`w-full px-3 py-2 text-left text-xs transition-colors hover:bg-accent ${
+                  i === "Disconnect" ? "text-destructive" : "text-foreground"
+                }`}
+              >
+                {i}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
