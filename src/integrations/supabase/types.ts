@@ -586,6 +586,169 @@ export type Database = {
           },
         ]
       }
+      import_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          duplicates: number
+          finished_at: string | null
+          id: string
+          imported: number
+          is_active: boolean
+          modified_at: string
+          modified_by: string | null
+          rows_done: number
+          rows_total: number
+          source_id: string
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          duplicates?: number
+          finished_at?: string | null
+          id?: string
+          imported?: number
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          rows_done?: number
+          rows_total?: number
+          source_id: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          duplicates?: number
+          finished_at?: string | null
+          id?: string
+          imported?: number
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          rows_done?: number
+          rows_total?: number
+          source_id?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_jobs_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "import_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_review_items: {
+        Row: {
+          action_label: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          detail: string | null
+          id: string
+          is_active: boolean
+          job_id: string
+          kind: Database["public"]["Enums"]["review_kind"]
+          modified_at: string
+          modified_by: string | null
+          resolved_at: string | null
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          action_label?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          detail?: string | null
+          id?: string
+          is_active?: boolean
+          job_id: string
+          kind: Database["public"]["Enums"]["review_kind"]
+          modified_at?: string
+          modified_by?: string | null
+          resolved_at?: string | null
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          action_label?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          detail?: string | null
+          id?: string
+          is_active?: boolean
+          job_id?: string
+          kind?: Database["public"]["Enums"]["review_kind"]
+          modified_at?: string
+          modified_by?: string | null
+          resolved_at?: string | null
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_review_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_sources: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          is_active: boolean
+          kind: Database["public"]["Enums"]["import_kind"]
+          modified_at: string
+          modified_by: string | null
+          name: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind: Database["public"]["Enums"]["import_kind"]
+          modified_at?: string
+          modified_by?: string | null
+          name: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: Database["public"]["Enums"]["import_kind"]
+          modified_at?: string
+          modified_by?: string | null
+          name?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       labels: {
         Row: {
           color_token: string | null
@@ -696,6 +859,88 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "currencies"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      timeline_events: {
+        Row: {
+          account_id: string | null
+          action_label: string | null
+          amount: number | null
+          created_at: string
+          created_by: string | null
+          currency_code: string | null
+          deleted_at: string | null
+          detail: string | null
+          id: string
+          is_active: boolean
+          kind: Database["public"]["Enums"]["timeline_kind"]
+          modified_at: string
+          modified_by: string | null
+          occurred_at: string
+          title: string
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          action_label?: string | null
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string | null
+          deleted_at?: string | null
+          detail?: string | null
+          id?: string
+          is_active?: boolean
+          kind: Database["public"]["Enums"]["timeline_kind"]
+          modified_at?: string
+          modified_by?: string | null
+          occurred_at: string
+          title: string
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          action_label?: string | null
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string | null
+          deleted_at?: string | null
+          detail?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: Database["public"]["Enums"]["timeline_kind"]
+          modified_at?: string
+          modified_by?: string | null
+          occurred_at?: string
+          title?: string
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeline_events_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "timeline_events_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
           },
         ]
       }
