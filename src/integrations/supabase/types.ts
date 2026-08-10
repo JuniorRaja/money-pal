@@ -76,6 +76,63 @@ export type Database = {
           },
         ]
       }
+      budget_lines: {
+        Row: {
+          budget_id: string
+          category_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          is_active: boolean
+          modified_at: string
+          modified_by: string | null
+          planned: number
+          user_id: string
+        }
+        Insert: {
+          budget_id: string
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          planned: number
+          user_id: string
+        }
+        Update: {
+          budget_id?: string
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          planned?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_lines_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_lines_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_templates: {
         Row: {
           category_id: string
@@ -120,6 +177,56 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      budgets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          deleted_at: string | null
+          id: string
+          is_active: boolean
+          modified_at: string
+          modified_by: string | null
+          note: string | null
+          period_month: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency_code: string
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          note?: string | null
+          period_month: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          note?: string | null
+          period_month?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -269,6 +376,210 @@ export type Database = {
           {
             foreignKeyName: "fx_rates_quote_code_fkey"
             columns: ["quote_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      goal_contributions: {
+        Row: {
+          amount: number
+          contributed_on: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          goal_id: string
+          id: string
+          is_active: boolean
+          modified_at: string
+          modified_by: string | null
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          contributed_on?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          goal_id: string
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          contributed_on?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          goal_id?: string
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_contributions_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_contributions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          account_id: string | null
+          blurb: string | null
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          deleted_at: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          modified_at: string
+          modified_by: string | null
+          monthly_contribution: number
+          name: string
+          target_amount: number
+          target_date: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          blurb?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_code: string
+          deleted_at?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          monthly_contribution?: number
+          name: string
+          target_amount: number
+          target_date?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          blurb?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          deleted_at?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          monthly_contribution?: number
+          name?: string
+          target_amount?: number
+          target_date?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goals_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      holdings: {
+        Row: {
+          account_id: string
+          asset_class: Database["public"]["Enums"]["holding_class"]
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          deleted_at: string | null
+          id: string
+          invested: number
+          is_active: boolean
+          last_price: number
+          modified_at: string
+          modified_by: string | null
+          name: string
+          priced_at: string | null
+          units: number
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          asset_class: Database["public"]["Enums"]["holding_class"]
+          created_at?: string
+          created_by?: string | null
+          currency_code: string
+          deleted_at?: string | null
+          id?: string
+          invested?: number
+          is_active?: boolean
+          last_price?: number
+          modified_at?: string
+          modified_by?: string | null
+          name: string
+          priced_at?: string | null
+          units: number
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          asset_class?: Database["public"]["Enums"]["holding_class"]
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          deleted_at?: string | null
+          id?: string
+          invested?: number
+          is_active?: boolean
+          last_price?: number
+          modified_at?: string
+          modified_by?: string | null
+          name?: string
+          priced_at?: string | null
+          units?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holdings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holdings_currency_code_fkey"
+            columns: ["currency_code"]
             isOneToOne: false
             referencedRelation: "currencies"
             referencedColumns: ["code"]
