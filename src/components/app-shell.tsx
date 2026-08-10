@@ -6,24 +6,36 @@ import {
   Bot,
   ChevronRight,
   CircleDollarSign,
+  CreditCard,
   Download,
   Flag,
   Gauge,
   LayoutGrid,
   LineChart,
+  LineChart as LineChartIcon,
   Lock,
   Moon,
+  Plus,
   Search,
   Settings as SettingsIcon,
   Sparkles,
   Sun,
+  Target,
   Wallet,
 } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
+import { AddRecordDialog, type RecordKind } from "@/components/add-record-dialog";
 import { Signature, type SignatureKey } from "@/components/signature";
 import { useSession } from "@/components/session";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+
 
 const groups = [
   {
@@ -70,7 +82,15 @@ function Monogram() {
   );
 }
 
-function Sidebar() {
+const addItems: { kind: RecordKind; label: string; icon: typeof Wallet }[] = [
+  { kind: "transaction", label: "Transaction", icon: ArrowLeftRight },
+  { kind: "account", label: "Account", icon: Wallet },
+  { kind: "goal", label: "Goal", icon: Target },
+  { kind: "budget", label: "Budget", icon: CreditCard },
+  { kind: "investment", label: "Investment", icon: LineChartIcon },
+];
+
+function Sidebar({ onAdd }: { onAdd: (kind: RecordKind) => void }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { prefs, lock } = useSession();
   const navigate = useNavigate();
@@ -92,6 +112,32 @@ function Sidebar() {
           </div>
         )}
       </div>
+
+      <div className={cn("pb-5", collapsed ? "px-4" : "px-4")}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label="Add new"
+              className={cn(
+                "group flex h-10 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]",
+                collapsed ? "w-10" : "w-full",
+              )}
+            >
+              {!collapsed && <span>Add new</span>}
+              <Plus className="h-4 w-4 transition-transform group-data-[state=open]:rotate-45" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            {addItems.map((item) => (
+              <DropdownMenuItem key={item.kind} onSelect={() => onAdd(item.kind)}>
+                <item.icon className="mr-2 h-4 w-4 text-primary" />
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
 
       <nav className="flex-1 space-y-6 px-3">
         {groups.map((group) => (
@@ -208,6 +254,7 @@ export function AppShell({
 }: PageProps) {
   const { unlocked, hydrated } = useSession();
   const navigate = useNavigate();
+  const [addKind, setAddKind] = useState<RecordKind | null>(null);
 
   useEffect(() => {
     if (hydrated && !unlocked) navigate({ to: "/login" });
@@ -215,7 +262,9 @@ export function AppShell({
 
   return (
     <div className="flex h-screen min-w-[1180px] overflow-hidden bg-background">
-      <Sidebar />
+      <AddRecordDialog kind={addKind} onOpenChange={(open) => !open && setAddKind(null)} />
+      <Sidebar onAdd={setAddKind} />
+
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="relative isolate shrink-0 overflow-hidden border-b border-border/70 bg-gradient-to-b from-accent/50 to-background px-10 pb-6 pt-6">
           <Signature variant={signature} />
