@@ -434,6 +434,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "goal_contributions_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "v_goal_progress"
+            referencedColumns: ["goal_id"]
+          },
+          {
             foreignKeyName: "goal_contributions_transaction_id_fkey"
             columns: ["transaction_id"]
             isOneToOne: false
@@ -506,6 +513,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "goals_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
             foreignKeyName: "goals_currency_code_fkey"
             columns: ["currency_code"]
             isOneToOne: false
@@ -576,6 +590,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holdings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
           },
           {
             foreignKeyName: "holdings_currency_code_fkey"
@@ -929,6 +950,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "timeline_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
             foreignKeyName: "timeline_events_currency_code_fkey"
             columns: ["currency_code"]
             isOneToOne: false
@@ -994,6 +1022,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
           },
           {
             foreignKeyName: "transaction_entries_currency_code_fkey"
@@ -1097,10 +1132,249 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_account_balances: {
+        Row: {
+          account_id: string | null
+          balance: number | null
+          credit_limit: number | null
+          currency_code: string | null
+          institution: string | null
+          is_primary: boolean | null
+          kind: Database["public"]["Enums"]["account_kind"] | null
+          minor_unit: number | null
+          name: string | null
+          symbol: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      v_budget_progress: {
+        Row: {
+          category_id: string | null
+          category_name: string | null
+          color_token: string | null
+          currency_code: string | null
+          period_month: string | null
+          planned: number | null
+          remaining: number | null
+          spent: number | null
+          used_bps: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_lines_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      v_category_spend: {
+        Row: {
+          category_id: string | null
+          currency_code: string | null
+          period_month: string | null
+          spent: number | null
+          txn_count: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_entries_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_goal_progress: {
+        Row: {
+          blurb: string | null
+          currency_code: string | null
+          goal_id: string | null
+          icon: string | null
+          monthly_contribution: number | null
+          name: string | null
+          progress_bps: number | null
+          remaining: number | null
+          saved: number | null
+          target_amount: number | null
+          target_date: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      v_holdings_valuation: {
+        Row: {
+          account_id: string | null
+          asset_class: Database["public"]["Enums"]["holding_class"] | null
+          currency_code: string | null
+          current_value: number | null
+          id: string | null
+          invested: number | null
+          last_price: number | null
+          name: string | null
+          priced_at: string | null
+          units: number | null
+          unrealised_gain: number | null
+          user_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          asset_class?: Database["public"]["Enums"]["holding_class"] | null
+          currency_code?: string | null
+          current_value?: never
+          id?: string | null
+          invested?: number | null
+          last_price?: number | null
+          name?: string | null
+          priced_at?: string | null
+          units?: number | null
+          unrealised_gain?: never
+          user_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          asset_class?: Database["public"]["Enums"]["holding_class"] | null
+          currency_code?: string | null
+          current_value?: never
+          id?: string | null
+          invested?: number | null
+          last_price?: number | null
+          name?: string | null
+          priced_at?: string | null
+          units?: number | null
+          unrealised_gain?: never
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holdings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holdings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "holdings_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      v_monthly_cashflow: {
+        Row: {
+          currency_code: string | null
+          expense: number | null
+          income: number | null
+          net: number | null
+          period_month: string | null
+          txn_count: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_entries_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      v_net_worth: {
+        Row: {
+          base_currency: string | null
+          cash: number | null
+          investments: number | null
+          liabilities: number | null
+          net_worth: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_base_currency_fkey"
+            columns: ["base_currency"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      fn_account_balance: { Args: { p_account: string }; Returns: number }
+      fn_apply_budget_template: {
+        Args: {
+          p_currency?: string
+          p_monthly_income: number
+          p_period_month: string
+          p_template_name: string
+        }
+        Returns: string
+      }
+      fn_convert: {
+        Args: { p_amount: number; p_from: string; p_on?: string; p_to: string }
+        Returns: number
+      }
+      fn_record_transaction: {
+        Args: {
+          p_amount: number
+          p_category?: string
+          p_descriptor?: string
+          p_from_account: string
+          p_label?: string
+          p_merchant?: string
+          p_note?: string
+          p_occurred_at: string
+          p_payment_method?: string
+          p_to_account?: string
+          p_type: Database["public"]["Enums"]["txn_type"]
+        }
+        Returns: string
+      }
     }
     Enums: {
       account_kind: "bank" | "cash" | "credit_card" | "investment" | "loan"
