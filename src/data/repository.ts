@@ -1,10 +1,11 @@
 /**
  * The single data access boundary for the whole app.
  *
- * Today every function resolves from the in-memory seed arrays. When the
- * PostgreSQL backend lands, each function becomes a `createServerFn` (or a
- * query against the matching table) and no UI code has to change: the
- * signatures and return shapes are already row-shaped and async.
+ * Reads are live-first: when a Supabase session exists, every figure comes
+ * from the PostgreSQL views (balances, budget pacing, goal progress and
+ * holdings valuation are all computed in SQL). With no session — the current
+ * mock passphrase login — the in-memory demo ledger answers instead, so the
+ * UI is identical either way.
  */
 import { accounts } from "@/data/seed/accounts";
 import { budgetPeriods, goals, holdings, monthlyRollups } from "@/data/seed/plan";
@@ -12,6 +13,17 @@ import { categories, labels } from "@/data/seed/taxonomy";
 import { timelineEvents } from "@/data/seed/timeline";
 import { transactions } from "@/data/seed/transactions";
 import { importJobs, importReviewItems, importSources, userSettings } from "@/data/seed/workshop";
+import {
+  liveAccounts,
+  liveBudgets,
+  liveCategories,
+  liveGoals,
+  liveHoldings,
+  liveLabels,
+  liveMonthlyRollups,
+  liveTimeline,
+  liveTransactions,
+} from "@/data/live";
 import type {
   Account,
   BudgetPeriod,
@@ -37,17 +49,23 @@ export const CURRENT_PERIOD = "2026-08";
 
 const ok = <T>(value: T): Promise<T> => Promise.resolve(value);
 
-export const getAccounts = () => ok<Account[]>(accounts);
-export const getCategories = () => ok<Category[]>(categories);
-export const getLabels = () => ok<Label[]>(labels);
+/** Live rows when signed in, demo rows otherwise. */
+async function resolve<T>(loadLive: () => Promise<T | null>, fallback: T): Promise<T> {
+  return (await loadLive()) ?? fallback;
+}
+
+export const getAccounts = () => resolve<Account[]>(liveAccounts, accounts);
+export const getCategories = () => resolve<Category[]>(liveCategories, categories);
+export const getLabels = () => resolve<Label[]>(liveLabels, labels);
 export const getSettings = () => ok<UserSettings>(userSettings);
-export const getTimelineEvents = () => ok<TimelineEvent[]>(timelineEvents);
-export const getGoals = () => ok<Goal[]>(goals);
-export const getHoldings = () => ok<Holding[]>(holdings);
-export const getMonthlyRollups = () => ok<MonthlyRollup[]>(monthlyRollups);
+export const getTimelineEvents = () => resolve<TimelineEvent[]>(liveTimeline, timelineEvents);
+export const getGoals = () => resolve<Goal[]>(liveGoals, goals);
+export const getHoldings = () => resolve<Holding[]>(liveHoldings, holdings);
+export const getMonthlyRollups = () => resolve<MonthlyRollup[]>(liveMonthlyRollups, monthlyRollups);
 export const getImportSources = () => ok<ImportSource[]>(importSources);
 export const getImportJobs = () => ok<ImportJob[]>(importJobs);
 export const getImportReviewItems = () => ok<ImportReviewItem[]>(importReviewItems);
+
 
 export interface TransactionFilter {
   search?: string | undefined;
