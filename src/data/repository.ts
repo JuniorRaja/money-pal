@@ -148,32 +148,33 @@ export const timelineKinds: { id: TimelineKind | "all"; label: string }[] = [
 
 /** Compact ledger digest handed to the assistant instead of raw rows. */
 export async function getAssistantContext(): Promise<string> {
-  const [accs, txns, budgets, gls, hlds] = await Promise.all([
+  const [accs, txns, budgets, gls, hlds, cats0] = await Promise.all([
     getAccounts(),
     listTransactions({ period: CURRENT_PERIOD }),
     getBudgets(),
     getGoals(),
     getHoldings(),
+    getCategories(),
   ]);
   const nw = summariseNetWorth(accs);
   const cf = summariseCashflow(txns);
   const r = (p: Paise) => Math.round(p / 100);
+  const nameOf = (id: string) => cats0.find((c) => c.id === id)?.name ?? id;
   const cats = new Map<string, number>();
   for (const t of txns) if (t.amount < 0) cats.set(t.category_id, (cats.get(t.category_id) ?? 0) - t.amount);
   const catLine = [...cats.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
-    .map(([id, v]) => `${categories.find((c) => c.id === id)?.name ?? id}=${r(v)}`)
+    .map(([id, v]) => `${nameOf(id)}=${r(v)}`)
     .join(", ");
   return [
     `Currency INR. Today ${TODAY}. Period ${CURRENT_PERIOD}.`,
     `NetWorth=${r(nw.net_worth)} cash=${r(nw.cash)} investments=${r(nw.investments)} liabilities=${r(nw.liabilities)}.`,
     `Month: income=${r(cf.income)} expense=${r(cf.expense)} net=${r(cf.net)} txns=${cf.count}.`,
     `Top spend: ${catLine}.`,
-    `Budgets: ${budgets
-      .map((b) => `${categories.find((c) => c.id === b.category_id)?.name}=${r(b.spent)}/${r(b.planned)}`)
-      .join(", ")}.`,
+    `Budgets: ${budgets.map((b) => `${nameOf(b.category_id)}=${r(b.spent)}/${r(b.planned)}`).join(", ")}.`,
     `Goals: ${gls.map((g) => `${g.name}=${r(g.saved)}/${r(g.target)} by ${g.target_date}`).join(", ")}.`,
+
     `Holdings value=${r(hlds.reduce((s, h) => s + h.current_value, 0))}, invested=${r(hlds.reduce((s, h) => s + h.invested, 0))}.`,
   ].join("\n");
 }
