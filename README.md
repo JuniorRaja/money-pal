@@ -1,14 +1,21 @@
-# Welcome to your Lovable project
+# money-pal
+
+Build a personal finance AI enabled web application. Modern, micro interactions, Vectors, Watermarked bg, patterns. 
+Pages:
+Money> Overview, Accounts, Transactions, Timeline
+Plan> Budgets, Goals, Investments, Reports
+Workshop> AI Assistant, Import Center, Settings
+Premium colours, $30K Creative agency style.
 
 This project was built with [Lovable](https://lovable.dev).
 
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/33b8ec8a-c15d-4f12-9a71-53517ca4e353).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +27,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
