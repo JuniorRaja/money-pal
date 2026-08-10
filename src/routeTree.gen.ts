@@ -17,6 +17,7 @@ import { Route as ImportsRouteImport } from './routes/imports'
 import { Route as InvestmentsRouteImport } from './routes/investments'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TimelineRouteImport } from './routes/timeline'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 
@@ -60,6 +61,11 @@ const ReportsRoute = ReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TimelineRoute = TimelineRouteImport.update({
   id: '/timeline',
   path: '/timeline',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
   '/timeline': typeof TimelineRoute
   '/transactions': typeof TransactionsRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
   '/timeline': typeof TimelineRoute
   '/transactions': typeof TransactionsRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
+  '/settings': typeof SettingsRoute
   '/timeline': typeof TimelineRoute
   '/transactions': typeof TransactionsRoute
 }
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/investments'
     | '/login'
     | '/reports'
+    | '/settings'
     | '/timeline'
     | '/transactions'
   fileRoutesByTo: FileRoutesByTo
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/investments'
     | '/login'
     | '/reports'
+    | '/settings'
     | '/timeline'
     | '/transactions'
   id:
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/investments'
     | '/login'
     | '/reports'
+    | '/settings'
     | '/timeline'
     | '/transactions'
   fileRoutesById: FileRoutesById
@@ -156,6 +168,7 @@ export interface RootRouteChildren {
   InvestmentsRoute: typeof InvestmentsRoute
   LoginRoute: typeof LoginRoute
   ReportsRoute: typeof ReportsRoute
+  SettingsRoute: typeof SettingsRoute
   TimelineRoute: typeof TimelineRoute
   TransactionsRoute: typeof TransactionsRoute
 }
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/timeline': {
       id: '/timeline'
       path: '/timeline'
@@ -244,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   InvestmentsRoute: InvestmentsRoute,
   LoginRoute: LoginRoute,
   ReportsRoute: ReportsRoute,
+  SettingsRoute: SettingsRoute,
   TimelineRoute: TimelineRoute,
   TransactionsRoute: TransactionsRoute,
 }
