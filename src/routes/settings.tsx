@@ -41,13 +41,13 @@ function SettingsPage() {
 
   return (
     <AppShell title="Settings" subtitle="Make Money Mate feel like yours." signature="settings">
-      <div className="grid grid-cols-[200px_1fr] gap-6">
-        <nav className="space-y-1">
+      <div className="grid max-w-4xl grid-cols-[168px_1fr] gap-5">
+        <nav className="space-y-0.5">
           {tabs.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+              className={`w-full rounded-lg px-3 py-1.5 text-left text-[13px] transition-colors ${
                 tab === t ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-accent/60"
               }`}
             >
@@ -56,7 +56,8 @@ function SettingsPage() {
           ))}
         </nav>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
+
           {tab === "Profile" && (
             <Panel title="Profile">
               <div className="grid grid-cols-2 gap-4">
