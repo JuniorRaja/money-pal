@@ -150,3 +150,36 @@ function ImportsPage() {
     </AppShell>
   );
 }
+
+function SourceMenu() {
+  const [open, setOpen] = useState(false);
+  const items = ["Sync settings", "Rename source", "Pause syncing", "Disconnect"];
+  return (
+    <div className="relative">
+      <button
+        aria-label="Source options"
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && (
+        <ul className="rise absolute right-0 top-9 z-30 w-44 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg">
+          {items.map((i) => (
+            <li key={i}>
+              <button
+                className={`w-full px-3 py-2 text-left text-xs transition-colors hover:bg-accent ${
+                  i === "Disconnect" ? "text-destructive" : "text-foreground"
+                }`}
+              >
+                {i}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
