@@ -1,4 +1,4 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
   Bell,
@@ -34,6 +34,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { hasSession } from "@/data/live";
+import { seedDemoLedger } from "@/lib/seed-demo.functions";
 import { cn } from "@/lib/utils";
 
 
@@ -254,11 +256,29 @@ export function AppShell({
 }: PageProps) {
   const { unlocked, hydrated } = useSession();
   const navigate = useNavigate();
+  const router = useRouter();
   const [addKind, setAddKind] = useState<RecordKind | null>(null);
 
   useEffect(() => {
     if (hydrated && !unlocked) navigate({ to: "/login" });
   }, [unlocked, hydrated, navigate]);
+
+  // With a real session the ledger is filled once, then every page reads live.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!(await hasSession())) return;
+      try {
+        const result = await seedDemoLedger();
+        if (!cancelled && result.seeded) await router.invalidate();
+      } catch (error) {
+        console.warn("[seed] demo ledger not written", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   return (
     <div className="flex h-screen min-w-[1180px] overflow-hidden bg-background">

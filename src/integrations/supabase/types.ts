@@ -447,6 +447,13 @@ export type Database = {
             referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "goal_contributions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_flat"
+            referencedColumns: ["id"]
+          },
         ]
       }
       goals: {
@@ -970,6 +977,13 @@ export type Database = {
             referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "timeline_events_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_flat"
+            referencedColumns: ["id"]
+          },
         ]
       }
       transaction_entries: {
@@ -1042,6 +1056,13 @@ export type Database = {
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_flat"
             referencedColumns: ["id"]
           },
         ]
@@ -1153,6 +1174,32 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "currencies"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      v_account_monthly_flow: {
+        Row: {
+          account_id: string | null
+          delta: number | null
+          entry_count: number | null
+          last_activity_at: string | null
+          period_month: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
           },
         ]
       }
@@ -1340,6 +1387,70 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "currencies"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      v_transactions_flat: {
+        Row: {
+          account_id: string | null
+          account_kind: Database["public"]["Enums"]["account_kind"] | null
+          account_name: string | null
+          amount: number | null
+          attachments: number | null
+          category_color: string | null
+          category_id: string | null
+          category_name: string | null
+          confidence: number | null
+          currency_code: string | null
+          currency_symbol: string | null
+          descriptor: string | null
+          entry_id: string | null
+          id: string | null
+          label_id: string | null
+          merchant: string | null
+          minor_unit: number | null
+          note: string | null
+          occurred_at: string | null
+          payment_method: string | null
+          source: string | null
+          type: Database["public"]["Enums"]["txn_type"] | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "labels"
+            referencedColumns: ["id"]
           },
         ]
       }

@@ -24,6 +24,7 @@ import {
   CURRENT_PERIOD,
   getAccounts,
   getBudgets,
+  getCategories,
   getGoals,
   getMonthlyRollups,
   getTimelineEvents,
@@ -31,10 +32,10 @@ import {
   summariseCashflow,
   summariseNetWorth,
 } from "@/data/repository";
-import { categories } from "@/data/seed/taxonomy";
 import type {
   Account,
   BudgetPeriod,
+  Category,
   Goal,
   MonthlyRollup,
   TimelineEvent,
@@ -59,27 +60,29 @@ export const Route = createFileRoute("/")({
     ],
   }),
   loader: async () => {
-    const [accounts, transactions, rollups, budgets, goals, events] = await Promise.all([
+    const [accounts, transactions, rollups, budgets, goals, events, categories] = await Promise.all([
       getAccounts(),
       listTransactions({ period: CURRENT_PERIOD }),
       getMonthlyRollups(),
       getBudgets(),
       getGoals(),
       getTimelineEvents(),
+      getCategories(),
     ]);
-    return { accounts, transactions, rollups, budgets, goals, events };
+    return { accounts, transactions, rollups, budgets, goals, events, categories };
   },
   component: OverviewPage,
 });
 
 function OverviewPage() {
-  const { accounts, transactions, rollups, budgets, goals, events } = Route.useLoaderData() as {
+  const { accounts, transactions, rollups, budgets, goals, events, categories } = Route.useLoaderData() as {
     accounts: Account[];
     transactions: Transaction[];
     rollups: MonthlyRollup[];
     budgets: BudgetPeriod[];
     goals: Goal[];
     events: TimelineEvent[];
+    categories: Category[];
   };
   const nw = summariseNetWorth(accounts);
   const cf = summariseCashflow(transactions);
