@@ -14,7 +14,205 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      budget_templates: {
+        Row: {
+          category_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          is_active: boolean
+          modified_at: string
+          modified_by: string | null
+          name: string
+          share_bps: number
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          name: string
+          share_bps: number
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          name?: string
+          share_bps?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_templates_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          color_token: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          kind: Database["public"]["Enums"]["category_kind"]
+          modified_at: string
+          modified_by: string | null
+          name: string
+          parent_id: string | null
+          sort_order: number
+          user_id: string | null
+        }
+        Insert: {
+          color_token?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          kind: Database["public"]["Enums"]["category_kind"]
+          modified_at?: string
+          modified_by?: string | null
+          name: string
+          parent_id?: string | null
+          sort_order?: number
+          user_id?: string | null
+        }
+        Update: {
+          color_token?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: Database["public"]["Enums"]["category_kind"]
+          modified_at?: string
+          modified_by?: string | null
+          name?: string
+          parent_id?: string | null
+          sort_order?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      currencies: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          is_active: boolean
+          minor_unit: number
+          modified_at: string
+          modified_by: string | null
+          name: string
+          symbol: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          is_active?: boolean
+          minor_unit?: number
+          modified_at?: string
+          modified_by?: string | null
+          name: string
+          symbol: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          is_active?: boolean
+          minor_unit?: number
+          modified_at?: string
+          modified_by?: string | null
+          name?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
+      fx_rates: {
+        Row: {
+          as_of: string
+          base_code: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          is_active: boolean
+          modified_at: string
+          modified_by: string | null
+          quote_code: string
+          rate: number
+        }
+        Insert: {
+          as_of: string
+          base_code: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          quote_code: string
+          rate: number
+        }
+        Update: {
+          as_of?: string
+          base_code?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          is_active?: boolean
+          modified_at?: string
+          modified_by?: string | null
+          quote_code?: string
+          rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fx_rates_base_code_fkey"
+            columns: ["base_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "fx_rates_quote_code_fkey"
+            columns: ["quote_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +221,23 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      account_kind: "bank" | "cash" | "credit_card" | "investment" | "loan"
+      category_kind:
+        | "income"
+        | "essentials"
+        | "lifestyle"
+        | "transfer"
+        | "investment"
+      holding_class:
+        | "equity"
+        | "mutual_fund"
+        | "gold"
+        | "fixed_income"
+        | "crypto"
+      import_kind: "gmail" | "pdf" | "csv" | "manual"
+      review_kind: "duplicate" | "unknown_merchant" | "large_transfer"
+      timeline_kind: "money" | "ai_insight" | "goal" | "bill" | "system"
+      txn_type: "income" | "expense" | "transfer" | "adjustment"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +364,26 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      account_kind: ["bank", "cash", "credit_card", "investment", "loan"],
+      category_kind: [
+        "income",
+        "essentials",
+        "lifestyle",
+        "transfer",
+        "investment",
+      ],
+      holding_class: [
+        "equity",
+        "mutual_fund",
+        "gold",
+        "fixed_income",
+        "crypto",
+      ],
+      import_kind: ["gmail", "pdf", "csv", "manual"],
+      review_kind: ["duplicate", "unknown_merchant", "large_transfer"],
+      timeline_kind: ["money", "ai_insight", "goal", "bill", "system"],
+      txn_type: ["income", "expense", "transfer", "adjustment"],
+    },
   },
 } as const
