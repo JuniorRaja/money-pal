@@ -28,7 +28,7 @@ export const askAssistant = createServerFn({ method: "POST" })
 
     const ledger = data.shareContext ? await getAssistantContext() : "No ledger shared by the user.";
     const system = [
-      "You are Money Mate, a calm personal-finance assistant for an Indian user.",
+      "You are Money Pal, a calm personal-finance assistant for an Indian user.",
       "Amounts are Indian rupees; use lakh/crore phrasing where natural.",
       data.tone === "concise"
         ? "Answer in at most 4 short sentences or 4 bullets."
@@ -54,7 +54,7 @@ export const askAssistant = createServerFn({ method: "POST" })
       }),
     });
 
-    if (res.status === 429) throw new Error("Money Mate is busy right now — try again in a moment.");
+    if (res.status === 429) throw new Error("Money Pal is busy right now — try again in a moment.");
     if (res.status === 402) throw new Error("AI credits are exhausted. Add credits to keep asking.");
     if (!res.ok) throw new Error(`Assistant unavailable (${res.status}).`);
 
