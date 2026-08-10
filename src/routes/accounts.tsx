@@ -1,10 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Briefcase, CreditCard, Landmark, PlusCircle, TrendingUp, Wallet } from "lucide-react";
+import { Briefcase, CreditCard, Landmark, PlusCircle, Scissors, TrendingUp, Wallet } from "lucide-react";
+import { useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
-import { Panel, Ring, Sparkline, StatCard } from "@/components/mm-ui";
-import { getAccounts, summariseNetWorth } from "@/data/repository";
-import type { Account } from "@/data/schema";
+import { ManageSlicesDialog } from "@/components/manage-slices-dialog";
+import { Panel, Ring, SliceBar, Sparkline, StatCard } from "@/components/mm-ui";
+import {
+  allocationFor,
+  getAccounts,
+  getSlices,
+  summariseNetWorth,
+  summariseOwnership,
+} from "@/data/repository";
+import type { Account, Slice } from "@/data/schema";
 import { formatMoney, formatPct } from "@/lib/money";
 
 export const Route = createFileRoute("/accounts")({
@@ -20,13 +28,27 @@ export const Route = createFileRoute("/accounts")({
       { property: "og:description", content: "Everything you own, owe, and keep aside — in one place." },
     ],
   }),
-  loader: async () => ({ accounts: await getAccounts() }),
+  loader: async () => {
+    const [accounts, slices] = await Promise.all([getAccounts(), getSlices()]);
+    return { accounts, slices };
+  },
   component: AccountsPage,
 });
 
 function AccountsPage() {
-  const { accounts } = Route.useLoaderData() as { accounts: Account[] };
+  const { accounts, slices } = Route.useLoaderData() as {
+    accounts: Account[];
+    slices: Slice[];
+  };
+  const [manage, setManage] = useState<Account | null>(null);
   const nw = summariseNetWorth(accounts);
+  const sliceable = accounts.filter(
+    (a) => a.kind === "bank" || a.kind === "cash" || a.kind === "investment",
+  );
+  const ownership = summariseOwnership(
+    accounts,
+    sliceable.map((a) => allocationFor(a, slices)),
+  );
   const banks = accounts.filter((a) => a.kind === "bank" || a.kind === "cash");
   const cards = accounts.filter((a) => a.kind === "credit_card");
   const investments = accounts.filter((a) => a.kind === "investment");
@@ -39,7 +61,7 @@ function AccountsPage() {
       signature="accounts"
     >
       <div className="grid grid-cols-4 gap-5">
-        <StatCard label="Total across accounts" value={formatMoney(nw.net_worth, { whole: true })} delta={12.5} hint="vs last month" icon={<Briefcase className="h-4 w-4" />} className="pattern-weave" />
+        <StatCard label="Yours after custodial" value={formatMoney(ownership.owned, { whole: true })} delta={12.5} hint={`${formatMoney(ownership.custodial, { whole: true })} held for others`} icon={<Briefcase className="h-4 w-4" />} className="pattern-weave" />
         <StatCard label="Available cash" value={formatMoney(nw.cash, { whole: true })} delta={18.4} hint="vs last month" icon={<Wallet className="h-4 w-4" />} className="pattern-arcs" />
         <StatCard label="Investments" value={formatMoney(nw.investments, { whole: true })} delta={14.7} hint="vs last month" icon={<TrendingUp className="h-4 w-4" />} className="pattern-hatch" />
         <StatCard label="Liabilities" value={formatMoney(nw.liabilities, { whole: true })} delta={-6.2} hint="paid down" icon={<Landmark className="h-4 w-4" />} className="pattern-steps" />
@@ -66,6 +88,7 @@ function AccountsPage() {
               </span>
               <Sparkline points={a.trend} width={92} height={28} tone={a.change_pct >= 0 ? "success" : "destructive"} />
             </div>
+            <AccountSlices account={a} slices={slices} onManage={() => setManage(a)} />
           </div>
         ))}
       </Group>
@@ -116,6 +139,7 @@ function AccountsPage() {
               <span className="text-xs text-success">{formatPct(a.change_pct)} vs last month</span>
               <Sparkline points={a.trend} width={92} height={28} />
             </div>
+            <AccountSlices account={a} slices={slices} onManage={() => setManage(a)} />
           </div>
         ))}
       </Group>
