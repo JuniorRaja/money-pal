@@ -221,3 +221,79 @@ export function Dot({ token }: { token: string }) {
     />
   );
 }
+
+const sliceKindLabel: Record<string, string> = {
+  owned: "Owned",
+  custodial: "Held for",
+  earmark: "Earmarked",
+};
+
+/**
+ * Segmented bar showing how an account balance splits across its slices, with
+ * the leftover shown as a muted "Unallocated" tail.
+ */
+export function SliceBar({
+  slices,
+  unallocated,
+  balance,
+  format,
+}: {
+  slices: { id: string; name: string; kind: string; color_token: string; amount: number }[];
+  unallocated: number;
+  balance: number;
+  format: (value: number) => string;
+}) {
+  const total = Math.max(
+    balance,
+    slices.reduce((t, s) => t + Math.max(s.amount, 0), 0),
+    1,
+  );
+  const pct = (value: number) => Math.max((Math.max(value, 0) / total) * 100, 0);
+
+  return (
+    <div className="mt-4 space-y-2.5">
+      <div className="flex h-2 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
+        {slices.map((s) => (
+          <span
+            key={s.id}
+            title={`${s.name} · ${format(s.amount)}`}
+            className="h-full transition-[width] duration-700 hover:opacity-80"
+            style={{ width: `${pct(s.amount)}%`, backgroundColor: `var(--color-${s.color_token})` }}
+          />
+        ))}
+        {unallocated > 0 && (
+          <span
+            title={`Unallocated · ${format(unallocated)}`}
+            className="h-full bg-muted-foreground/25 transition-[width] duration-700"
+            style={{ width: `${pct(unallocated)}%` }}
+          />
+        )}
+      </div>
+      <ul className="space-y-1">
+        {slices.map((s) => (
+          <li key={s.id} className="flex items-center justify-between gap-2 text-[11px]">
+            <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+              <Dot token={s.color_token} />
+              <span className="truncate text-foreground">{s.name}</span>
+              <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[9px] uppercase tracking-[0.1em]">
+                {sliceKindLabel[s.kind] ?? s.kind}
+              </span>
+            </span>
+            <span className={cn("numeric shrink-0", s.amount < 0 ? "text-destructive" : "text-foreground")}>
+              {format(s.amount)}
+            </span>
+          </li>
+        ))}
+        <li className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30" />
+            {unallocated < 0 ? "Over-allocated" : "Unallocated"}
+          </span>
+          <span className={cn("numeric", unallocated < 0 && "text-destructive")}>
+            {format(unallocated)}
+          </span>
+        </li>
+      </ul>
+    </div>
+  );
+}
