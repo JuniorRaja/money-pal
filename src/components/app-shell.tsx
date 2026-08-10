@@ -82,7 +82,15 @@ function Monogram() {
   );
 }
 
-function Sidebar() {
+const addItems: { kind: RecordKind; label: string; icon: typeof Wallet }[] = [
+  { kind: "transaction", label: "Transaction", icon: ArrowLeftRight },
+  { kind: "account", label: "Account", icon: Wallet },
+  { kind: "goal", label: "Goal", icon: Target },
+  { kind: "budget", label: "Budget", icon: CreditCard },
+  { kind: "investment", label: "Investment", icon: LineChartIcon },
+];
+
+function Sidebar({ onAdd }: { onAdd: (kind: RecordKind) => void }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { prefs, lock } = useSession();
   const navigate = useNavigate();
@@ -104,6 +112,32 @@ function Sidebar() {
           </div>
         )}
       </div>
+
+      <div className={cn("pb-5", collapsed ? "px-4" : "px-4")}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label="Add new"
+              className={cn(
+                "group flex h-10 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]",
+                collapsed ? "w-10" : "w-full",
+              )}
+            >
+              {!collapsed && <span>Add new</span>}
+              <Plus className="h-4 w-4 transition-transform group-data-[state=open]:rotate-45" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            {addItems.map((item) => (
+              <DropdownMenuItem key={item.kind} onSelect={() => onAdd(item.kind)}>
+                <item.icon className="mr-2 h-4 w-4 text-primary" />
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
 
       <nav className="flex-1 space-y-6 px-3">
         {groups.map((group) => (
