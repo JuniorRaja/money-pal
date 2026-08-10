@@ -129,8 +129,9 @@ function TransactionsPage() {
         </>
       }
     >
-      <div className={selected ? "grid grid-cols-[1fr_360px] gap-5" : "grid gap-5"}>
-        <div className="space-y-5">
+      <div className={selected ? "grid grid-cols-[minmax(0,1fr)_360px] gap-5" : "grid gap-5"}>
+        <div className="min-w-0 space-y-5">
+
           <Panel bodyClassName="p-0">
             <div className="flex items-center divide-x divide-border">
               <Stat label="Total Transactions" value={String(summary.count)} hint="This month" />
