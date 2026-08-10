@@ -151,9 +151,9 @@ function OverviewPage() {
         </Panel>
 
         <div className="col-span-4 grid gap-5">
-          <StatCard label="Available cash" value={formatMoney(nw.cash, { whole: true })} delta={12.4} hint="vs last month" icon={<Wallet className="h-4 w-4" />} />
-          <StatCard label="Investments" value={formatMoney(nw.investments, { whole: true })} delta={14.7} hint="vs last month" icon={<TrendingUp className="h-4 w-4" />} />
-          <StatCard label="Liabilities" value={formatMoney(nw.liabilities, { whole: true })} delta={-6.2} hint="paid down" icon={<Landmark className="h-4 w-4" />} />
+          <StatCard label="Available cash" value={formatMoney(nw.cash, { whole: true })} delta={12.4} hint="vs last month" icon={<Wallet className="h-4 w-4" />} className="pattern-arcs" />
+          <StatCard label="Investments" value={formatMoney(nw.investments, { whole: true })} delta={14.7} hint="vs last month" icon={<TrendingUp className="h-4 w-4" />} className="pattern-hatch" />
+          <StatCard label="Liabilities" value={formatMoney(nw.liabilities, { whole: true })} delta={-6.2} hint="paid down" icon={<Landmark className="h-4 w-4" />} className="pattern-steps" />
         </div>
 
         <Panel className="col-span-4" title="This month">

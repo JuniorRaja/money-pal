@@ -39,15 +39,15 @@ function AccountsPage() {
       signature="accounts"
     >
       <div className="grid grid-cols-4 gap-5">
-        <StatCard label="Total across accounts" value={formatMoney(nw.net_worth, { whole: true })} delta={12.5} hint="vs last month" icon={<Briefcase className="h-4 w-4" />} />
-        <StatCard label="Available cash" value={formatMoney(nw.cash, { whole: true })} delta={18.4} hint="vs last month" icon={<Wallet className="h-4 w-4" />} />
-        <StatCard label="Investments" value={formatMoney(nw.investments, { whole: true })} delta={14.7} hint="vs last month" icon={<TrendingUp className="h-4 w-4" />} />
-        <StatCard label="Liabilities" value={formatMoney(nw.liabilities, { whole: true })} delta={-6.2} hint="paid down" icon={<Landmark className="h-4 w-4" />} />
+        <StatCard label="Total across accounts" value={formatMoney(nw.net_worth, { whole: true })} delta={12.5} hint="vs last month" icon={<Briefcase className="h-4 w-4" />} className="pattern-weave" />
+        <StatCard label="Available cash" value={formatMoney(nw.cash, { whole: true })} delta={18.4} hint="vs last month" icon={<Wallet className="h-4 w-4" />} className="pattern-arcs" />
+        <StatCard label="Investments" value={formatMoney(nw.investments, { whole: true })} delta={14.7} hint="vs last month" icon={<TrendingUp className="h-4 w-4" />} className="pattern-hatch" />
+        <StatCard label="Liabilities" value={formatMoney(nw.liabilities, { whole: true })} delta={-6.2} hint="paid down" icon={<Landmark className="h-4 w-4" />} className="pattern-steps" />
       </div>
 
       <Group title="Cash & Bank Accounts" count={banks.length} icon={<Landmark className="h-4 w-4 text-primary" />}>
         {banks.map((a) => (
-          <div key={a.id} className="card-lift grain rounded-2xl border border-border bg-card p-5">
+          <div key={a.id} className="card-lift grain pattern-arcs rounded-2xl border border-border bg-card p-5">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-medium text-foreground">{a.name}</p>
@@ -108,7 +108,7 @@ function AccountsPage() {
 
       <Group title="Investments" count={investments.length} icon={<TrendingUp className="h-4 w-4 text-primary" />}>
         {investments.map((a) => (
-          <div key={a.id} className="card-lift grain rounded-2xl border border-border bg-card p-5">
+          <div key={a.id} className="card-lift grain pattern-hatch rounded-2xl border border-border bg-card p-5">
             <p className="text-sm font-medium text-foreground">{a.name}</p>
             <p className="text-xs text-muted-foreground">{a.institution}</p>
             <p className="numeric mt-4 text-2xl text-foreground">{formatMoney(a.balance, { whole: true })}</p>
@@ -122,7 +122,7 @@ function AccountsPage() {
 
       <Group title="Loans" count={loans.length} icon={<Landmark className="h-4 w-4 text-primary" />}>
         {loans.map((a) => (
-          <div key={a.id} className="card-lift grain rounded-2xl border border-border bg-card p-5">
+          <div key={a.id} className="card-lift grain pattern-steps rounded-2xl border border-border bg-card p-5">
             <p className="text-sm font-medium text-foreground">{a.name}</p>
             <p className="text-xs text-muted-foreground">{a.institution}</p>
             <p className="numeric mt-4 text-2xl text-foreground">{formatMoney(Math.abs(a.balance), { whole: true })}</p>
