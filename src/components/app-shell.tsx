@@ -254,6 +254,7 @@ export function AppShell({
 }: PageProps) {
   const { unlocked, hydrated } = useSession();
   const navigate = useNavigate();
+  const [addKind, setAddKind] = useState<RecordKind | null>(null);
 
   useEffect(() => {
     if (hydrated && !unlocked) navigate({ to: "/login" });
@@ -261,7 +262,9 @@ export function AppShell({
 
   return (
     <div className="flex h-screen min-w-[1180px] overflow-hidden bg-background">
-      <Sidebar />
+      <AddRecordDialog kind={addKind} onOpenChange={(open) => !open && setAddKind(null)} />
+      <Sidebar onAdd={setAddKind} />
+
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="relative isolate shrink-0 overflow-hidden border-b border-border/70 bg-gradient-to-b from-accent/50 to-background px-10 pb-6 pt-6">
           <Signature variant={signature} />
