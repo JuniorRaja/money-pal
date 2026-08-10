@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Download, Plus, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
 import { Chip, Dot, Panel, Sparkline } from "@/components/mm-ui";
@@ -157,8 +157,8 @@ function TransactionsPage() {
               </thead>
               <tbody>
                 {grouped.map(([day, items]) => (
-                  <>
-                    <tr key={day} className="bg-muted/50">
+                  <Fragment key={day}>
+                    <tr className="bg-muted/50">
                       <td colSpan={6} className="px-5 py-2 text-xs">
                         <span className="font-medium text-foreground">{relativeDayLabel(day, TODAY)},</span>{" "}
                         <span className="text-muted-foreground">{formatDay(`${day}T00:00:00`)}</span>
@@ -195,7 +195,7 @@ function TransactionsPage() {
                         </tr>
                       );
                     })}
-                  </>
+                  </Fragment>
                 ))}
                 {rows.length === 0 && (
                   <tr>
