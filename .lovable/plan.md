@@ -6,7 +6,7 @@ A premium, agency-grade finance web app matching the uploaded Money Mate screens
 
 - Palette: cream/parchment surfaces (`#faf8f5`, `#f0ebe3`), antique gold accent (`#b3803f`), deep espresso text; full dark mode (warm charcoal `#211d19`) as shown in the Transactions dark screenshot.
 - Type: editorial serif for page titles (Instrument Serif / Cormorant feel), clean sans for UI and tabular numerals for money.
-- Signature element: an SVG watermark band behind every page header — layered mountains, sun disc, thin topographic lines, faint dot markers — fading into the background. Plus subtle grain/pattern texture on surfaces.
+- Signature element: every page gets its OWN watermark artwork, all drawn from one shared visual language (thin gold linework, layered silhouettes, sun disc, topographic contours, faint dot markers, low-opacity fade). Examples: Overview = sun over dunes; Accounts = mountain range; Transactions = flowing river lines; Timeline = horizon path with milestone dots; Budgets = terraced fields; Goals = summit flag; Investments = rising ridgeline; Reports = contour map; Assistant = constellation; Import Center = bridge/arches; Settings = concentric rings. Plus subtle grain/pattern texture on surfaces.
 - Micro-interactions: hover lift on cards, animated sparkline draw-in, progress/donut arcs animating on mount, staggered row fade-ins, spring-y toggles and tab pills, slide-in detail panels. All respect a "Reduce motion" setting.
 
 ## Navigation
@@ -38,10 +38,15 @@ Top bar on each page: command-style search, "Ask Money Mate" button, notificatio
 - TanStack Start file routes: `/`, `/accounts`, `/transactions`, `/timeline`, `/budgets`, `/goals`, `/investments`, `/reports`, `/assistant`, `/imports`, `/settings`, each with its own SEO head metadata.
 - Design tokens defined in `src/styles.css` (`@theme inline`, oklch) — no hardcoded colours in components.
 - Charts with Recharts; motion with Motion for React; watermark artwork as hand-authored inline SVG components (no raster images).
-- Data: realistic in-app mock dataset (accounts, transactions, budgets, goals, holdings, timeline events) in a typed store, so every screen is populated and interactive without a backend.
-- AI Assistant: real streaming AI via Lovable AI (`openai/gpt-5.6-sol`) through a server route, with the mock finance summary passed as context. Requires enabling Lovable Cloud for the API key.
+- Data: a clean, backend-shaped mock layer designed for a later PostgreSQL swap:
+  - `src/data/schema.ts` — normalised, relational types with real ids and foreign keys (`accounts`, `transactions`, `categories`, `labels`, `budgets`, `goals`, `holdings`, `timeline_events`, `imports`, `settings`), snake-case-mappable field names, ISO date strings, integer minor-units for money.
+  - `src/data/seed/*.ts` — pure data files, one per table, nothing else.
+  - `src/data/repository.ts` — the ONLY thing UI imports: async functions (`listTransactions(filter)`, `getAccounts()`, `getBudgets(period)`, …) that today read from seed arrays and later become server functions hitting Postgres. No component touches raw seed data.
+- AI Assistant: streaming AI via Lovable AI (`openai/gpt-5.6-sol`) through a server route. Cost is kept low by request design, not by swapping models: low reasoning effort, a compact pre-summarised finance context instead of raw rows, short prompt-stated answer limits, and no background/auto calls. Requires enabling Lovable Cloud for the API key.
 
 ## Assumptions
 
-- Single demo user (Arav Mehta), INR currency, no login/auth — the passphrase/unlock screen from the screenshots is desktop-app specific and is skipped.
-- Data is mock/local; no database persistence unless you want it later.
+- Desktop-only layout (min ~1280px); no mobile/responsive breakpoints.
+- Mock login flow, no real backend auth: passphrase unlock screen (as in the screenshot) → 2FA code step (any 6 digits accepted) → app. Also offers a "Use Touch ID" mock shortcut. Unlock state kept client-side for the session.
+- Single demo user (Arav Mehta), INR currency.
+- Data is mock/local; no database persistence until the Postgres swap.
