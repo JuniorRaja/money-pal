@@ -8,6 +8,7 @@
  */
 import { accounts } from "@/data/seed/accounts";
 import { budgetPeriods, goals, holdings } from "@/data/seed/plan";
+import { slices } from "@/data/seed/slices";
 import { transactions } from "@/data/seed/transactions";
 import type {
   Account,
@@ -17,6 +18,8 @@ import type {
   Holding,
   HoldingClass,
   Paise,
+  Slice,
+  SliceKind,
   Transaction,
   TransactionType,
 } from "@/data/schema";
@@ -61,7 +64,54 @@ export function createTransaction(input: NewTransactionInput): Transaction {
     account.balance += signed;
     account.last_activity_at = row.occurred_at;
   }
+  // A labelled transaction moves that slice, not just the account total.
+  if (input.label_id) {
+    const slice = slices.find((s) => s.id === input.label_id && s.account_id === input.account_id);
+    if (slice) slice.amount += signed;
+  }
   return row;
+}
+
+export interface NewSliceInput {
+  account_id: string;
+  name: string;
+  kind: SliceKind;
+  amount: Paise;
+  color_token: string;
+  target_amount: Paise | null;
+  target_date: string | null;
+}
+
+export function createSlice(input: NewSliceInput): Slice {
+  const row: Slice = {
+    id: uid("slc"),
+    account_id: input.account_id,
+    name: input.name,
+    kind: input.kind,
+    color_token: input.color_token,
+    is_default: !slices.some((s) => s.account_id === input.account_id),
+    amount: Math.abs(input.amount),
+    target_amount: input.kind === "earmark" ? input.target_amount : null,
+    target_date: input.kind === "earmark" ? input.target_date : null,
+  };
+  slices.push(row);
+  return row;
+}
+
+/**
+ * Removes a slice and hands its remaining money back to the account's default
+ * slice. The last remaining slice of an account can never be archived.
+ */
+export function archiveSlice(id: string): boolean {
+  const index = slices.findIndex((s) => s.id === id);
+  if (index === -1) return false;
+  const slice = slices[index]!;
+  const siblings = slices.filter((s) => s.account_id === slice.account_id && s.id !== id);
+  if (!siblings.length) return false;
+  const fallback = siblings.find((s) => s.is_default) ?? siblings[0]!;
+  fallback.amount += slice.amount;
+  slices.splice(index, 1);
+  return true;
 }
 
 export interface NewAccountInput {
@@ -91,6 +141,20 @@ export function createAccount(input: NewAccountInput): Account {
     change_pct: 0,
   };
   accounts.push(row);
+  // Every sliceable account starts life with one default slice.
+  if (input.kind === "bank" || input.kind === "cash" || input.kind === "investment") {
+    slices.push({
+      id: uid("slc"),
+      account_id: row.id,
+      name: "Mine",
+      kind: "owned",
+      color_token: "chart-2",
+      is_default: true,
+      amount: signed,
+      target_amount: null,
+      target_date: null,
+    });
+  }
   return row;
 }
 

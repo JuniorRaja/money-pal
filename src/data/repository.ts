@@ -9,23 +9,27 @@
  */
 import { accounts } from "@/data/seed/accounts";
 import { budgetPeriods, goals, holdings, monthlyRollups } from "@/data/seed/plan";
+import { SLICEABLE_KINDS, slices } from "@/data/seed/slices";
 import { categories, labels } from "@/data/seed/taxonomy";
 import { timelineEvents } from "@/data/seed/timeline";
 import { transactions } from "@/data/seed/transactions";
 import { importJobs, importReviewItems, importSources, userSettings } from "@/data/seed/workshop";
 import {
   liveAccounts,
+  liveAllocations,
   liveBudgets,
   liveCategories,
   liveGoals,
   liveHoldings,
   liveLabels,
   liveMonthlyRollups,
+  liveSlices,
   liveTimeline,
   liveTransactions,
 } from "@/data/live";
 import type {
   Account,
+  AccountAllocation,
   BudgetPeriod,
   Category,
   Goal,
@@ -36,6 +40,7 @@ import type {
   Label,
   MonthlyRollup,
   Paise,
+  Slice,
   TimelineEvent,
   TimelineKind,
   Transaction,
@@ -62,6 +67,7 @@ export const getTimelineEvents = () => resolve<TimelineEvent[]>(liveTimeline, ti
 export const getGoals = () => resolve<Goal[]>(liveGoals, goals);
 export const getHoldings = () => resolve<Holding[]>(liveHoldings, holdings);
 export const getMonthlyRollups = () => resolve<MonthlyRollup[]>(liveMonthlyRollups, monthlyRollups);
+export const getSlices = () => resolve<Slice[]>(liveSlices, slices);
 export const getImportSources = () => ok<ImportSource[]>(importSources);
 export const getImportJobs = () => ok<ImportJob[]>(importJobs);
 export const getImportReviewItems = () => ok<ImportReviewItem[]>(importReviewItems);
@@ -103,6 +109,54 @@ export const getBudgets = (period: string = CURRENT_PERIOD) =>
     budgetPeriods.filter((b) => b.period === period),
   );
 
+
+/** Accounts whose balance can be split into slices. */
+export const isSliceable = (kind: Account["kind"]) =>
+  (SLICEABLE_KINDS as readonly string[]).includes(kind);
+
+/** Allocated vs unallocated money per account, live rows when signed in. */
+export async function getAllocations(): Promise<AccountAllocation[]> {
+  const live = await liveAllocations();
+  if (live) return live;
+  const [accs, rows] = await Promise.all([getAccounts(), getSlices()]);
+  return accs.filter((a) => isSliceable(a.kind)).map((a) => allocationFor(a, rows));
+}
+
+/** Rolls a single account's slices up against its balance. */
+export function allocationFor(account: Account, rows: Slice[]): AccountAllocation {
+  const mine = rows.filter((s) => s.account_id === account.id);
+  const sum = (kind: Slice["kind"]) =>
+    mine.filter((s) => s.kind === kind).reduce((t, s) => t + s.amount, 0);
+  const allocated = mine.reduce((t, s) => t + s.amount, 0);
+  return {
+    account_id: account.id,
+    balance: account.balance,
+    allocated,
+    unallocated: account.balance - allocated,
+    slice_count: mine.length,
+    owned: sum("owned"),
+    custodial: sum("custodial"),
+    earmarked: sum("earmark"),
+  };
+}
+
+export interface OwnedNetWorth {
+  net_worth: Paise;
+  custodial: Paise;
+  earmarked: Paise;
+  owned: Paise;
+}
+
+/** Net worth with money held for other people taken out. */
+export function summariseOwnership(
+  rows: Account[],
+  allocations: AccountAllocation[],
+): OwnedNetWorth {
+  const net_worth = summariseNetWorth(rows).net_worth;
+  const custodial = allocations.reduce((t, a) => t + a.custodial, 0);
+  const earmarked = allocations.reduce((t, a) => t + a.earmarked, 0);
+  return { net_worth, custodial, earmarked, owned: net_worth - custodial };
+}
 
 export interface NetWorthSummary {
   cash: Paise;
