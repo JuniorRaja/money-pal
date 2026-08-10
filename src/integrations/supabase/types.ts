@@ -523,6 +523,13 @@ export type Database = {
             foreignKeyName: "goals_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "goals_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
             referencedRelation: "v_account_balances"
             referencedColumns: ["account_id"]
           },
@@ -597,6 +604,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holdings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
           },
           {
             foreignKeyName: "holdings_account_id_fkey"
@@ -779,42 +793,82 @@ export type Database = {
       }
       labels: {
         Row: {
+          account_id: string | null
           color_token: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
           id: string
           is_active: boolean
+          is_default: boolean
+          kind: Database["public"]["Enums"]["slice_kind"]
           modified_at: string
           modified_by: string | null
           name: string
+          opening_amount: number
+          target_amount: number | null
+          target_date: string | null
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           color_token?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           id?: string
           is_active?: boolean
+          is_default?: boolean
+          kind?: Database["public"]["Enums"]["slice_kind"]
           modified_at?: string
           modified_by?: string | null
           name: string
+          opening_amount?: number
+          target_amount?: number | null
+          target_date?: string | null
           user_id: string
         }
         Update: {
+          account_id?: string | null
           color_token?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           id?: string
           is_active?: boolean
+          is_default?: boolean
+          kind?: Database["public"]["Enums"]["slice_kind"]
           modified_at?: string
           modified_by?: string | null
           name?: string
+          opening_amount?: number
+          target_amount?: number | null
+          target_date?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "labels_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "labels_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "labels_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -960,6 +1014,13 @@ export type Database = {
             foreignKeyName: "timeline_events_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "timeline_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
             referencedRelation: "v_account_balances"
             referencedColumns: ["account_id"]
           },
@@ -1036,6 +1097,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
           },
           {
             foreignKeyName: "transaction_entries_account_id_fkey"
@@ -1149,10 +1217,42 @@ export type Database = {
             referencedRelation: "labels"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_slices"
+            referencedColumns: ["slice_id"]
+          },
         ]
       }
     }
     Views: {
+      v_account_allocation: {
+        Row: {
+          account_id: string | null
+          account_kind: Database["public"]["Enums"]["account_kind"] | null
+          allocated: number | null
+          balance: number | null
+          currency_code: string | null
+          custodial_amount: number | null
+          earmarked_amount: number | null
+          name: string | null
+          owned_amount: number | null
+          slice_count: number | null
+          unallocated: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       v_account_balances: {
         Row: {
           account_id: string | null
@@ -1196,6 +1296,59 @@ export type Database = {
           },
           {
             foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+        ]
+      }
+      v_account_slices: {
+        Row: {
+          account_id: string | null
+          account_name: string | null
+          amount: number | null
+          color_token: string | null
+          currency_code: string | null
+          is_default: boolean | null
+          kind: Database["public"]["Enums"]["slice_kind"] | null
+          name: string | null
+          slice_id: string | null
+          target_amount: number | null
+          target_date: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "labels_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "labels_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "labels_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "v_account_balances"
@@ -1339,6 +1492,13 @@ export type Database = {
             foreignKeyName: "holdings_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "holdings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
             referencedRelation: "v_account_balances"
             referencedColumns: ["account_id"]
           },
@@ -1390,6 +1550,16 @@ export type Database = {
           },
         ]
       }
+      v_net_worth_owned: {
+        Row: {
+          custodial_total: number | null
+          earmarked_total: number | null
+          net_worth: number | null
+          owned_net_worth: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       v_transactions_flat: {
         Row: {
           account_id: string | null
@@ -1428,6 +1598,13 @@ export type Database = {
             foreignKeyName: "transaction_entries_account_id_fkey"
             columns: ["account_id"]
             isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
             referencedRelation: "v_account_balances"
             referencedColumns: ["account_id"]
           },
@@ -1451,6 +1628,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "labels"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_slices"
+            referencedColumns: ["slice_id"]
           },
         ]
       }
@@ -1503,6 +1687,7 @@ export type Database = {
         | "crypto"
       import_kind: "gmail" | "pdf" | "csv" | "manual"
       review_kind: "duplicate" | "unknown_merchant" | "large_transfer"
+      slice_kind: "owned" | "custodial" | "earmark"
       timeline_kind: "money" | "ai_insight" | "goal" | "bill" | "system"
       txn_type: "income" | "expense" | "transfer" | "adjustment"
     }
@@ -1649,6 +1834,7 @@ export const Constants = {
       ],
       import_kind: ["gmail", "pdf", "csv", "manual"],
       review_kind: ["duplicate", "unknown_merchant", "large_transfer"],
+      slice_kind: ["owned", "custodial", "earmark"],
       timeline_kind: ["money", "ai_insight", "goal", "bill", "system"],
       txn_type: ["income", "expense", "transfer", "adjustment"],
     },

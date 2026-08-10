@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CURRENT_PERIOD, TODAY, getAccounts, getCategories, getLabels } from "@/data/repository";
+import { CURRENT_PERIOD, TODAY, getAccounts, getCategories, getSlices } from "@/data/repository";
 import {
   createAccount,
   createBudget,
@@ -19,7 +19,7 @@ import {
   createHolding,
   createTransaction,
 } from "@/data/mutations";
-import type { Account, Category, Label as LabelRow } from "@/data/schema";
+import type { Account, Category, Slice } from "@/data/schema";
 import { cn } from "@/lib/utils";
 
 export type RecordKind = "transaction" | "account" | "goal" | "budget" | "investment";
@@ -160,13 +160,13 @@ export function AddRecordDialog({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [labels, setLabels] = useState<LabelRow[]>([]);
+  const [slices, setSlices] = useState<Slice[]>([]);
 
   useEffect(() => {
-    void Promise.all([getAccounts(), getCategories(), getLabels()]).then(([a, c, l]) => {
+    void Promise.all([getAccounts(), getCategories(), getSlices()]).then(([a, c, s]) => {
       setAccounts(a);
       setCategories(c);
-      setLabels(l);
+      setSlices(s);
     });
   }, [kind]);
 
@@ -178,13 +178,20 @@ export function AddRecordDialog({
   }, [kind]);
 
   const set = (name: string, value: string) => {
-    setValues((v) => ({ ...v, [name]: value }));
+    // Switching account invalidates any slice picked from the previous one.
+    setValues((v) => ({ ...v, [name]: value, ...(name === "account_id" ? { label_id: "" } : {}) }));
     setErrors((e) => {
       if (!e[name]) return e;
       const { [name]: _drop, ...rest } = e;
       return rest;
     });
   };
+
+  // Slices belong to one account, so the picker only ever offers that account's.
+  const accountSlices = useMemo(
+    () => slices.filter((s) => s.account_id === values['account_id']),
+    [slices, values],
+  );
 
   const investmentAccounts = useMemo(
     () => accounts.filter((a) => a.kind === "investment"),
@@ -345,14 +352,17 @@ export function AddRecordDialog({
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Label (optional)">
+                <Field label="Slice (optional)">
                   <select
                     className={fieldBase}
+                    disabled={!values['account_id']}
                     value={values['label_id'] ?? ""}
                     onChange={(e) => set("label_id", e.target.value)}
                   >
-                    <option value="">None</option>
-                    {labels.map((l) => (
+                    <option value="">
+                      {values['account_id'] ? "Whole account" : "Pick an account first"}
+                    </option>
+                    {accountSlices.map((l) => (
                       <option key={l.id} value={l.id}>
                         {l.name}
                       </option>
