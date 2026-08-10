@@ -59,7 +59,7 @@ export function TimelinePage() {
       ))}
     >
       <div className="grid grid-cols-[1fr_320px] gap-6">
-        <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-3">
+        <div className="scroll-rail max-h-[calc(100vh-260px)] pr-3">
           {days.map((day) => (
             <section key={day} className="mb-2">
               <p className="sticky top-0 z-10 -mx-1 bg-background/90 px-1 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground backdrop-blur">
