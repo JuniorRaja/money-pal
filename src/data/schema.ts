@@ -41,7 +41,45 @@ export interface Label {
   id: string;
   name: string;
   color_token: string;
+  /** Set when this label is a slice of a specific account. */
+  account_id?: string | null;
+  kind?: SliceKind;
+  is_default?: boolean;
 }
+
+/**
+ * How a slice of money should be read:
+ * - owned      → genuinely yours, counts in net worth
+ * - custodial  → someone else's money you hold, excluded from net worth
+ * - earmark    → yours but committed, counts in net worth
+ */
+export type SliceKind = "owned" | "custodial" | "earmark";
+
+/** A named part of one account's balance. Amounts are always derived. */
+export interface Slice {
+  id: string;
+  account_id: string;
+  name: string;
+  kind: SliceKind;
+  color_token: string;
+  is_default: boolean;
+  amount: Paise;
+  target_amount: Paise | null;
+  target_date: ISODate | null;
+}
+
+/** Per account roll-up of its slices against the derived balance. */
+export interface AccountAllocation {
+  account_id: string;
+  balance: Paise;
+  allocated: Paise;
+  unallocated: Paise;
+  slice_count: number;
+  owned: Paise;
+  custodial: Paise;
+  earmarked: Paise;
+}
+
 
 export type TransactionType = "income" | "expense" | "transfer";
 
