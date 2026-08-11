@@ -6,6 +6,8 @@
  */
 import {
   createTransactionFn,
+  updateTransactionFn,
+  deleteTransactionFn,
   createAccountFn,
   updateAccountFn,
   archiveAccountFn,
@@ -15,6 +17,8 @@ import {
   createBudgetFn,
   createHoldingFn,
   type CreateTransactionInput,
+  type UpdateTransactionInput,
+  type DeleteTransactionInput,
   type CreateAccountInput,
   type UpdateAccountInput,
   type ArchiveAccountInput,
@@ -86,6 +90,77 @@ export async function createTransaction(input: NewTransactionInput): Promise<Tra
     note: input.note,
     attachments: 0,
   };
+}
+
+// =============================================================================
+// UPDATE TRANSACTION
+// =============================================================================
+
+export interface EditTransactionInput {
+  id: string; // entry ID (the domain-level transaction ID from v_transactions_flat)
+  occurred_at?: string | undefined;
+  merchant?: string | undefined;
+  descriptor?: string | undefined;
+  amount?: Paise | undefined; // absolute value — will be re-signed based on type
+  type?: TransactionType | undefined;
+  account_id?: string | undefined;
+  category_id?: string | undefined;
+  label_id?: string | null | undefined;
+  note?: string | null | undefined;
+  payment_method?: string | undefined;
+}
+
+export async function updateTransaction(
+  input: EditTransactionInput,
+  current: Transaction,
+): Promise<Transaction> {
+  const serverInput: UpdateTransactionInput = {
+    id: input.id,
+    occurred_at: input.occurred_at,
+    merchant: input.merchant,
+    descriptor: input.descriptor,
+    amount: input.amount,
+    type: input.type,
+    account_id: input.account_id,
+    category_id: input.category_id,
+    label_id: input.label_id,
+    note: input.note,
+    payment_method: input.payment_method,
+  };
+  await updateTransactionFn({ data: serverInput });
+
+  // Compute the updated local domain object
+  const effectiveType = input.type ?? current.type;
+  const effectiveAmount = input.amount ?? Math.abs(current.amount);
+  const signed = effectiveType === "income" ? Math.abs(effectiveAmount) : -Math.abs(effectiveAmount);
+
+  return {
+    ...current,
+    ...(input.occurred_at && { occurred_at: `${input.occurred_at}T12:00:00+05:30` }),
+    ...(input.merchant !== undefined && { merchant: input.merchant }),
+    ...(input.descriptor !== undefined && { descriptor: input.descriptor }),
+    ...(input.type !== undefined && { type: input.type }),
+    ...(input.account_id !== undefined && { account_id: input.account_id }),
+    ...(input.category_id !== undefined && { category_id: input.category_id }),
+    ...(input.label_id !== undefined && { label_id: input.label_id }),
+    ...(input.note !== undefined && { note: input.note }),
+    ...(input.payment_method !== undefined && { payment_method: input.payment_method }),
+    amount: signed,
+  };
+}
+
+// =============================================================================
+// DELETE TRANSACTION (soft-delete)
+// =============================================================================
+
+export async function deleteTransaction(id: string): Promise<boolean> {
+  const serverInput: DeleteTransactionInput = { id };
+  try {
+    await deleteTransactionFn({ data: serverInput });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // =============================================================================
