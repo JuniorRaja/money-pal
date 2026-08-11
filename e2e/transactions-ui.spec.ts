@@ -18,7 +18,7 @@ test.describe("Transactions Page — UI Functionality", () => {
   });
 
   test("transactions table renders with correct column headers", async ({ transactionsPage: page }) => {
-    const headers = ["Date", "Merchant", "Category", "Account", "Label", "Amount"];
+    const headers = ["Date", "Merchant", "Category", "Account", "Slice", "Amount"];
     for (const header of headers) {
       await expect(page.locator("thead").locator(`text=${header}`)).toBeVisible();
     }

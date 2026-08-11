@@ -13,6 +13,7 @@ import {
   archiveAccountFn,
   createSliceFn,
   archiveSliceFn,
+  updateSliceFn,
   createGoalFn,
   createBudgetFn,
   createHoldingFn,
@@ -24,6 +25,7 @@ import {
   type ArchiveAccountInput,
   type CreateSliceInput,
   type ArchiveSliceInput,
+  type UpdateSliceInput,
   type CreateGoalInput,
   type CreateBudgetInput,
   type CreateHoldingInput,
@@ -55,12 +57,16 @@ export interface NewTransactionInput {
   amount: Paise; // absolute value
   type: TransactionType;
   account_id: string;
+  to_account_id?: string | null;
   category_id: string;
   label_id: string | null;
+  to_label_id?: string | null;
   note: string | null;
 }
 
-export async function createTransaction(input: NewTransactionInput): Promise<Transaction> {
+export async function createTransaction(input: NewTransactionInput): Promise<{
+  transaction_id: string;
+}> {
   const serverInput: CreateTransactionInput = {
     occurred_at: input.occurred_at,
     merchant: input.merchant,
@@ -68,28 +74,13 @@ export async function createTransaction(input: NewTransactionInput): Promise<Tra
     amount: input.amount,
     type: input.type,
     account_id: input.account_id,
+    to_account_id: input.to_account_id ?? null,
     category_id: input.category_id,
     label_id: input.label_id,
+    to_label_id: input.to_label_id ?? null,
     note: input.note,
   };
-  const result = await createTransactionFn({ data: serverInput });
-  const signed = input.type === "income" ? Math.abs(input.amount) : -Math.abs(input.amount);
-  return {
-    id: result.id,
-    occurred_at: `${input.occurred_at}T12:00:00+05:30`,
-    merchant: input.merchant,
-    descriptor: input.descriptor || input.merchant,
-    amount: signed,
-    type: input.type,
-    account_id: input.account_id,
-    category_id: input.category_id,
-    label_id: input.label_id,
-    payment_method: "Manual",
-    source: "Manual entry",
-    confidence: 1,
-    note: input.note,
-    attachments: 0,
-  };
+  return createTransactionFn({ data: serverInput });
 }
 
 // =============================================================================
@@ -98,14 +89,17 @@ export async function createTransaction(input: NewTransactionInput): Promise<Tra
 
 export interface EditTransactionInput {
   id: string; // entry ID (the domain-level transaction ID from v_transactions_flat)
+  transaction_id?: string | undefined;
   occurred_at?: string | undefined;
   merchant?: string | undefined;
   descriptor?: string | undefined;
   amount?: Paise | undefined; // absolute value — will be re-signed based on type
   type?: TransactionType | undefined;
   account_id?: string | undefined;
+  to_account_id?: string | null | undefined;
   category_id?: string | undefined;
   label_id?: string | null | undefined;
+  to_label_id?: string | null | undefined;
   note?: string | null | undefined;
   payment_method?: string | undefined;
 }
@@ -113,48 +107,38 @@ export interface EditTransactionInput {
 export async function updateTransaction(
   input: EditTransactionInput,
   current: Transaction,
-): Promise<Transaction> {
+): Promise<void> {
   const serverInput: UpdateTransactionInput = {
     id: input.id,
+    transaction_id: input.transaction_id ?? current.transaction_id,
     occurred_at: input.occurred_at,
     merchant: input.merchant,
     descriptor: input.descriptor,
     amount: input.amount,
     type: input.type,
     account_id: input.account_id,
+    to_account_id: input.to_account_id,
     category_id: input.category_id,
     label_id: input.label_id,
+    to_label_id: input.to_label_id,
     note: input.note,
     payment_method: input.payment_method,
   };
   await updateTransactionFn({ data: serverInput });
-
-  // Compute the updated local domain object
-  const effectiveType = input.type ?? current.type;
-  const effectiveAmount = input.amount ?? Math.abs(current.amount);
-  const signed = effectiveType === "income" ? Math.abs(effectiveAmount) : -Math.abs(effectiveAmount);
-
-  return {
-    ...current,
-    ...(input.occurred_at && { occurred_at: `${input.occurred_at}T12:00:00+05:30` }),
-    ...(input.merchant !== undefined && { merchant: input.merchant }),
-    ...(input.descriptor !== undefined && { descriptor: input.descriptor }),
-    ...(input.type !== undefined && { type: input.type }),
-    ...(input.account_id !== undefined && { account_id: input.account_id }),
-    ...(input.category_id !== undefined && { category_id: input.category_id }),
-    ...(input.label_id !== undefined && { label_id: input.label_id }),
-    ...(input.note !== undefined && { note: input.note }),
-    ...(input.payment_method !== undefined && { payment_method: input.payment_method }),
-    amount: signed,
-  };
 }
 
 // =============================================================================
 // DELETE TRANSACTION (soft-delete)
 // =============================================================================
 
-export async function deleteTransaction(id: string): Promise<boolean> {
-  const serverInput: DeleteTransactionInput = { id };
+export async function deleteTransaction(
+  id: string,
+  transactionId?: string,
+): Promise<boolean> {
+  const serverInput: DeleteTransactionInput = {
+    id,
+    transaction_id: transactionId,
+  };
   try {
     await deleteTransactionFn({ data: serverInput });
     return true;
@@ -196,14 +180,15 @@ export async function createSlice(input: NewSliceInput): Promise<Slice> {
     color_token: input.color_token,
     is_default: false,
     amount: Math.abs(input.amount),
+    opening_amount: Math.abs(input.amount),
     target_amount: input.kind === "earmark" ? input.target_amount : null,
     target_date: input.kind === "earmark" ? input.target_date : null,
   };
 }
 
 /**
- * Removes a slice and hands its remaining money back to the account's default
- * slice. The last remaining slice of an account can never be archived.
+ * Soft-archives a slice. Remaining balance becomes Unallocated (derived).
+ * The last remaining slice of an account can never be archived.
  */
 export async function archiveSlice(id: string): Promise<boolean> {
   const serverInput: ArchiveSliceInput = { id };
@@ -213,6 +198,29 @@ export async function archiveSlice(id: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export interface EditSliceInput {
+  id: string;
+  name?: string | undefined;
+  kind?: SliceKind | undefined;
+  color_token?: string | undefined;
+  opening_amount?: Paise | undefined;
+  target_amount?: Paise | null | undefined;
+  target_date?: string | null | undefined;
+}
+
+export async function updateSlice(input: EditSliceInput): Promise<void> {
+  const serverInput: UpdateSliceInput = {
+    id: input.id,
+    name: input.name,
+    kind: input.kind,
+    color_token: input.color_token,
+    opening_amount: input.opening_amount,
+    target_amount: input.target_amount,
+    target_date: input.target_date,
+  };
+  await updateSliceFn({ data: serverInput });
 }
 
 // =============================================================================

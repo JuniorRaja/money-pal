@@ -63,7 +63,10 @@ export interface Slice {
   kind: SliceKind;
   color_token: string;
   is_default: boolean;
+  /** Derived: opening_amount + tagged entry sum. */
   amount: Paise;
+  /** Seed balance before tagged transactions. */
+  opening_amount: Paise;
   target_amount: Paise | null;
   target_date: ISODate | null;
 }
@@ -84,13 +87,18 @@ export interface AccountAllocation {
 export type TransactionType = "income" | "expense" | "transfer";
 
 export interface Transaction {
+  /** Ledger entry id (row in transaction_entries / domain list key). */
   id: string;
+  /** Parent transactions header id — shared by both legs of a transfer. */
+  transaction_id: string;
   occurred_at: ISODateTime;
   merchant: string;
   descriptor: string;
   amount: Paise; // signed: negative = money out
   type: TransactionType;
   account_id: string;
+  /** For transfers: the other account on this header (to if this is from, from if this is to). */
+  counterparty_account_id: string | null;
   category_id: string;
   label_id: string | null;
   payment_method: string;

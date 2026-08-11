@@ -43,17 +43,29 @@ const text = (max = 80) => z.string().trim().min(1, "Required").max(max, `Max ${
 const isoDate = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date");
 
 const schemas = {
-  transaction: z.object({
-    occurred_at: isoDate,
-    account_id: text(40),
-    merchant: text(60),
-    descriptor: z.string().trim().max(120).optional(),
-    amount: rupees,
-    type: z.enum(["expense", "income", "transfer"]),
-    category_id: text(40),
-    label_id: z.string().optional(),
-    note: z.string().trim().max(280).optional(),
-  }),
+  transaction: z
+    .object({
+      occurred_at: isoDate,
+      account_id: text(40),
+      to_account_id: z.string().optional(),
+      merchant: text(60),
+      descriptor: z.string().trim().max(120).optional(),
+      amount: rupees,
+      type: z.enum(["expense", "income", "transfer"]),
+      category_id: text(40),
+      label_id: z.string().optional(),
+      to_label_id: z.string().optional(),
+      note: z.string().trim().max(280).optional(),
+    })
+    .superRefine((val, ctx) => {
+      if (val.type === "transfer") {
+        if (!val.to_account_id?.trim()) {
+          ctx.addIssue({ code: "custom", path: ["to_account_id"], message: "Pick a destination account" });
+        } else if (val.to_account_id === val.account_id) {
+          ctx.addIssue({ code: "custom", path: ["to_account_id"], message: "Accounts must differ" });
+        }
+      }
+    }),
   account: z.object({
     name: text(60),
     institution: text(60),
@@ -94,12 +106,14 @@ const defaults: Record<RecordKind, Record<string, string>> = {
   transaction: {
     occurred_at: TODAY,
     account_id: "",
+    to_account_id: "",
     merchant: "",
     descriptor: "",
     amount: "",
     type: "expense",
     category_id: "",
     label_id: "",
+    to_label_id: "",
     note: "",
   },
   account: { name: "", institution: "", kind: "bank", balance: "", credit_limit: "" },
@@ -179,7 +193,13 @@ export function AddRecordDialog({
 
   const set = (name: string, value: string) => {
     // Switching account invalidates any slice picked from the previous one.
-    setValues((v) => ({ ...v, [name]: value, ...(name === "account_id" ? { label_id: "" } : {}) }));
+    setValues((v) => ({
+      ...v,
+      [name]: value,
+      ...(name === "account_id" ? { label_id: "" } : {}),
+      ...(name === "to_account_id" ? { to_label_id: "" } : {}),
+      ...(name === "type" && value !== "transfer" ? { to_account_id: "", to_label_id: "" } : {}),
+    }));
     setErrors((e) => {
       if (!e[name]) return e;
       const { [name]: _drop, ...rest } = e;
@@ -187,11 +207,26 @@ export function AddRecordDialog({
     });
   };
 
+  const isTransfer = values["type"] === "transfer";
+
   // Slices belong to one account, so the picker only ever offers that account's.
   const accountSlices = useMemo(
-    () => slices.filter((s) => s.account_id === values['account_id']),
+    () => slices.filter((s) => s.account_id === values["account_id"]),
     [slices, values],
   );
+  const toAccountSlices = useMemo(
+    () => slices.filter((s) => s.account_id === values["to_account_id"]),
+    [slices, values],
+  );
+
+  const fromAccount = accounts.find((a) => a.id === values["account_id"]);
+  const toAccount = accounts.find((a) => a.id === values["to_account_id"]);
+  const fromSliceable = fromAccount
+    ? fromAccount.kind === "bank" || fromAccount.kind === "cash" || fromAccount.kind === "investment"
+    : false;
+  const toSliceable = toAccount
+    ? toAccount.kind === "bank" || toAccount.kind === "cash" || toAccount.kind === "investment"
+    : false;
 
   const investmentAccounts = useMemo(
     () => accounts.filter((a) => a.kind === "investment"),
@@ -213,16 +248,19 @@ export function AddRecordDialog({
 
     try {
       if (kind === "transaction") {
+        const type = v["type"] as "income" | "expense" | "transfer";
         await createTransaction({
-          occurred_at: v['occurred_at']!,
-          merchant: v['merchant']!,
-          descriptor: v['descriptor'] || v['merchant']!,
-          amount: paise(v['amount']),
-          type: v['type'] as "income" | "expense" | "transfer",
-          account_id: v['account_id']!,
-          category_id: v['category_id']!,
-          label_id: v['label_id'] ? v['label_id'] : null,
-          note: v['note'] ? v['note'] : null,
+          occurred_at: v["occurred_at"]!,
+          merchant: v["merchant"]!,
+          descriptor: v["descriptor"] || v["merchant"]!,
+          amount: paise(v["amount"]),
+          type,
+          account_id: v["account_id"]!,
+          to_account_id: type === "transfer" ? v["to_account_id"] || null : null,
+          category_id: v["category_id"]!,
+          label_id: v["label_id"] ? v["label_id"] : null,
+          to_label_id: type === "transfer" && v["to_label_id"] ? v["to_label_id"] : null,
+          note: v["note"] ? v["note"] : null,
         });
       } else if (kind === "account") {
         await createAccount({
@@ -327,10 +365,10 @@ export function AddRecordDialog({
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Account" error={errors['account_id']}>
+                <Field label={isTransfer ? "From account" : "Account"} error={errors["account_id"]}>
                   <select
                     className={fieldBase}
-                    value={values['account_id'] ?? ""}
+                    value={values["account_id"] ?? ""}
                     onChange={(e) => set("account_id", e.target.value)}
                   >
                     <option value="">Select account</option>
@@ -341,10 +379,45 @@ export function AddRecordDialog({
                     ))}
                   </select>
                 </Field>
-                <Field label="Category" error={errors['category_id']}>
+                {isTransfer ? (
+                  <Field label="To account" error={errors["to_account_id"]}>
+                    <select
+                      className={fieldBase}
+                      value={values["to_account_id"] ?? ""}
+                      onChange={(e) => set("to_account_id", e.target.value)}
+                    >
+                      <option value="">Select account</option>
+                      {accounts
+                        .filter((a) => a.id !== values["account_id"])
+                        .map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
+                ) : (
+                  <Field label="Category" error={errors["category_id"]}>
+                    <select
+                      className={fieldBase}
+                      value={values["category_id"] ?? ""}
+                      onChange={(e) => set("category_id", e.target.value)}
+                    >
+                      <option value="">Select category</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+              </div>
+              {isTransfer && (
+                <Field label="Category" error={errors["category_id"]}>
                   <select
                     className={fieldBase}
-                    value={values['category_id'] ?? ""}
+                    value={values["category_id"] ?? ""}
                     onChange={(e) => set("category_id", e.target.value)}
                   >
                     <option value="">Select category</option>
@@ -355,17 +428,21 @@ export function AddRecordDialog({
                     ))}
                   </select>
                 </Field>
-              </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Slice (optional)">
+                <Field label={isTransfer ? "From slice (optional)" : "Slice (optional)"}>
                   <select
                     className={fieldBase}
-                    disabled={!values['account_id']}
-                    value={values['label_id'] ?? ""}
+                    disabled={!values["account_id"] || !fromSliceable}
+                    value={values["label_id"] ?? ""}
                     onChange={(e) => set("label_id", e.target.value)}
                   >
                     <option value="">
-                      {values['account_id'] ? "Whole account" : "Pick an account first"}
+                      {!values["account_id"]
+                        ? "Pick an account first"
+                        : !fromSliceable
+                          ? "No slices on this account"
+                          : "Whole account (unallocated)"}
                     </option>
                     {accountSlices.map((l) => (
                       <option key={l.id} value={l.id}>
@@ -374,19 +451,53 @@ export function AddRecordDialog({
                     ))}
                   </select>
                 </Field>
-                <Field label="Description (optional)" error={errors['descriptor']}>
+                {isTransfer ? (
+                  <Field label="To slice (optional)">
+                    <select
+                      className={fieldBase}
+                      disabled={!values["to_account_id"] || !toSliceable}
+                      value={values["to_label_id"] ?? ""}
+                      onChange={(e) => set("to_label_id", e.target.value)}
+                    >
+                      <option value="">
+                        {!values["to_account_id"]
+                          ? "Pick a destination first"
+                          : !toSliceable
+                            ? "No slices on this account"
+                            : "Whole account (unallocated)"}
+                      </option>
+                      {toAccountSlices.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : (
+                  <Field label="Description (optional)" error={errors["descriptor"]}>
+                    <input
+                      className={fieldBase}
+                      placeholder="Order #1234"
+                      value={values["descriptor"] ?? ""}
+                      onChange={(e) => set("descriptor", e.target.value)}
+                    />
+                  </Field>
+                )}
+              </div>
+              {isTransfer && (
+                <Field label="Description (optional)" error={errors["descriptor"]}>
                   <input
                     className={fieldBase}
                     placeholder="Order #1234"
-                    value={values['descriptor'] ?? ""}
+                    value={values["descriptor"] ?? ""}
                     onChange={(e) => set("descriptor", e.target.value)}
                   />
                 </Field>
-              </div>
-              <Field label="Note (optional)" error={errors['note']}>
+              )}
+              <Field label="Note (optional)" error={errors["note"]}>
                 <textarea
                   className={cn(fieldBase, "h-20 resize-none py-2")}
-                  value={values['note'] ?? ""}
+                  value={values["note"] ?? ""}
                   onChange={(e) => set("note", e.target.value)}
                 />
               </Field>

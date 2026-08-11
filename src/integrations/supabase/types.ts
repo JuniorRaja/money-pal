@@ -1057,6 +1057,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           is_active: boolean
+          label_id: string | null
           modified_at: string
           modified_by: string | null
           transaction_id: string
@@ -1071,6 +1072,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           is_active?: boolean
+          label_id?: string | null
           modified_at?: string
           modified_by?: string | null
           transaction_id: string
@@ -1085,6 +1087,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           is_active?: boolean
+          label_id?: string | null
           modified_at?: string
           modified_by?: string | null
           transaction_id?: string
@@ -1118,6 +1121,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "currencies"
             referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "transaction_entries_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "labels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_slices"
+            referencedColumns: ["slice_id"]
           },
           {
             foreignKeyName: "transaction_entries_transaction_id_fkey"
@@ -1320,6 +1337,7 @@ export type Database = {
           is_default: boolean | null
           kind: Database["public"]["Enums"]["slice_kind"] | null
           name: string | null
+          opening_amount: number | null
           slice_id: string | null
           target_amount: number | null
           target_date: string | null
@@ -1583,6 +1601,7 @@ export type Database = {
           occurred_at: string | null
           payment_method: string | null
           source: string | null
+          transaction_id: string | null
           type: Database["public"]["Enums"]["txn_type"] | null
           user_id: string | null
         }
@@ -1616,25 +1635,25 @@ export type Database = {
             referencedColumns: ["code"]
           },
           {
-            foreignKeyName: "transactions_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_label_id_fkey"
+            foreignKeyName: "transaction_entries_label_id_fkey"
             columns: ["label_id"]
             isOneToOne: false
             referencedRelation: "labels"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transactions_label_id_fkey"
+            foreignKeyName: "transaction_entries_label_id_fkey"
             columns: ["label_id"]
             isOneToOne: false
             referencedRelation: "v_account_slices"
             referencedColumns: ["slice_id"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1660,15 +1679,45 @@ export type Database = {
           p_category?: string
           p_descriptor?: string
           p_from_account: string
-          p_label?: string
+          p_from_label?: string
           p_merchant?: string
           p_note?: string
           p_occurred_at: string
           p_payment_method?: string
           p_to_account?: string
+          p_to_label?: string
           p_type: Database["public"]["Enums"]["txn_type"]
         }
         Returns: string
+      }
+      fn_update_transaction: {
+        Args: {
+          p_amount?: number
+          p_category?: string
+          p_clear_from_label?: boolean
+          p_clear_note?: boolean
+          p_clear_to_label?: boolean
+          p_descriptor?: string
+          p_from_account?: string
+          p_from_label?: string
+          p_merchant?: string
+          p_note?: string
+          p_occurred_at?: string
+          p_payment_method?: string
+          p_to_account?: string
+          p_to_label?: string
+          p_transaction_id: string
+          p_type?: Database["public"]["Enums"]["txn_type"]
+        }
+        Returns: string
+      }
+      fn_delete_transaction: {
+        Args: { p_transaction_id: string }
+        Returns: boolean
+      }
+      fn_assert_slice_on_account: {
+        Args: { p_account: string; p_label: string; p_uid: string }
+        Returns: undefined
       }
     }
     Enums: {

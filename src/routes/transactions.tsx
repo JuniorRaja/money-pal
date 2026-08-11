@@ -3,11 +3,8 @@ import {
   CircleDot,
   CreditCard,
   Edit,
-  Eye,
   FileText,
   MoreHorizontal,
-  Scissors,
-  Shield,
   SmartphoneNfc,
   StickyNote,
   Tag,
@@ -15,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -55,6 +52,7 @@ import {
   getAccounts,
   getCategories,
   getLabels,
+  groupTransactionsForDisplay,
   listTransactions,
   summariseCashflow,
   type TransactionFilter,
@@ -99,9 +97,12 @@ function TransactionsPage() {
   const [filter, setFilter] = useState<TransactionFilter>({ period: CURRENT_PERIOD });
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const rows = useMemo(() => filterTransactions(transactions, filter), [transactions, filter]);
+  const rows = useMemo(() => {
+    const filtered = filterTransactions(transactions, filter);
+    return groupTransactionsForDisplay(filtered);
+  }, [transactions, filter]);
   const summary = summariseCashflow(rows);
-  const selected = rows.find((t) => t.id === selectedId) ?? null;
+  const selected = rows.find((t) => t.transaction_id === selectedId) ?? null;
 
   const grouped = useMemo(() => {
     const map = new Map<string, Transaction[]>();
@@ -115,6 +116,12 @@ function TransactionsPage() {
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? id;
   const categoryOf = (id: string) => categories.find((c) => c.id === id);
   const labelOf = (id: string | null) => labels.find((l) => l.id === id);
+  const accountLabel = (t: Transaction) => {
+    if (t.type !== "transfer" || !t.counterparty_account_id) return accountName(t.account_id);
+    // Always render From → To regardless of which leg we display.
+    if (t.amount < 0) return `${accountName(t.account_id)} → ${accountName(t.counterparty_account_id)}`;
+    return `${accountName(t.counterparty_account_id)} → ${accountName(t.account_id)}`;
+  };
 
   return (
     <AppShell
@@ -152,7 +159,7 @@ function TransactionsPage() {
           <Select
             value={filter.label_id ?? ""}
             onChange={(v) => setFilter({ ...filter, label_id: v || undefined })}
-            options={[{ value: "", label: "Label: All" }, ...labels.map((l) => ({ value: l.id, label: l.name }))]}
+            options={[{ value: "", label: "Slice: All" }, ...labels.map((l) => ({ value: l.id, label: l.name }))]}
           />
           <Select
             value={filter.type ?? ""}
@@ -189,7 +196,7 @@ function TransactionsPage() {
                   <th className="px-2 py-3 text-left font-medium">Merchant</th>
                   <th className="px-2 py-3 text-left font-medium">Category</th>
                   <th className="px-2 py-3 text-left font-medium">Account</th>
-                  <th className="px-2 py-3 text-left font-medium">Label</th>
+                  <th className="px-2 py-3 text-left font-medium">Slice</th>
                   <th className="px-5 py-3 text-right font-medium">Amount</th>
                 </tr>
               </thead>
@@ -207,9 +214,9 @@ function TransactionsPage() {
                       const lbl = labelOf(t.label_id);
                       return (
                         <tr
-                          key={t.id}
-                          onClick={() => setSelectedId(t.id)}
-                          className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/40 ${selectedId === t.id ? "bg-accent/50" : ""
+                          key={t.transaction_id}
+                          onClick={() => setSelectedId(t.transaction_id)}
+                          className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/40 ${selectedId === t.transaction_id ? "bg-accent/50" : ""
                             }`}
                         >
                           <td className="numeric px-5 py-3 text-xs text-muted-foreground">{formatTime(t.occurred_at)}</td>
@@ -218,7 +225,7 @@ function TransactionsPage() {
                             <p className="text-xs text-muted-foreground">{t.descriptor}</p>
                           </td>
                           <td className="px-2 py-3 text-xs text-muted-foreground">{cat?.name}</td>
-                          <td className="px-2 py-3 text-xs text-muted-foreground">{accountName(t.account_id)}</td>
+                          <td className="px-2 py-3 text-xs text-muted-foreground">{accountLabel(t)}</td>
                           <td className="px-2 py-3 text-xs text-muted-foreground">
                             {lbl && (
                               <span className="inline-flex items-center gap-1.5">
@@ -248,16 +255,19 @@ function TransactionsPage() {
 
         {selected && (
           <DetailPanel
-            key={selected.id}
+            key={selected.transaction_id}
             transaction={selected}
-            accountName={accountName(selected.account_id)}
+            accountName={accountLabel(selected)}
             category={categoryOf(selected.category_id)?.name ?? ""}
             label={labelOf(selected.label_id)}
             labels={labels}
             categories={categories}
             accounts={accounts}
             onClose={() => setSelectedId(null)}
-            onUpdated={async () => { await router.invalidate(); }}
+            onUpdated={async () => {
+              await router.invalidate();
+            }}
+            onDeleted={() => setSelectedId(null)}
           />
         )}
       </div>
@@ -279,6 +289,7 @@ function DetailPanel({
   accounts,
   onClose,
   onUpdated,
+  onDeleted,
 }: {
   transaction: Transaction;
   accountName: string;
@@ -289,6 +300,7 @@ function DetailPanel({
   accounts: Account[];
   onClose: () => void;
   onUpdated: () => Promise<void> | void;
+  onDeleted: () => void;
 }) {
   const [tab, setTab] = useState<"details" | "notes">("details");
   const [editOpen, setEditOpen] = useState(false);
@@ -311,27 +323,31 @@ function DetailPanel({
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
-    const ok = await deleteTransaction(transaction.id);
+    const ok = await deleteTransaction(transaction.id, transaction.transaction_id);
     if (ok) {
       toast.success("Transaction deleted");
-      // Hard reload ensures fresh data from server after soft-delete
-      window.location.reload();
+      setDeleteOpen(false);
+      onDeleted();
+      await onUpdated();
     } else {
       setDeleting(false);
       setDeleteOpen(false);
       toast.error("Failed to delete transaction");
     }
-  }, [transaction.id]);
+  }, [transaction.id, transaction.transaction_id, onDeleted, onUpdated]);
 
   const handleLabelChange = useCallback(
     async (labelId: string | null) => {
       try {
-        await updateTransaction({ id: transaction.id, label_id: labelId }, transaction);
-        toast.success("Label updated");
+        await updateTransaction(
+          { id: transaction.id, transaction_id: transaction.transaction_id, label_id: labelId },
+          transaction,
+        );
+        toast.success("Slice updated");
         setLabelOpen(false);
         onUpdated();
       } catch {
-        toast.error("Failed to update label");
+        toast.error("Failed to update slice");
       }
     },
     [transaction, onUpdated],
@@ -341,7 +357,10 @@ function DetailPanel({
     if (noteValue === (transaction.note ?? "")) return;
     setSavingNote(true);
     try {
-      await updateTransaction({ id: transaction.id, note: noteValue || null }, transaction);
+      await updateTransaction(
+        { id: transaction.id, transaction_id: transaction.transaction_id, note: noteValue || null },
+        transaction,
+      );
       toast.success("Note saved");
       onUpdated();
     } catch {
@@ -385,29 +404,28 @@ function DetailPanel({
 
         {/* Metadata rows */}
         <dl className="mt-5 space-y-3 text-sm">
-          <DetailRow icon={<CircleDot className="h-3.5 w-3.5" />} label="Label">
+          <DetailRow icon={<CircleDot className="h-3.5 w-3.5" />} label="Slice">
             {label ? (
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
                 <Dot token={label.color_token} /> {label.name}
               </span>
             ) : (
-              <span className="text-muted-foreground">—</span>
+              <span className="text-muted-foreground">Unallocated</span>
             )}
           </DetailRow>
           <DetailRow icon={<Timer className="h-3.5 w-3.5" />} label="Type">
             <span className="text-sm font-medium capitalize text-primary">{transaction.type}</span>
           </DetailRow>
-          <DetailRow icon={<CreditCard className="h-3.5 w-3.5" />} label="Payment Method">
-            <span className="text-sm text-foreground">{transaction.payment_method || "—"}</span>
+          <DetailRow icon={<CreditCard className="h-3.5 w-3.5" />} label="Account">
+            <span className="text-sm text-foreground">{accountName}</span>
           </DetailRow>
           <DetailRow icon={<SmartphoneNfc className="h-3.5 w-3.5" />} label="Source">
             <span className="text-sm text-foreground">{transaction.source}</span>
           </DetailRow>
           <DetailRow icon={<FileText className="h-3.5 w-3.5" />} label="Transaction ID">
-            <span className="text-sm font-mono text-foreground">{transaction.id.slice(0, 12).toUpperCase()}</span>
-          </DetailRow>
-          <DetailRow icon={<Shield className="h-3.5 w-3.5" />} label="Confidence">
-            <span className="text-sm font-medium text-success">High · {Math.round(transaction.confidence * 100)}%</span>
+            <span className="text-sm font-mono text-foreground">
+              {transaction.transaction_id.slice(0, 12).toUpperCase()}
+            </span>
           </DetailRow>
         </dl>
 
@@ -416,21 +434,20 @@ function DetailPanel({
           <p className="text-xs font-medium text-muted-foreground">Actions</p>
           <div className="mt-2 flex items-center gap-2">
             <ActionButton icon={<Edit className="h-4 w-4" />} label="Edit" onClick={() => setEditOpen(true)} />
-            <ActionButton icon={<Scissors className="h-4 w-4" />} label="Split" onClick={() => toast.info("Split is coming soon")} />
             <Popover open={labelOpen} onOpenChange={setLabelOpen}>
               <PopoverTrigger asChild>
                 <button className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
                   <Tag className="h-4 w-4" />
-                  <span className="text-[10px]">Change Label</span>
+                  <span className="text-[10px]">Change Slice</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-52 p-2" align="start">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Pick a label</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Pick a slice</p>
                 <button
                   onClick={() => handleLabelChange(null)}
                   className="w-full rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-accent"
                 >
-                  None
+                  Unallocated
                 </button>
                 {accountLabels.map((l) => (
                   <button
@@ -487,10 +504,6 @@ function DetailPanel({
           </button>
         )}
 
-        {/* View in Timeline */}
-        <button className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-transform hover:scale-[1.01]">
-          <Eye className="h-4 w-4" /> View in Timeline
-        </button>
       </aside>
 
       {/* Edit Transaction Dialog */}
@@ -510,7 +523,10 @@ function DetailPanel({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete transaction?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will soft-delete the transaction for {transaction.merchant} ({formatMoney(transaction.amount, { sign: true })}). You can contact support to restore it later.
+              This will soft-delete the transaction for {transaction.merchant} (
+              {formatMoney(Math.abs(transaction.amount), { sign: transaction.type !== "transfer" })}
+              ).
+              {transaction.type === "transfer" ? " Both transfer legs will be removed." : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -558,28 +574,36 @@ function EditTransactionDialog({
   const [amount, setAmount] = useState(String(Math.abs(transaction.amount) / 100));
   const [type, setType] = useState<TransactionType>(transaction.type);
   const [accountId, setAccountId] = useState(transaction.account_id);
+  const [toAccountId, setToAccountId] = useState(transaction.counterparty_account_id ?? "");
   const [categoryId, setCategoryId] = useState(transaction.category_id);
   const [labelId, setLabelId] = useState(transaction.label_id ?? "");
+  const [toLabelId, setToLabelId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState(transaction.payment_method);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset form when transaction changes
-  useState(() => {
+  useEffect(() => {
+    if (!open) return;
     setMerchant(transaction.merchant);
     setDescriptor(transaction.descriptor);
     setAmount(String(Math.abs(transaction.amount) / 100));
     setType(transaction.type);
     setAccountId(transaction.account_id);
+    setToAccountId(transaction.counterparty_account_id ?? "");
     setCategoryId(transaction.category_id);
     setLabelId(transaction.label_id ?? "");
+    setToLabelId("");
     setPaymentMethod(transaction.payment_method);
-  });
+    setError(null);
+  }, [open, transaction]);
 
-  // Filter labels to only those belonging to the currently selected account
   const accountLabelsForEdit = useMemo(
     () => labels.filter((l) => l.account_id === accountId),
     [labels, accountId],
+  );
+  const toAccountLabelsForEdit = useMemo(
+    () => labels.filter((l) => l.account_id === toAccountId),
+    [labels, toAccountId],
   );
 
   const submit = async (e: React.FormEvent) => {
@@ -587,6 +611,10 @@ function EditTransactionDialog({
     if (!merchant.trim()) return setError("Merchant is required");
     const parsedAmount = parseFloat(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return setError("Enter a valid amount");
+    if (type === "transfer") {
+      if (!toAccountId) return setError("Pick a destination account");
+      if (toAccountId === accountId) return setError("Transfer accounts must differ");
+    }
 
     setSaving(true);
     setError(null);
@@ -594,13 +622,16 @@ function EditTransactionDialog({
       await updateTransaction(
         {
           id: transaction.id,
+          transaction_id: transaction.transaction_id,
           merchant: merchant.trim(),
           descriptor: descriptor.trim() || merchant.trim(),
           amount: Math.round(parsedAmount * 100),
           type,
           account_id: accountId,
+          to_account_id: type === "transfer" ? toAccountId : null,
           category_id: categoryId,
           label_id: labelId || null,
+          to_label_id: type === "transfer" ? toLabelId || null : null,
           payment_method: paymentMethod,
         },
         transaction,
@@ -638,7 +669,18 @@ function EditTransactionDialog({
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Type</label>
-              <select className={fieldBase} value={type} onChange={(e) => setType(e.target.value as TransactionType)}>
+              <select
+                className={fieldBase}
+                value={type}
+                onChange={(e) => {
+                  const next = e.target.value as TransactionType;
+                  setType(next);
+                  if (next !== "transfer") {
+                    setToAccountId("");
+                    setToLabelId("");
+                  }
+                }}
+              >
                 <option value="expense">Expense</option>
                 <option value="income">Income</option>
                 <option value="transfer">Transfer</option>
@@ -646,30 +688,82 @@ function EditTransactionDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Account</label>
-            <select className={fieldBase} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            <label className="text-xs font-medium text-muted-foreground">
+              {type === "transfer" ? "From account" : "Account"}
+            </label>
+            <select
+              className={fieldBase}
+              value={accountId}
+              onChange={(e) => {
+                setAccountId(e.target.value);
+                setLabelId("");
+              }}
+            >
               {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
               ))}
             </select>
           </div>
+          {type === "transfer" && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">To account</label>
+              <select
+                className={fieldBase}
+                value={toAccountId}
+                onChange={(e) => {
+                  setToAccountId(e.target.value);
+                  setToLabelId("");
+                }}
+              >
+                <option value="">Select account</option>
+                {accounts
+                  .filter((a) => a.id !== accountId)
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Category</label>
             <select className={fieldBase} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Label</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              {type === "transfer" ? "From slice" : "Slice"}
+            </label>
             <select className={fieldBase} value={labelId} onChange={(e) => setLabelId(e.target.value)}>
-              <option value="">None</option>
+              <option value="">Unallocated</option>
               {accountLabelsForEdit.map((l) => (
-                <option key={l.id} value={l.id}>{l.name}</option>
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
               ))}
             </select>
           </div>
+          {type === "transfer" && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">To slice</label>
+              <select className={fieldBase} value={toLabelId} onChange={(e) => setToLabelId(e.target.value)}>
+                <option value="">Unallocated</option>
+                {toAccountLabelsForEdit.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Payment Method</label>
             <input className={fieldBase} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} />

@@ -2,8 +2,7 @@
  * Server-side mutation functions.
  *
  * These run on the server with the user's authenticated Supabase client,
- * respecting RLS policies. Each function inserts into PostgreSQL and returns
- * the created row's ID so the client can refetch or update local state.
+ * respecting RLS policies. Ledger writes go through atomic Postgres RPCs.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -19,68 +18,52 @@ export interface CreateTransactionInput {
   descriptor: string;
   amount: number; // absolute value in paise
   type: TransactionType;
-  account_id: string;
+  account_id: string; // from / sole account
+  to_account_id?: string | null;
   category_id: string;
-  label_id: string | null;
+  label_id: string | null; // from / sole slice
+  to_label_id?: string | null;
   note: string | null;
 }
 
 export const createTransactionFn = createServerFn({ method: "POST" })
   .validator((input: CreateTransactionInput) => {
     if (!input.occurred_at) throw new Error("occurred_at is required");
-    if (!input.merchant) throw new Error("merchant is required");
+    if (!input.merchant?.trim()) throw new Error("merchant is required");
     if (!input.account_id) throw new Error("account_id is required");
     if (!input.category_id) throw new Error("category_id is required");
     if (input.amount <= 0) throw new Error("amount must be positive");
+    if (input.type === "transfer") {
+      if (!input.to_account_id) throw new Error("to_account_id is required for transfers");
+      if (input.to_account_id === input.account_id) {
+        throw new Error("transfer accounts must differ");
+      }
+    }
     return input;
   })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
-    const { supabase, userId } = context;
+    const { supabase } = context;
 
-    // Determine signed amount based on transaction type
-    const signedAmount = data.type === "income" ? Math.abs(data.amount) : -Math.abs(data.amount);
-
-    // Get account currency
-    const { data: account, error: accountError } = await supabase
-      .from("accounts")
-      .select("currency_code")
-      .eq("id", data.account_id)
-      .single();
-    if (accountError) throw accountError;
-
-    // Insert transaction header
-    const { data: txn, error: txnError } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: userId,
-        occurred_at: `${data.occurred_at}T12:00:00+05:30`,
-        type: data.type,
-        merchant: data.merchant,
-        descriptor: data.descriptor || data.merchant,
-        note: data.note,
-        category_id: data.category_id,
-        label_id: data.label_id,
-        payment_method: "Manual",
-        source: "manual",
-        confidence: 1,
-        attachments: 0,
-      })
-      .select("id")
-      .single();
-    if (txnError) throw txnError;
-
-    // Insert transaction entry (the actual money movement)
-    const { error: entryError } = await supabase.from("transaction_entries").insert({
-      transaction_id: txn.id,
-      user_id: userId,
-      account_id: data.account_id,
-      amount: signedAmount,
-      currency_code: account.currency_code,
+    const { data: txnId, error } = await supabase.rpc("fn_record_transaction", {
+      p_occurred_at: `${data.occurred_at}T12:00:00+05:30`,
+      p_type: data.type,
+      p_from_account: data.account_id,
+      p_amount: data.amount,
+      ...(data.type === "transfer" && data.to_account_id
+        ? { p_to_account: data.to_account_id }
+        : {}),
+      p_category: data.category_id,
+      p_merchant: data.merchant,
+      p_descriptor: data.descriptor || data.merchant,
+      ...(data.label_id ? { p_from_label: data.label_id } : {}),
+      ...(data.type === "transfer" && data.to_label_id ? { p_to_label: data.to_label_id } : {}),
+      p_payment_method: "Manual",
+      ...(data.note ? { p_note: data.note } : {}),
     });
-    if (entryError) throw entryError;
+    if (error) throw error;
 
-    return { id: txn.id };
+    return { transaction_id: txnId as string };
   });
 
 // =============================================================================
@@ -88,172 +71,124 @@ export const createTransactionFn = createServerFn({ method: "POST" })
 // =============================================================================
 
 export interface UpdateTransactionInput {
-  id: string; // transaction entry ID (used as domain ID in the flat view)
-  transaction_id?: string | undefined; // actual transactions table ID (resolved from entry)
-  occurred_at?: string | undefined; // ISO date "2026-08-07"
+  /** Domain list id = entry id; resolved to transaction_id server-side when needed. */
+  id: string;
+  transaction_id?: string | undefined;
+  occurred_at?: string | undefined;
   merchant?: string | undefined;
   descriptor?: string | undefined;
-  amount?: number | undefined; // absolute value in paise (re-signs based on type)
+  amount?: number | undefined;
   type?: TransactionType | undefined;
-  account_id?: string | undefined; // move entry to different account
+  account_id?: string | undefined;
+  to_account_id?: string | null | undefined;
   category_id?: string | undefined;
   label_id?: string | null | undefined;
+  to_label_id?: string | null | undefined;
   note?: string | null | undefined;
   payment_method?: string | undefined;
 }
 
 export const updateTransactionFn = createServerFn({ method: "POST" })
   .validator((input: UpdateTransactionInput) => {
-    if (!input.id) throw new Error("id is required");
+    if (!input.id && !input.transaction_id) throw new Error("id is required");
     if (input.amount !== undefined && input.amount <= 0) throw new Error("amount must be positive");
     if (input.merchant !== undefined && !input.merchant.trim()) throw new Error("merchant cannot be empty");
+    if (input.type === "transfer" && input.to_account_id === null) {
+      throw new Error("to_account_id is required for transfers");
+    }
+    if (
+      input.type === "transfer" &&
+      input.account_id &&
+      input.to_account_id &&
+      input.account_id === input.to_account_id
+    ) {
+      throw new Error("transfer accounts must differ");
+    }
     return input;
   })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
 
-    // Resolve the entry to get the transaction_id
-    const { data: entry, error: entryLookupError } = await supabase
-      .from("transaction_entries")
-      .select("id, transaction_id, account_id, amount, currency_code")
-      .eq("id", data.id)
-      .eq("user_id", userId)
-      .is("deleted_at", null)
-      .single();
-    if (entryLookupError) throw new Error("Transaction not found");
-
-    const transactionId = data.transaction_id ?? entry.transaction_id;
-
-    // Build the transaction header update payload using typed approach
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const headerUpdate: any = { modified_at: new Date().toISOString() };
-    if (data.occurred_at) headerUpdate["occurred_at"] = `${data.occurred_at}T12:00:00+05:30`;
-    if (data.merchant !== undefined) headerUpdate["merchant"] = data.merchant;
-    if (data.descriptor !== undefined) headerUpdate["descriptor"] = data.descriptor;
-    if (data.type !== undefined) headerUpdate["type"] = data.type;
-    if (data.category_id !== undefined) headerUpdate["category_id"] = data.category_id;
-    if (data.label_id !== undefined) headerUpdate["label_id"] = data.label_id || null;
-    if (data.note !== undefined) headerUpdate["note"] = data.note || null;
-    if (data.payment_method !== undefined) headerUpdate["payment_method"] = data.payment_method;
-
-    // Update the transaction header if there are changes beyond modified_at
-    const headerKeys = Object.keys(headerUpdate);
-    if (headerKeys.length > 1) {
-      const { error: txnError } = await supabase
-        .from("transactions")
-        .update(headerUpdate)
-        .eq("id", transactionId)
-        .eq("user_id", userId)
-        .is("deleted_at", null);
-      if (txnError) throw txnError;
-    }
-
-    // Update the entry if amount or account changed
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const entryUpdate: any = { modified_at: new Date().toISOString() };
-    const effectiveType = data.type ?? undefined;
-
-    if (data.amount !== undefined) {
-      // Need to resolve type to determine sign
-      let resolvedType = effectiveType;
-      if (!resolvedType) {
-        const { data: txnRow } = await supabase
-          .from("transactions")
-          .select("type")
-          .eq("id", transactionId)
-          .single();
-        resolvedType = txnRow?.type as TransactionType | undefined;
-      }
-      const signedAmount = resolvedType === "income" ? Math.abs(data.amount) : -Math.abs(data.amount);
-      entryUpdate["amount"] = signedAmount;
-    }
-
-    if (data.account_id !== undefined && data.account_id !== entry.account_id) {
-      // Verify new account's currency matches
-      const { data: newAccount, error: accError } = await supabase
-        .from("accounts")
-        .select("currency_code")
-        .eq("id", data.account_id)
-        .single();
-      if (accError) throw new Error("Target account not found");
-      entryUpdate["account_id"] = data.account_id;
-      entryUpdate["currency_code"] = newAccount.currency_code;
-    }
-
-    if (Object.keys(entryUpdate).length > 1) {
-      const { error: entryError } = await supabase
+    let transactionId = data.transaction_id;
+    if (!transactionId) {
+      const { data: entry, error: entryLookupError } = await supabase
         .from("transaction_entries")
-        .update(entryUpdate)
+        .select("id, transaction_id")
         .eq("id", data.id)
         .eq("user_id", userId)
-        .is("deleted_at", null);
-      if (entryError) throw entryError;
+        .is("deleted_at", null)
+        .single();
+      if (entryLookupError) throw new Error("Transaction not found");
+      transactionId = entry.transaction_id;
     }
+
+    const { error } = await supabase.rpc("fn_update_transaction", {
+      p_transaction_id: transactionId,
+      ...(data.occurred_at ? { p_occurred_at: `${data.occurred_at}T12:00:00+05:30` } : {}),
+      ...(data.type ? { p_type: data.type } : {}),
+      ...(data.account_id ? { p_from_account: data.account_id } : {}),
+      ...(data.to_account_id ? { p_to_account: data.to_account_id } : {}),
+      ...(data.amount !== undefined ? { p_amount: data.amount } : {}),
+      ...(data.category_id ? { p_category: data.category_id } : {}),
+      ...(data.merchant !== undefined ? { p_merchant: data.merchant } : {}),
+      ...(data.descriptor !== undefined ? { p_descriptor: data.descriptor } : {}),
+      ...(data.label_id ? { p_from_label: data.label_id } : {}),
+      ...(data.to_label_id ? { p_to_label: data.to_label_id } : {}),
+      p_clear_from_label: data.label_id === null,
+      p_clear_to_label: data.to_label_id === null,
+      ...(data.payment_method !== undefined ? { p_payment_method: data.payment_method } : {}),
+      ...(data.note ? { p_note: data.note } : {}),
+      p_clear_note: data.note === null,
+    });
+    if (error) throw error;
 
     return { id: data.id, transaction_id: transactionId };
   });
 
 // =============================================================================
-// DELETE TRANSACTION (soft-delete)
+// DELETE TRANSACTION (soft-delete via RPC)
 // =============================================================================
 
 export interface DeleteTransactionInput {
-  id: string; // transaction entry ID (the domain ID in flat view)
+  /** Entry id or transaction id — prefer transaction_id when known. */
+  id: string;
+  transaction_id?: string | undefined;
 }
 
 export const deleteTransactionFn = createServerFn({ method: "POST" })
   .validator((input: DeleteTransactionInput) => {
-    if (!input.id) throw new Error("id is required");
+    if (!input.id && !input.transaction_id) throw new Error("id is required");
     return input;
   })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
-    const { userId } = context;
-    const now = new Date().toISOString();
+    const { supabase, userId } = context;
 
-    // Use admin client to bypass RLS for the update operation
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Get the entry to verify ownership and find the parent transaction
-    const { data: entry, error: entryError } = await supabaseAdmin
-      .from("transaction_entries")
-      .select("id, transaction_id, user_id")
-      .eq("id", data.id)
-      .is("deleted_at", null)
-      .single();
-
-    if (entryError) throw new Error("Transaction not found");
-
-    // Verify the user owns this entry
-    if (entry.user_id !== userId) {
-      throw new Error("Unauthorized: You don't own this transaction");
+    let transactionId = data.transaction_id;
+    if (!transactionId) {
+      const { data: entry, error: entryError } = await supabase
+        .from("transaction_entries")
+        .select("id, transaction_id")
+        .eq("id", data.id)
+        .eq("user_id", userId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (entryError) throw entryError;
+      if (entry) {
+        transactionId = entry.transaction_id;
+      } else {
+        // Allow deleting by header id directly
+        transactionId = data.id;
+      }
     }
 
-    // Soft-delete the entry
-    const { error: deleteEntryError } = await supabaseAdmin
-      .from("transaction_entries")
-      .update({ deleted_at: now, is_active: false, modified_at: now, modified_by: userId })
-      .eq("id", data.id);
-    if (deleteEntryError) throw deleteEntryError;
+    const { error } = await supabase.rpc("fn_delete_transaction", {
+      p_transaction_id: transactionId,
+    });
+    if (error) throw error;
 
-    // Check if the parent transaction has any remaining active entries
-    const { data: remainingEntries } = await supabaseAdmin
-      .from("transaction_entries")
-      .select("id")
-      .eq("transaction_id", entry.transaction_id)
-      .is("deleted_at", null);
-
-    // If no entries remain, soft-delete the transaction header too
-    if (!remainingEntries || remainingEntries.length === 0) {
-      const { error: deleteTxnError } = await supabaseAdmin
-        .from("transactions")
-        .update({ deleted_at: now, is_active: false, modified_at: now, modified_by: userId })
-        .eq("id", entry.transaction_id);
-      if (deleteTxnError) throw deleteTxnError;
-    }
-
-    return { success: true };
+    return { success: true, transaction_id: transactionId };
   });
 
 // =============================================================================
@@ -515,6 +450,71 @@ export const archiveSliceFn = createServerFn({ method: "POST" })
     }
 
     return { success: true };
+  });
+
+// =============================================================================
+// UPDATE SLICE
+// =============================================================================
+
+export interface UpdateSliceInput {
+  id: string;
+  name?: string | undefined;
+  kind?: SliceKind | undefined;
+  color_token?: string | undefined;
+  opening_amount?: number | undefined;
+  target_amount?: number | null | undefined;
+  target_date?: string | null | undefined;
+}
+
+export const updateSliceFn = createServerFn({ method: "POST" })
+  .validator((input: UpdateSliceInput) => {
+    if (!input.id) throw new Error("id is required");
+    if (input.name !== undefined && !input.name.trim()) throw new Error("name cannot be empty");
+    if (input.opening_amount !== undefined && input.opening_amount < 0) {
+      throw new Error("opening_amount cannot be negative");
+    }
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+
+    const { data: existing, error: lookupError } = await supabase
+      .from("labels")
+      .select("id, kind, account_id")
+      .eq("id", data.id)
+      .is("deleted_at", null)
+      .single();
+    if (lookupError) throw new Error("Slice not found");
+    if (!existing.account_id) throw new Error("Not a slice");
+
+    const kind = data.kind ?? (existing.kind as SliceKind);
+    const patch: {
+      modified_at: string;
+      name?: string;
+      kind?: SliceKind;
+      color_token?: string;
+      opening_amount?: number;
+      target_amount?: number | null;
+      target_date?: string | null;
+    } = { modified_at: new Date().toISOString() };
+    if (data.name !== undefined) patch["name"] = data.name.trim();
+    if (data.kind !== undefined) patch["kind"] = data.kind;
+    if (data.color_token !== undefined) patch["color_token"] = data.color_token;
+    if (data.opening_amount !== undefined) patch["opening_amount"] = data.opening_amount;
+
+    if (kind === "earmark") {
+      if (data.target_amount !== undefined) patch["target_amount"] = data.target_amount;
+      if (data.target_date !== undefined) patch["target_date"] = data.target_date;
+    } else {
+      patch["target_amount"] = null;
+      patch["target_date"] = null;
+    }
+
+    const { error } = await supabase.from("labels").update(patch).eq("id", data.id).is("deleted_at", null);
+    if (error) throw error;
+
+    return { id: data.id };
   });
 
 // =============================================================================

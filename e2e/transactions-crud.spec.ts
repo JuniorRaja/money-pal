@@ -376,26 +376,37 @@ test.describe("Transactions — CRUD Operations", () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // LABEL CHANGE (quick action from detail panel)
+  // SLICE CHANGE (quick action from detail panel)
   // ─────────────────────────────────────────────────────────────────────────
 
-  test.describe("Change Label", () => {
-    test("Change Label action is accessible from detail panel", async ({ transactionsPage: page }) => {
+  test.describe("Change Slice", () => {
+    test("Change Slice action is accessible from detail panel", async ({ transactionsPage: page }) => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
       const aside = page.locator("aside");
       await expect(aside).toBeVisible();
 
-      // Look for Change Label button
-      const changeLabelBtn = aside.locator("button:has-text('Change Label'), button:has-text('Label'), [title*='Label']");
-      const exists = await changeLabelBtn.count();
+      // Look for Change Slice button
+      const changeSliceBtn = aside.locator("button:has-text('Change Slice'), button:has-text('Slice'), [title*='Slice']");
+      const exists = await changeSliceBtn.count();
 
       // Either a direct button or inside Actions section
       if (exists > 0) {
-        await expect(changeLabelBtn.first()).toBeVisible();
+        await expect(changeSliceBtn.first()).toBeVisible();
       }
       // Test passes — we're just verifying accessibility of the action
+    });
+  });
+
+  test.describe("Transfers", () => {
+    test("detail panel has no Split action", async ({ transactionsPage: page }) => {
+      const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
+      if ((await dataRow.count()) === 0) return;
+      await dataRow.click();
+      const aside = page.locator("aside");
+      await expect(aside).toBeVisible();
+      await expect(aside.locator("button:has-text('Split')")).toHaveCount(0);
     });
   });
 

@@ -189,9 +189,39 @@ export interface CashflowSummary {
 }
 
 export function summariseCashflow(rows: Transaction[]): CashflowSummary {
-  const income = rows.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const expense = rows.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0);
-  return { count: rows.length, income, expense, net: income - expense };
+  // Transfers move money between accounts — exclude both legs from cashflow.
+  const cash = rows.filter((t) => t.type !== "transfer");
+  const income = cash.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  const expense = cash.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0);
+  // Count logical events: one per transfer header, one per income/expense entry.
+  const seen = new Set<string>();
+  let count = 0;
+  for (const t of rows) {
+    const key = t.type === "transfer" ? t.transaction_id : t.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    count += 1;
+  }
+  return { count, income, expense, net: income - expense };
+}
+
+/** Collapse dual-entry transfer legs into one display row (from-leg preferred). */
+export function groupTransactionsForDisplay(rows: Transaction[]): Transaction[] {
+  const seen = new Set<string>();
+  const out: Transaction[] = [];
+  for (const t of rows) {
+    if (t.type === "transfer") {
+      if (seen.has(t.transaction_id)) continue;
+      seen.add(t.transaction_id);
+      // Prefer the outbound (negative) leg as the canonical display row.
+      const fromLeg =
+        rows.find((x) => x.transaction_id === t.transaction_id && x.amount < 0) ?? t;
+      out.push(fromLeg);
+    } else {
+      out.push(t);
+    }
+  }
+  return out;
 }
 
 export const timelineKinds: { id: TimelineKind | "all"; label: string }[] = [

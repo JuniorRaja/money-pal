@@ -161,6 +161,7 @@ export const liveSlices = (): Promise<Slice[]> =>
         color_token: (row.color_token as string | null) ?? "chart-2",
         is_default: Boolean(row.is_default),
         amount: Number(row.amount ?? 0),
+        opening_amount: Number(row.opening_amount ?? 0),
         target_amount: row.target_amount === null ? null : Number(row.target_amount),
         target_date: (row.target_date as string | null) ?? null,
       }),
@@ -194,15 +195,35 @@ export const liveTransactions = (): Promise<Transaction[]> =>
       .order("occurred_at", { ascending: false })
       .limit(500);
     if (error) throw error;
-    return (data ?? []).map(
-      (row): Transaction => ({
+    const rows = data ?? [];
+
+    // Pair transfer legs so each entry knows its counterparty account.
+    const byTxn = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const tid = (row.transaction_id as string | null) ?? (row.id as string);
+      const list = byTxn.get(tid) ?? [];
+      list.push(row);
+      byTxn.set(tid, list);
+    }
+
+    return rows.map((row): Transaction => {
+      const tid = (row.transaction_id as string | null) ?? (row.id as string);
+      const siblings = byTxn.get(tid) ?? [];
+      const counterparty =
+        row.type === "transfer"
+          ? (siblings.find((s) => s.entry_id !== row.entry_id)?.account_id as string | undefined) ??
+            null
+          : null;
+      return {
         id: row.entry_id as string,
+        transaction_id: tid,
         occurred_at: row.occurred_at as string,
         merchant: (row.merchant as string | null) ?? "—",
         descriptor: (row.descriptor as string | null) ?? "",
         amount: Number(row.amount ?? 0),
         type: row.type as Transaction["type"],
         account_id: row.account_id as string,
+        counterparty_account_id: counterparty,
         category_id: (row.category_id as string | null) ?? "",
         label_id: (row.label_id as string | null) ?? null,
         payment_method: (row.payment_method as string | null) ?? "",
@@ -210,8 +231,8 @@ export const liveTransactions = (): Promise<Transaction[]> =>
         confidence: Number(row.confidence ?? 1),
         note: (row.note as string | null) ?? null,
         attachments: Number(row.attachments ?? 0),
-      }),
-    );
+      };
+    });
   }, []);
 
 export const liveTimeline = (): Promise<TimelineEvent[]> =>
