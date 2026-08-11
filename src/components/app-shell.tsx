@@ -13,7 +13,7 @@ import {
   LayoutGrid,
   LineChart,
   LineChart as LineChartIcon,
-  Lock,
+  LogOut,
   Moon,
   Plus,
   Search,
@@ -94,7 +94,7 @@ const addItems: { kind: RecordKind; label: string; icon: typeof Wallet }[] = [
 
 function Sidebar({ onAdd }: { onAdd: (kind: RecordKind) => void }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const { prefs, lock } = useSession();
+  const { prefs, signOut, user } = useSession();
   const navigate = useNavigate();
   const collapsed = prefs.sidebar === "collapsed";
 
@@ -182,22 +182,22 @@ function Sidebar({ onAdd }: { onAdd: (kind: RecordKind) => void }) {
       </nav>
 
       <button
-        onClick={() => {
-          lock();
+        onClick={async () => {
+          await signOut();
           navigate({ to: "/login" });
         }}
         className="m-3 flex items-center gap-3 rounded-lg border border-sidebar-border px-3 py-2.5 text-left text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent/60"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
-          PR
+          {user?.email?.charAt(0).toUpperCase() || "U"}
         </span>
         {!collapsed && (
           <span className="flex-1 leading-tight">
-            <span className="block text-[13px] font-medium">PR</span>
-            <span className="block text-[11px] text-muted-foreground">pr@finos.local</span>
+            <span className="block text-[13px] font-medium">{user?.email?.split("@")[0] || "User"}</span>
+            <span className="block text-[11px] text-muted-foreground">{user?.email || "Not signed in"}</span>
           </span>
         )}
-        {!collapsed && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
+        {!collapsed && <LogOut className="h-3.5 w-3.5 text-muted-foreground" />}
       </button>
     </aside>
   );
@@ -254,14 +254,14 @@ export function AppShell({
   actions,
   children,
 }: PageProps) {
-  const { unlocked, hydrated } = useSession();
+  const { isAuthenticated, hydrated } = useSession();
   const navigate = useNavigate();
   const router = useRouter();
   const [addKind, setAddKind] = useState<RecordKind | null>(null);
 
   useEffect(() => {
-    if (hydrated && !unlocked) navigate({ to: "/login" });
-  }, [unlocked, hydrated, navigate]);
+    if (hydrated && !isAuthenticated) navigate({ to: "/login" });
+  }, [isAuthenticated, hydrated, navigate]);
 
   // With a real session the ledger is filled once, then every page reads live.
   useEffect(() => {

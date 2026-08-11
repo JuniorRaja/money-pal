@@ -1,15 +1,31 @@
 /**
- * Session-local writes.
+ * Unified mutation layer.
  *
- * These push new rows into the same in-memory arrays the repository reads
- * from, so anything created in the UI shows up on every page immediately.
- * When the PostgreSQL backend lands each function becomes an INSERT and the
- * call sites stay unchanged.
+ * When authenticated, mutations write to Supabase via server functions.
+ * When not authenticated (demo mode), they push into in-memory arrays
+ * so the UI still works without a backend.
  */
 import { accounts } from "@/data/seed/accounts";
 import { budgetPeriods, goals, holdings } from "@/data/seed/plan";
 import { slices } from "@/data/seed/slices";
 import { transactions } from "@/data/seed/transactions";
+import { hasSession } from "@/data/live";
+import {
+  createTransactionFn,
+  createAccountFn,
+  createSliceFn,
+  archiveSliceFn,
+  createGoalFn,
+  createBudgetFn,
+  createHoldingFn,
+  type CreateTransactionInput,
+  type CreateAccountInput,
+  type CreateSliceInput,
+  type ArchiveSliceInput,
+  type CreateGoalInput,
+  type CreateBudgetInput,
+  type CreateHoldingInput,
+} from "@/lib/mutations.functions";
 import type {
   Account,
   AccountKind,
@@ -28,6 +44,10 @@ const uid = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2,
 
 const flatTrend = (base: number) => Array.from({ length: 12 }, () => base);
 
+// =============================================================================
+// TRANSACTION
+// =============================================================================
+
 export interface NewTransactionInput {
   occurred_at: string; // "2026-08-07"
   merchant: string;
@@ -40,7 +60,7 @@ export interface NewTransactionInput {
   note: string | null;
 }
 
-export function createTransaction(input: NewTransactionInput): Transaction {
+function createTransactionLocal(input: NewTransactionInput): Transaction {
   const signed = input.type === "income" ? Math.abs(input.amount) : -Math.abs(input.amount);
   const row: Transaction = {
     id: uid("txn"),
@@ -72,6 +92,46 @@ export function createTransaction(input: NewTransactionInput): Transaction {
   return row;
 }
 
+export async function createTransaction(input: NewTransactionInput): Promise<Transaction> {
+  if (await hasSession()) {
+    const serverInput: CreateTransactionInput = {
+      occurred_at: input.occurred_at,
+      merchant: input.merchant,
+      descriptor: input.descriptor,
+      amount: input.amount,
+      type: input.type,
+      account_id: input.account_id,
+      category_id: input.category_id,
+      label_id: input.label_id,
+      note: input.note,
+    };
+    const result = await createTransactionFn({ data: serverInput });
+    // Return a minimal Transaction object with the server-assigned ID
+    const signed = input.type === "income" ? Math.abs(input.amount) : -Math.abs(input.amount);
+    return {
+      id: result.id,
+      occurred_at: `${input.occurred_at}T12:00:00+05:30`,
+      merchant: input.merchant,
+      descriptor: input.descriptor || input.merchant,
+      amount: signed,
+      type: input.type,
+      account_id: input.account_id,
+      category_id: input.category_id,
+      label_id: input.label_id,
+      payment_method: "Manual",
+      source: "Manual entry",
+      confidence: 1,
+      note: input.note,
+      attachments: 0,
+    };
+  }
+  return createTransactionLocal(input);
+}
+
+// =============================================================================
+// SLICE
+// =============================================================================
+
 export interface NewSliceInput {
   account_id: string;
   name: string;
@@ -82,7 +142,7 @@ export interface NewSliceInput {
   target_date: string | null;
 }
 
-export function createSlice(input: NewSliceInput): Slice {
+function createSliceLocal(input: NewSliceInput): Slice {
   const row: Slice = {
     id: uid("slc"),
     account_id: input.account_id,
@@ -98,11 +158,38 @@ export function createSlice(input: NewSliceInput): Slice {
   return row;
 }
 
+export async function createSlice(input: NewSliceInput): Promise<Slice> {
+  if (await hasSession()) {
+    const serverInput: CreateSliceInput = {
+      account_id: input.account_id,
+      name: input.name,
+      kind: input.kind,
+      amount: input.amount,
+      color_token: input.color_token,
+      target_amount: input.target_amount,
+      target_date: input.target_date,
+    };
+    const result = await createSliceFn({ data: serverInput });
+    return {
+      id: result.id,
+      account_id: input.account_id,
+      name: input.name,
+      kind: input.kind,
+      color_token: input.color_token,
+      is_default: false,
+      amount: Math.abs(input.amount),
+      target_amount: input.kind === "earmark" ? input.target_amount : null,
+      target_date: input.kind === "earmark" ? input.target_date : null,
+    };
+  }
+  return createSliceLocal(input);
+}
+
 /**
  * Removes a slice and hands its remaining money back to the account's default
  * slice. The last remaining slice of an account can never be archived.
  */
-export function archiveSlice(id: string): boolean {
+function archiveSliceLocal(id: string): boolean {
   const index = slices.findIndex((s) => s.id === id);
   if (index === -1) return false;
   const slice = slices[index]!;
@@ -114,6 +201,23 @@ export function archiveSlice(id: string): boolean {
   return true;
 }
 
+export async function archiveSlice(id: string): Promise<boolean> {
+  if (await hasSession()) {
+    const serverInput: ArchiveSliceInput = { id };
+    try {
+      await archiveSliceFn({ data: serverInput });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return archiveSliceLocal(id);
+}
+
+// =============================================================================
+// ACCOUNT
+// =============================================================================
+
 export interface NewAccountInput {
   name: string;
   institution: string;
@@ -122,7 +226,7 @@ export interface NewAccountInput {
   credit_limit: Paise | null;
 }
 
-export function createAccount(input: NewAccountInput): Account {
+function createAccountLocal(input: NewAccountInput): Account {
   const signed =
     input.kind === "credit_card" || input.kind === "loan"
       ? -Math.abs(input.balance)
@@ -158,6 +262,41 @@ export function createAccount(input: NewAccountInput): Account {
   return row;
 }
 
+export async function createAccount(input: NewAccountInput): Promise<Account> {
+  if (await hasSession()) {
+    const serverInput: CreateAccountInput = {
+      name: input.name,
+      institution: input.institution,
+      kind: input.kind,
+      balance: input.balance,
+      credit_limit: input.credit_limit,
+    };
+    const result = await createAccountFn({ data: serverInput });
+    const signed =
+      input.kind === "credit_card" || input.kind === "loan"
+        ? -Math.abs(input.balance)
+        : Math.abs(input.balance);
+    return {
+      id: result.id,
+      name: input.name,
+      institution: input.institution,
+      kind: input.kind,
+      balance: signed,
+      credit_limit: input.credit_limit,
+      currency: "INR",
+      is_primary: false,
+      last_activity_at: new Date().toISOString(),
+      trend: flatTrend(Math.round(Math.abs(signed) / 100000) || 1),
+      change_pct: 0,
+    };
+  }
+  return createAccountLocal(input);
+}
+
+// =============================================================================
+// GOAL
+// =============================================================================
+
 export interface NewGoalInput {
   name: string;
   blurb: string;
@@ -168,11 +307,42 @@ export interface NewGoalInput {
   monthly_contribution: Paise;
 }
 
-export function createGoal(input: NewGoalInput): Goal {
+function createGoalLocal(input: NewGoalInput): Goal {
   const row: Goal = { id: uid("goal"), icon: "flag", ...input };
   goals.push(row);
   return row;
 }
+
+export async function createGoal(input: NewGoalInput): Promise<Goal> {
+  if (await hasSession()) {
+    const serverInput: CreateGoalInput = {
+      name: input.name,
+      blurb: input.blurb,
+      target: input.target,
+      saved: input.saved,
+      target_date: input.target_date,
+      account_id: input.account_id,
+      monthly_contribution: input.monthly_contribution,
+    };
+    const result = await createGoalFn({ data: serverInput });
+    return {
+      id: result.id,
+      name: input.name,
+      blurb: input.blurb,
+      target: input.target,
+      saved: input.saved,
+      target_date: input.target_date,
+      account_id: input.account_id,
+      monthly_contribution: input.monthly_contribution,
+      icon: "flag",
+    };
+  }
+  return createGoalLocal(input);
+}
+
+// =============================================================================
+// BUDGET
+// =============================================================================
 
 export interface NewBudgetInput {
   period: string;
@@ -180,11 +350,34 @@ export interface NewBudgetInput {
   planned: Paise;
 }
 
-export function createBudget(input: NewBudgetInput): BudgetPeriod {
+function createBudgetLocal(input: NewBudgetInput): BudgetPeriod {
   const row: BudgetPeriod = { id: uid("bgt"), spent: 0, ...input };
   budgetPeriods.push(row);
   return row;
 }
+
+export async function createBudget(input: NewBudgetInput): Promise<BudgetPeriod> {
+  if (await hasSession()) {
+    const serverInput: CreateBudgetInput = {
+      period: input.period,
+      category_id: input.category_id,
+      planned: input.planned,
+    };
+    const result = await createBudgetFn({ data: serverInput });
+    return {
+      id: result.id,
+      period: input.period,
+      category_id: input.category_id,
+      planned: input.planned,
+      spent: 0,
+    };
+  }
+  return createBudgetLocal(input);
+}
+
+// =============================================================================
+// HOLDING
+// =============================================================================
 
 export interface NewHoldingInput {
   name: string;
@@ -195,8 +388,33 @@ export interface NewHoldingInput {
   account_id: string;
 }
 
-export function createHolding(input: NewHoldingInput): Holding {
+function createHoldingLocal(input: NewHoldingInput): Holding {
   const row: Holding = { id: uid("hld"), day_change_pct: 0, ...input };
   holdings.push(row);
   return row;
+}
+
+export async function createHolding(input: NewHoldingInput): Promise<Holding> {
+  if (await hasSession()) {
+    const serverInput: CreateHoldingInput = {
+      name: input.name,
+      asset_class: input.asset_class,
+      units: input.units,
+      invested: input.invested,
+      current_value: input.current_value,
+      account_id: input.account_id,
+    };
+    const result = await createHoldingFn({ data: serverInput });
+    return {
+      id: result.id,
+      name: input.name,
+      asset_class: input.asset_class,
+      units: input.units,
+      invested: input.invested,
+      current_value: input.current_value,
+      account_id: input.account_id,
+      day_change_pct: 0,
+    };
+  }
+  return createHoldingLocal(input);
 }

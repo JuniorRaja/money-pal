@@ -63,34 +63,46 @@ export function ManageSlicesDialog({
     setError(null);
   };
 
-  const add = () => {
+  const add = async () => {
     const trimmed = name.trim();
     if (!trimmed) return setError("Give the slice a name");
     if (rows.some((s) => s.name.toLowerCase() === trimmed.toLowerCase()))
       return setError("That slice already exists on this account");
     const paise = Math.round(Number(amount || "0") * 100);
     if (!Number.isFinite(paise) || paise < 0) return setError("Enter a valid amount");
-    createSlice({
-      account_id: account.id,
-      name: trimmed,
-      kind,
-      amount: paise,
-      color_token: palette[rows.length % palette.length]!,
-      target_amount: target ? Math.round(Number(target) * 100) : null,
-      target_date: null,
-    });
-    reset();
-    toast.success(`${trimmed} added to ${account.name}`);
-    router.invalidate();
+    
+    try {
+      await createSlice({
+        account_id: account.id,
+        name: trimmed,
+        kind,
+        amount: paise,
+        color_token: palette[rows.length % palette.length]!,
+        target_amount: target ? Math.round(Number(target) * 100) : null,
+        target_date: null,
+      });
+      reset();
+      toast.success(`${trimmed} added to ${account.name}`);
+      router.invalidate();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong";
+      toast.error("Failed to add slice", { description: message });
+    }
   };
 
-  const remove = (slice: Slice) => {
-    if (!archiveSlice(slice.id)) {
-      toast.error("An account must keep at least one slice");
-      return;
+  const remove = async (slice: Slice) => {
+    try {
+      const success = await archiveSlice(slice.id);
+      if (!success) {
+        toast.error("An account must keep at least one slice");
+        return;
+      }
+      toast.success(`${slice.name} archived — balance returned to the default slice`);
+      router.invalidate();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong";
+      toast.error("Failed to archive slice", { description: message });
     }
-    toast.success(`${slice.name} archived — balance returned to the default slice`);
-    router.invalidate();
   };
 
   return (

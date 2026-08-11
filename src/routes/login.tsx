@@ -1,59 +1,116 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Fingerprint, ShieldCheck } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Loader2, Mail } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Signature } from "@/components/signature";
 import { useSession } from "@/components/session";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Unlock Money Pal — Private Finance OS" },
+      { title: "Sign in — Money Pal" },
       {
         name: "description",
-        content:
-          "Unlock the Money Pal ledger with a passphrase and a six digit code. Everything stays on this machine.",
+        content: "Sign in to your Money Pal account to access your personal finance dashboard.",
       },
-      { property: "og:title", content: "Unlock Money Pal" },
-      { property: "og:description", content: "Passphrase and 2FA unlock for your local finance ledger." },
+      { property: "og:title", content: "Sign in — Money Pal" },
+      { property: "og:description", content: "Access your personal finance dashboard." },
     ],
   }),
   component: LoginPage,
 });
 
 function LoginPage() {
-  const { unlocked, unlock } = useSession();
+  const { isAuthenticated, hydrated } = useSession();
   const navigate = useNavigate();
-  const [step, setStep] = useState<"passphrase" | "code">("passphrase");
-  const [passphrase, setPassphrase] = useState("");
-  const [code, setCode] = useState(["", "", "", "", "", ""]);
+
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const boxes = useRef<(HTMLInputElement | null)[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (unlocked) navigate({ to: "/" });
-  }, [unlocked, navigate]);
+    if (hydrated && isAuthenticated) {
+      navigate({ to: "/" });
+    }
+  }, [isAuthenticated, hydrated, navigate]);
 
-  function submitPassphrase(e: React.FormEvent) {
+  async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
-    if (passphrase.trim().length < 4) {
-      setError("Passphrase needs at least 4 characters.");
+    setError(null);
+    setMessage(null);
+
+    if (!email.trim()) {
+      setError("Email is required.");
       return;
     }
-    setError(null);
-    setStep("code");
-    window.setTimeout(() => boxes.current[0]?.focus(), 60);
+    if (!password) {
+      setError("Password is required.");
+      return;
+    }
+
+    setLoading(true);
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    setLoading(false);
+
+    if (signInError) {
+      setError(signInError.message);
+    }
+    // On success, onAuthStateChange in SessionProvider will update state and redirect
   }
 
-  function setDigit(index: number, value: string) {
-    const digit = value.replace(/\D/g, "").slice(-1);
-    const next = [...code];
-    next[index] = digit;
-    setCode(next);
-    if (digit && index < 5) boxes.current[index + 1]?.focus();
-    if (next.every((d) => d !== "")) {
-      window.setTimeout(() => unlock(), 260);
+  async function handleSignUp(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    if (!email.trim()) {
+      setError("Email is required.");
+      return;
     }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+    });
+    setLoading(false);
+
+    if (signUpError) {
+      setError(signUpError.message);
+    } else {
+      setMessage("Check your email for a confirmation link to complete sign up.");
+    }
+  }
+
+  function switchMode(newMode: "signin" | "signup") {
+    setMode(newMode);
+    setError(null);
+    setMessage(null);
+  }
+
+  // Show nothing until we know auth state to avoid flash
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (
@@ -77,96 +134,141 @@ function LoginPage() {
           </div>
         </div>
 
-        {step === "passphrase" ? (
-          <form onSubmit={submitPassphrase} className="rise mt-14 max-w-[420px]">
-            <h1 className="text-[44px] leading-tight">Welcome back, PR.</h1>
+        {mode === "signin" ? (
+          <form onSubmit={handleSignIn} className="rise mt-14 max-w-[420px]">
+            <h1 className="text-[44px] leading-tight">Welcome back.</h1>
             <p className="mt-3 text-sm text-muted-foreground">
-              Your ledger lives on this machine. Unlock to pick up where you left off.
+              Sign in to your account to access your ledger.
             </p>
 
-            <label className="mt-10 block text-sm text-foreground" htmlFor="passphrase">
-              Passphrase
+            <label className="mt-10 block text-sm text-foreground" htmlFor="email">
+              Email
             </label>
             <input
-              id="passphrase"
-              type="password"
+              id="email"
+              type="email"
               autoFocus
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="mt-2 h-12 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors focus:border-primary/60"
+            />
+
+            <label className="mt-4 block text-sm text-foreground" htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••••"
               className="mt-2 h-12 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors focus:border-primary/60"
             />
-            {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+
+            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+            {message && <p className="mt-3 text-sm text-green-600">{message}</p>}
 
             <button
               type="submit"
-              className="mt-4 h-12 w-full rounded-xl bg-primary text-sm font-medium text-primary-foreground transition-transform duration-200 hover:brightness-105 active:scale-[0.99]"
+              disabled={loading}
+              className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground transition-transform duration-200 hover:brightness-105 active:scale-[0.99] disabled:opacity-60"
             >
-              Unlock
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPassphrase("touch-id");
-                setStep("code");
-                window.setTimeout(() => boxes.current[0]?.focus(), 60);
-              }}
-              className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm transition-colors hover:bg-accent"
-            >
-              <Fingerprint className="h-4 w-4" /> Use Touch ID
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              Sign in
             </button>
 
-            <div className="mt-10 flex items-center gap-2 border-t border-border pt-6 text-xs text-muted-foreground">
-              <ShieldCheck className="h-4 w-4" />
-              Encrypted locally. No account, no cloud, no telemetry.
-            </div>
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <button
+                type="button"
+                onClick={() => switchMode("signup")}
+                className="font-medium text-primary hover:underline"
+              >
+                Sign up
+              </button>
+            </p>
           </form>
         ) : (
-          <div className="rise mt-14 max-w-[420px]">
-            <h1 className="text-[44px] leading-tight">Two-step check.</h1>
+          <form onSubmit={handleSignUp} className="rise mt-14 max-w-[420px]">
+            <h1 className="text-[44px] leading-tight">Create account.</h1>
             <p className="mt-3 text-sm text-muted-foreground">
-              Enter the six digit code from your authenticator. Any six digits work in this demo.
+              Sign up to start tracking your finances with Money Pal.
             </p>
 
-            <div className="mt-10 flex gap-3">
-              {code.map((digit, i) => (
-                <input
-                  key={i}
-                  ref={(el) => {
-                    boxes.current[i] = el;
-                  }}
-                  value={digit}
-                  inputMode="numeric"
-                  onChange={(e) => setDigit(i, e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Backspace" && !code[i] && i > 0) boxes.current[i - 1]?.focus();
-                  }}
-                  className="numeric h-14 w-14 rounded-xl border border-border bg-card text-center text-xl outline-none transition-colors focus:border-primary/60"
-                />
-              ))}
-            </div>
+            <label className="mt-10 block text-sm text-foreground" htmlFor="signup-email">
+              Email
+            </label>
+            <input
+              id="signup-email"
+              type="email"
+              autoFocus
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="mt-2 h-12 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors focus:border-primary/60"
+            />
+
+            <label className="mt-4 block text-sm text-foreground" htmlFor="signup-password">
+              Password
+            </label>
+            <input
+              id="signup-password"
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+              className="mt-2 h-12 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors focus:border-primary/60"
+            />
+
+            <label className="mt-4 block text-sm text-foreground" htmlFor="confirm-password">
+              Confirm password
+            </label>
+            <input
+              id="confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••••"
+              className="mt-2 h-12 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors focus:border-primary/60"
+            />
+
+            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+            {message && <p className="mt-3 text-sm text-green-600">{message}</p>}
 
             <button
-              onClick={() => unlock()}
-              className="mt-6 h-12 w-full rounded-xl bg-primary text-sm font-medium text-primary-foreground transition-transform duration-200 hover:brightness-105 active:scale-[0.99]"
+              type="submit"
+              disabled={loading}
+              className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground transition-transform duration-200 hover:brightness-105 active:scale-[0.99] disabled:opacity-60"
             >
-              Verify and open ledger
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              Create account
             </button>
-            <button
-              onClick={() => setStep("passphrase")}
-              className="mt-3 h-12 w-full rounded-xl border border-border bg-card text-sm transition-colors hover:bg-accent"
-            >
-              Back
-            </button>
-          </div>
+
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => switchMode("signin")}
+                className="font-medium text-primary hover:underline"
+              >
+                Sign in
+              </button>
+            </p>
+          </form>
         )}
       </div>
 
       <div className="relative isolate flex w-[54%] flex-col justify-end overflow-hidden bg-accent/60 p-12">
         <Signature variant="login" />
         <div className="relative border-t border-border/60 pt-6 text-xs text-muted-foreground">
-          <p>Money Pal 0.9.4 · Local database</p>
-          <p className="mt-1">~/Library/MoneyMate/ledger.db</p>
+          <p>Money Pal 1.0.0 · Secure cloud sync</p>
+          <p className="mt-1">Powered by Supabase</p>
         </div>
       </div>
     </div>

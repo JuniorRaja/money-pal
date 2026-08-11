@@ -200,7 +200,7 @@ export function AddRecordDialog({
 
   if (!kind) return null;
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     const parsed = schemas[kind].safeParse(values);
     if (!parsed.success) {
@@ -211,61 +211,66 @@ export function AddRecordDialog({
     }
     const v = parsed.data as Record<string, string>;
 
-    if (kind === "transaction") {
-      createTransaction({
-        occurred_at: v['occurred_at']!,
-        merchant: v['merchant']!,
-        descriptor: v['descriptor'] || v['merchant']!,
-        amount: paise(v['amount']),
-        type: v['type'] as "income" | "expense" | "transfer",
-        account_id: v['account_id']!,
-        category_id: v['category_id']!,
-        label_id: v['label_id'] ? v['label_id'] : null,
-        note: v['note'] ? v['note'] : null,
-      });
-    } else if (kind === "account") {
-      createAccount({
-        name: v['name']!,
-        institution: v['institution']!,
-        kind: v['kind'] as Account["kind"],
-        balance: paise(v['balance']),
-        credit_limit: v['kind'] === "credit_card" && v['credit_limit'] ? paise(v['credit_limit']) : null,
-      });
-    } else if (kind === "goal") {
-      createGoal({
-        name: v['name']!,
-        blurb: v['blurb'] || "Saving towards this goal.",
-        target: paise(v['target']),
-        saved: paise(v['saved']),
-        target_date: v['target_date']!,
-        account_id: v['account_id']!,
-        monthly_contribution: paise(v['monthly_contribution']),
-      });
-    } else if (kind === "budget") {
-      createBudget({
-        period: v['period']!,
-        category_id: v['category_id']!,
-        planned: paise(v['planned']),
-      });
-    } else {
-      createHolding({
-        name: v['name']!,
-        asset_class: v['asset_class'] as
-          | "equity"
-          | "mutual_fund"
-          | "gold"
-          | "fixed_income"
-          | "crypto",
-        units: Number(v['units']),
-        invested: paise(v['invested']),
-        current_value: paise(v['current_value']),
-        account_id: v['account_id']!,
-      });
-    }
+    try {
+      if (kind === "transaction") {
+        await createTransaction({
+          occurred_at: v['occurred_at']!,
+          merchant: v['merchant']!,
+          descriptor: v['descriptor'] || v['merchant']!,
+          amount: paise(v['amount']),
+          type: v['type'] as "income" | "expense" | "transfer",
+          account_id: v['account_id']!,
+          category_id: v['category_id']!,
+          label_id: v['label_id'] ? v['label_id'] : null,
+          note: v['note'] ? v['note'] : null,
+        });
+      } else if (kind === "account") {
+        await createAccount({
+          name: v['name']!,
+          institution: v['institution']!,
+          kind: v['kind'] as Account["kind"],
+          balance: paise(v['balance']),
+          credit_limit: v['kind'] === "credit_card" && v['credit_limit'] ? paise(v['credit_limit']) : null,
+        });
+      } else if (kind === "goal") {
+        await createGoal({
+          name: v['name']!,
+          blurb: v['blurb'] || "Saving towards this goal.",
+          target: paise(v['target']),
+          saved: paise(v['saved']),
+          target_date: v['target_date']!,
+          account_id: v['account_id']!,
+          monthly_contribution: paise(v['monthly_contribution']),
+        });
+      } else if (kind === "budget") {
+        await createBudget({
+          period: v['period']!,
+          category_id: v['category_id']!,
+          planned: paise(v['planned']),
+        });
+      } else {
+        await createHolding({
+          name: v['name']!,
+          asset_class: v['asset_class'] as
+            | "equity"
+            | "mutual_fund"
+            | "gold"
+            | "fixed_income"
+            | "crypto",
+          units: Number(v['units']),
+          invested: paise(v['invested']),
+          current_value: paise(v['current_value']),
+          account_id: v['account_id']!,
+        });
+      }
 
-    toast.success(`${recordLabels[kind]} added`, { description: "Your ledger has been updated." });
-    onOpenChange(false);
-    void router.invalidate();
+      toast.success(`${recordLabels[kind]} added`, { description: "Your ledger has been updated." });
+      onOpenChange(false);
+      void router.invalidate();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong";
+      toast.error(`Failed to add ${recordLabels[kind].toLowerCase()}`, { description: message });
+    }
   };
 
   return (

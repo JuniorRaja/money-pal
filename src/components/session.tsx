@@ -1,4 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
+import type { Session, User, AuthError } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface AppPrefs {
   theme: "light" | "dark";
@@ -13,10 +15,21 @@ export interface AppPrefs {
 }
 
 interface SessionValue {
-  unlocked: boolean;
+  /** True when a valid Supabase session exists */
+  isAuthenticated: boolean;
+  /** The Supabase session object (null when signed out) */
+  session: Session | null;
+  /** The authenticated user (null when signed out) */
+  user: User | null;
+  /** True once the initial auth state has been determined */
   hydrated: boolean;
-  unlock: () => void;
-  lock: () => void;
+  /** Last auth error (e.g., token refresh failure) */
+  authError: AuthError | null;
+  /** Sign out the current user */
+  signOut: () => Promise<void>;
+  /** Clear the auth error */
+  clearAuthError: () => void;
+  /** User preferences */
   prefs: AppPrefs;
   setPrefs: (patch: Partial<AppPrefs>) => void;
 }
@@ -35,49 +48,118 @@ const defaultPrefs: AppPrefs = {
 
 const SessionContext = createContext<SessionValue | null>(null);
 
-const STORAGE_KEY = "money-pal.session";
+const PREFS_STORAGE_KEY = "money-pal.prefs";
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [unlocked, setUnlocked] = useState(false);
-  const [prefs, setPrefsState] = useState<AppPrefs>(defaultPrefs);
+  const [session, setSession] = useState<Session | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [authError, setAuthError] = useState<AuthError | null>(null);
+  const [prefs, setPrefsState] = useState<AppPrefs>(defaultPrefs);
 
+  // Load preferences from localStorage on mount
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const raw = window.localStorage.getItem(PREFS_STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as { unlocked?: boolean; prefs?: Partial<AppPrefs> };
-        if (parsed.unlocked) setUnlocked(true);
-        if (parsed.prefs) setPrefsState({ ...defaultPrefs, ...parsed.prefs });
+        const parsed = JSON.parse(raw) as Partial<AppPrefs>;
+        setPrefsState((prev) => ({ ...prev, ...parsed }));
       }
     } catch {
-      /* first run */
+      /* first run or invalid JSON */
     }
-    setHydrated(true);
   }, []);
 
+  // Persist preferences to localStorage
   useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ unlocked, prefs }));
-  }, [unlocked, prefs, hydrated]);
+    window.localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(prefs));
+  }, [prefs]);
 
+  // Apply theme and motion preferences to document
   useEffect(() => {
-    if (!hydrated) return;
     const root = document.documentElement;
     root.classList.toggle("dark", prefs.theme === "dark");
     root.classList.toggle("reduce-motion", prefs.reduceMotion);
-  }, [prefs.theme, prefs.reduceMotion, hydrated]);
+  }, [prefs.theme, prefs.reduceMotion]);
+
+  // Listen to Supabase auth state changes
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
+      // Clear any previous auth errors on successful auth events
+      if (newSession) {
+        setAuthError(null);
+      }
+
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+      } else if (event === "TOKEN_REFRESHED") {
+        // Token was successfully refreshed
+        setSession(newSession);
+        setAuthError(null);
+      } else if (newSession) {
+        setSession(newSession);
+      }
+
+      // Mark hydrated after the initial session check
+      if (event === "INITIAL_SESSION") {
+        setHydrated(true);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Periodically check session validity and handle token refresh errors
+  useEffect(() => {
+    if (!session) return;
+
+    const checkSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("[session] Token refresh failed:", error.message);
+        setAuthError(error);
+        // If the session is truly invalid, sign out
+        if (error.message.includes("expired") || error.message.includes("invalid")) {
+          setSession(null);
+        }
+      } else if (!data.session && session) {
+        // Session was invalidated server-side
+        setSession(null);
+      }
+    };
+
+    // Check session every 5 minutes
+    const interval = setInterval(checkSession, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [session]);
+
+  const handleSignOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setAuthError(null);
+  }, []);
+
+  const clearAuthError = useCallback(() => {
+    setAuthError(null);
+  }, []);
 
   const value = useMemo<SessionValue>(
     () => ({
-      unlocked,
+      isAuthenticated: Boolean(session),
+      session,
+      user: session?.user ?? null,
       hydrated,
-      unlock: () => setUnlocked(true),
-      lock: () => setUnlocked(false),
+      authError,
+      signOut: handleSignOut,
+      clearAuthError,
       prefs,
       setPrefs: (patch) => setPrefsState((p) => ({ ...p, ...patch })),
     }),
-    [unlocked, hydrated, prefs],
+    [session, hydrated, authError, handleSignOut, clearAuthError, prefs],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
