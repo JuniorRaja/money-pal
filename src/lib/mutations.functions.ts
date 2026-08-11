@@ -128,21 +128,86 @@ export const createAccountFn = createServerFn({ method: "POST" })
       .single();
     if (accountError) throw accountError;
 
-    // Sliceable accounts (bank, cash, investment) get a default slice
-    if (data.kind === "bank" || data.kind === "cash" || data.kind === "investment") {
-      const { error: sliceError } = await supabase.from("labels").insert({
-        user_id: userId,
-        account_id: account.id,
-        name: "Mine",
-        kind: "owned",
-        color_token: "chart-2",
-        is_default: true,
-        opening_amount: signedBalance,
-      });
-      if (sliceError) throw sliceError;
-    }
+    // Default slice is created automatically by the trg_account_default_slice
+    // database trigger for bank, cash, and investment accounts.
 
     return { id: account.id };
+  });
+
+// =============================================================================
+// UPDATE ACCOUNT
+// =============================================================================
+
+export interface UpdateAccountInput {
+  id: string;
+  name: string;
+  institution: string;
+  kind: AccountKind;
+  credit_limit: number | null;
+}
+
+export const updateAccountFn = createServerFn({ method: "POST" })
+  .validator((input: UpdateAccountInput) => {
+    if (!input.id) throw new Error("id is required");
+    if (!input.name?.trim()) throw new Error("name is required");
+    if (!input.kind) throw new Error("kind is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+
+    const { error } = await supabase
+      .from("accounts")
+      .update({
+        name: data.name,
+        institution: data.institution,
+        kind: data.kind,
+        credit_limit: data.credit_limit,
+        modified_at: new Date().toISOString(),
+      })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+
+    return { id: data.id };
+  });
+
+// =============================================================================
+// ARCHIVE ACCOUNT (soft delete)
+// =============================================================================
+
+export interface ArchiveAccountInput {
+  id: string;
+}
+
+export const archiveAccountFn = createServerFn({ method: "POST" })
+  .validator((input: ArchiveAccountInput) => {
+    if (!input.id) throw new Error("id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+
+    const now = new Date().toISOString();
+
+    // Soft-delete the account
+    const { error } = await supabase
+      .from("accounts")
+      .update({ deleted_at: now, is_active: false, modified_at: now })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+
+    // Soft-delete all slices (labels) belonging to this account
+    await supabase
+      .from("labels")
+      .update({ deleted_at: now })
+      .eq("account_id", data.id)
+      .is("deleted_at", null);
+
+    return { success: true };
   });
 
 // =============================================================================
@@ -170,12 +235,19 @@ export const createSliceFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
 
-    // Check if this is the first slice for this account
-    const { count } = await supabase
+    const amount = Math.abs(data.amount);
+
+    // Find the default slice for this account (the one we carve money from)
+    const { data: defaultSlice } = await supabase
       .from("labels")
-      .select("id", { count: "exact", head: true })
+      .select("id, opening_amount")
       .eq("account_id", data.account_id)
-      .is("deleted_at", null);
+      .eq("is_default", true)
+      .is("deleted_at", null)
+      .single();
+
+    // If no default slice exists, this is the first slice for the account
+    const isFirst = !defaultSlice;
 
     const { data: slice, error: sliceError } = await supabase
       .from("labels")
@@ -185,14 +257,24 @@ export const createSliceFn = createServerFn({ method: "POST" })
         name: data.name,
         kind: data.kind,
         color_token: data.color_token,
-        is_default: (count ?? 0) === 0,
-        opening_amount: Math.abs(data.amount),
+        is_default: isFirst,
+        opening_amount: amount,
         target_amount: data.kind === "earmark" ? data.target_amount : null,
         target_date: data.kind === "earmark" ? data.target_date : null,
       })
       .select("id")
       .single();
     if (sliceError) throw sliceError;
+
+    // Subtract the new slice's amount from the default slice so the total stays balanced
+    if (defaultSlice && amount > 0) {
+      const newDefaultAmount = Number(defaultSlice.opening_amount) - amount;
+      const { error: updateError } = await supabase
+        .from("labels")
+        .update({ opening_amount: newDefaultAmount })
+        .eq("id", defaultSlice.id);
+      if (updateError) throw updateError;
+    }
 
     return { id: slice.id };
   });
@@ -224,16 +306,16 @@ export const archiveSliceFn = createServerFn({ method: "POST" })
     if (sliceError) throw sliceError;
     if (!slice.account_id) throw new Error("Slice has no account_id");
 
-    // Count siblings
-    const { count } = await supabase
+    // Count siblings (other active slices for the same account)
+    const { data: siblings } = await supabase
       .from("labels")
-      .select("id", { count: "exact", head: true })
+      .select("id")
       .eq("account_id", slice.account_id)
       .neq("id", data.id)
       .is("deleted_at", null);
 
     // Can't delete the last slice
-    if ((count ?? 0) === 0) {
+    if (!siblings || siblings.length === 0) {
       throw new Error("Cannot archive the last slice of an account");
     }
 

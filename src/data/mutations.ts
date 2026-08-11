@@ -7,6 +7,8 @@
 import {
   createTransactionFn,
   createAccountFn,
+  updateAccountFn,
+  archiveAccountFn,
   createSliceFn,
   archiveSliceFn,
   createGoalFn,
@@ -14,6 +16,8 @@ import {
   createHoldingFn,
   type CreateTransactionInput,
   type CreateAccountInput,
+  type UpdateAccountInput,
+  type ArchiveAccountInput,
   type CreateSliceInput,
   type ArchiveSliceInput,
   type CreateGoalInput,
@@ -174,6 +178,43 @@ export async function createAccount(input: NewAccountInput): Promise<Account> {
     trend: flatTrend(Math.round(Math.abs(signed) / 100000) || 1),
     change_pct: 0,
   };
+}
+
+// =============================================================================
+// UPDATE ACCOUNT
+// =============================================================================
+
+export interface EditAccountInput {
+  id: string;
+  name: string;
+  institution: string;
+  kind: AccountKind;
+  credit_limit: Paise | null;
+}
+
+export async function updateAccount(input: EditAccountInput): Promise<void> {
+  const serverInput: UpdateAccountInput = {
+    id: input.id,
+    name: input.name,
+    institution: input.institution,
+    kind: input.kind,
+    credit_limit: input.credit_limit,
+  };
+  await updateAccountFn({ data: serverInput });
+}
+
+// =============================================================================
+// ARCHIVE ACCOUNT (soft delete)
+// =============================================================================
+
+export async function archiveAccount(id: string): Promise<boolean> {
+  const serverInput: ArchiveAccountInput = { id };
+  try {
+    await archiveAccountFn({ data: serverInput });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // =============================================================================

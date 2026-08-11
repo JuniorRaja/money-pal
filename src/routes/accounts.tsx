@@ -1,10 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Briefcase, CreditCard, Landmark, PlusCircle, Scissors, TrendingUp, Wallet } from "lucide-react";
+import { Briefcase, CreditCard, Landmark, MoreVertical, Pencil, PlusCircle, Scissors, Trash2, TrendingUp, Wallet } from "lucide-react";
 import { useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { DeleteAccountDialog } from "@/components/delete-account-dialog";
+import { EditAccountDialog } from "@/components/edit-account-dialog";
 import { ManageSlicesDialog } from "@/components/manage-slices-dialog";
 import { Panel, Ring, SliceBar, Sparkline, StatCard } from "@/components/mm-ui";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   allocationFor,
   getAccounts,
@@ -41,6 +49,8 @@ function AccountsPage() {
     slices: Slice[];
   };
   const [manage, setManage] = useState<Account | null>(null);
+  const [editing, setEditing] = useState<Account | null>(null);
+  const [deleting, setDeleting] = useState<Account | null>(null);
   const nw = summariseNetWorth(accounts);
   const sliceable = accounts.filter(
     (a) => a.kind === "bank" || a.kind === "cash" || a.kind === "investment",
@@ -75,11 +85,14 @@ function AccountsPage() {
                 <p className="text-sm font-medium text-foreground">{a.name}</p>
                 <p className="text-xs text-muted-foreground">{a.institution}</p>
               </div>
-              {a.is_primary && (
-                <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-medium text-primary">
-                  Primary
-                </span>
-              )}
+              <div className="flex items-center gap-1.5">
+                {a.is_primary && (
+                  <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    Primary
+                  </span>
+                )}
+                <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
+              </div>
             </div>
             <p className="numeric mt-4 text-2xl text-foreground">{formatMoney(a.balance, { whole: true })}</p>
             <div className="mt-3 flex items-end justify-between">
@@ -104,7 +117,10 @@ function AccountsPage() {
                   <p className="text-sm font-medium text-foreground">{a.name}</p>
                   <p className="text-xs text-muted-foreground">{a.institution}</p>
                 </div>
-                <Ring value={util} size={52} label={`${util.toFixed(1)}%`} tone={util > 40 ? "destructive" : "primary"} />
+                <div className="flex items-center gap-2">
+                  <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
+                  <Ring value={util} size={52} label={`${util.toFixed(1)}%`} tone={util > 40 ? "destructive" : "primary"} />
+                </div>
               </div>
               <div className="mt-4 flex items-end justify-between">
                 <div>
@@ -132,8 +148,13 @@ function AccountsPage() {
       <Group title="Investments" count={investments.length} icon={<TrendingUp className="h-4 w-4 text-primary" />}>
         {investments.map((a) => (
           <div key={a.id} className="card-lift grain pattern-hatch rounded-2xl border border-border bg-card p-5">
-            <p className="text-sm font-medium text-foreground">{a.name}</p>
-            <p className="text-xs text-muted-foreground">{a.institution}</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">{a.name}</p>
+                <p className="text-xs text-muted-foreground">{a.institution}</p>
+              </div>
+              <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
+            </div>
             <p className="numeric mt-4 text-2xl text-foreground">{formatMoney(a.balance, { whole: true })}</p>
             <div className="mt-3 flex items-end justify-between">
               <span className="text-xs text-success">{formatPct(a.change_pct)} vs last month</span>
@@ -147,8 +168,13 @@ function AccountsPage() {
       <Group title="Loans" count={loans.length} icon={<Landmark className="h-4 w-4 text-primary" />}>
         {loans.map((a) => (
           <div key={a.id} className="card-lift grain pattern-steps rounded-2xl border border-border bg-card p-5">
-            <p className="text-sm font-medium text-foreground">{a.name}</p>
-            <p className="text-xs text-muted-foreground">{a.institution}</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">{a.name}</p>
+                <p className="text-xs text-muted-foreground">{a.institution}</p>
+              </div>
+              <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
+            </div>
             <p className="numeric mt-4 text-2xl text-foreground">{formatMoney(Math.abs(a.balance), { whole: true })}</p>
             <div className="mt-3 flex items-end justify-between">
               <span className="text-xs text-success">{formatPct(a.change_pct)} outstanding</span>
@@ -166,6 +192,16 @@ function AccountsPage() {
         slices={slices}
         open={manage !== null}
         onOpenChange={(next) => !next && setManage(null)}
+      />
+      <EditAccountDialog
+        account={editing}
+        open={editing !== null}
+        onOpenChange={(next) => !next && setEditing(null)}
+      />
+      <DeleteAccountDialog
+        account={deleting}
+        open={deleting !== null}
+        onOpenChange={(next) => !next && setDeleting(null)}
       />
     </AppShell>
   );
@@ -203,6 +239,28 @@ function AccountSlices({
         format={(v) => formatMoney(v, { whole: true })}
       />
     </div>
+  );
+}
+
+/** Dropdown menu with Edit and Archive actions for an account card. */
+function AccountMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          <MoreVertical className="h-4 w-4" />
+          <span className="sr-only">Account actions</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-36">
+        <DropdownMenuItem onClick={onEdit} className="gap-2">
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onDelete} className="gap-2 text-destructive focus:text-destructive">
+          <Trash2 className="h-3.5 w-3.5" /> Archive
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
