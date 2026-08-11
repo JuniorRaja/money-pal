@@ -1,10 +1,9 @@
-import { Link, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
   Bell,
   BarChart3,
   Bot,
-  ChevronRight,
   CircleDollarSign,
   CreditCard,
   Download,
@@ -34,8 +33,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { hasSession } from "@/data/live";
-import { seedDemoLedger } from "@/lib/seed-demo.functions";
 import { cn } from "@/lib/utils";
 
 
@@ -256,29 +253,11 @@ export function AppShell({
 }: PageProps) {
   const { isAuthenticated, hydrated } = useSession();
   const navigate = useNavigate();
-  const router = useRouter();
   const [addKind, setAddKind] = useState<RecordKind | null>(null);
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) navigate({ to: "/login" });
   }, [isAuthenticated, hydrated, navigate]);
-
-  // With a real session the ledger is filled once, then every page reads live.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!(await hasSession())) return;
-      try {
-        const result = await seedDemoLedger();
-        if (!cancelled && result.seeded) await router.invalidate();
-      } catch (error) {
-        console.warn("[seed] demo ledger not written", error);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
 
   return (
     <div className="flex h-screen min-w-[1180px] overflow-hidden bg-background">
@@ -304,9 +283,7 @@ export function AppShell({
           )}
           <div className={actions ? "" : "pt-8"}>{children}</div>
           <footer className="mt-8 flex items-center gap-2 text-[11px] text-muted-foreground">
-            Money Pal 0.9.4
-            <ChevronRight className="h-3 w-3" />
-            Demo ledger, pinned to 07 Aug 2026
+            Money Pal
           </footer>
         </main>
       </div>

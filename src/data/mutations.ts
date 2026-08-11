@@ -1,15 +1,9 @@
 /**
  * Unified mutation layer.
  *
- * When authenticated, mutations write to Supabase via server functions.
- * When not authenticated (demo mode), they push into in-memory arrays
- * so the UI still works without a backend.
+ * All mutations write to Supabase via server functions. The user must be
+ * authenticated for any mutation to succeed.
  */
-import { accounts } from "@/data/seed/accounts";
-import { budgetPeriods, goals, holdings } from "@/data/seed/plan";
-import { slices } from "@/data/seed/slices";
-import { transactions } from "@/data/seed/transactions";
-import { hasSession } from "@/data/live";
 import {
   createTransactionFn,
   createAccountFn,
@@ -40,8 +34,6 @@ import type {
   TransactionType,
 } from "@/data/schema";
 
-const uid = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
-
 const flatTrend = (base: number) => Array.from({ length: 12 }, () => base);
 
 // =============================================================================
@@ -60,10 +52,22 @@ export interface NewTransactionInput {
   note: string | null;
 }
 
-function createTransactionLocal(input: NewTransactionInput): Transaction {
+export async function createTransaction(input: NewTransactionInput): Promise<Transaction> {
+  const serverInput: CreateTransactionInput = {
+    occurred_at: input.occurred_at,
+    merchant: input.merchant,
+    descriptor: input.descriptor,
+    amount: input.amount,
+    type: input.type,
+    account_id: input.account_id,
+    category_id: input.category_id,
+    label_id: input.label_id,
+    note: input.note,
+  };
+  const result = await createTransactionFn({ data: serverInput });
   const signed = input.type === "income" ? Math.abs(input.amount) : -Math.abs(input.amount);
-  const row: Transaction = {
-    id: uid("txn"),
+  return {
+    id: result.id,
     occurred_at: `${input.occurred_at}T12:00:00+05:30`,
     merchant: input.merchant,
     descriptor: input.descriptor || input.merchant,
@@ -78,54 +82,6 @@ function createTransactionLocal(input: NewTransactionInput): Transaction {
     note: input.note,
     attachments: 0,
   };
-  transactions.unshift(row);
-  const account = accounts.find((a) => a.id === input.account_id);
-  if (account) {
-    account.balance += signed;
-    account.last_activity_at = row.occurred_at;
-  }
-  // A labelled transaction moves that slice, not just the account total.
-  if (input.label_id) {
-    const slice = slices.find((s) => s.id === input.label_id && s.account_id === input.account_id);
-    if (slice) slice.amount += signed;
-  }
-  return row;
-}
-
-export async function createTransaction(input: NewTransactionInput): Promise<Transaction> {
-  if (await hasSession()) {
-    const serverInput: CreateTransactionInput = {
-      occurred_at: input.occurred_at,
-      merchant: input.merchant,
-      descriptor: input.descriptor,
-      amount: input.amount,
-      type: input.type,
-      account_id: input.account_id,
-      category_id: input.category_id,
-      label_id: input.label_id,
-      note: input.note,
-    };
-    const result = await createTransactionFn({ data: serverInput });
-    // Return a minimal Transaction object with the server-assigned ID
-    const signed = input.type === "income" ? Math.abs(input.amount) : -Math.abs(input.amount);
-    return {
-      id: result.id,
-      occurred_at: `${input.occurred_at}T12:00:00+05:30`,
-      merchant: input.merchant,
-      descriptor: input.descriptor || input.merchant,
-      amount: signed,
-      type: input.type,
-      account_id: input.account_id,
-      category_id: input.category_id,
-      label_id: input.label_id,
-      payment_method: "Manual",
-      source: "Manual entry",
-      confidence: 1,
-      note: input.note,
-      attachments: 0,
-    };
-  }
-  return createTransactionLocal(input);
 }
 
 // =============================================================================
@@ -142,76 +98,42 @@ export interface NewSliceInput {
   target_date: string | null;
 }
 
-function createSliceLocal(input: NewSliceInput): Slice {
-  const row: Slice = {
-    id: uid("slc"),
+export async function createSlice(input: NewSliceInput): Promise<Slice> {
+  const serverInput: CreateSliceInput = {
+    account_id: input.account_id,
+    name: input.name,
+    kind: input.kind,
+    amount: input.amount,
+    color_token: input.color_token,
+    target_amount: input.target_amount,
+    target_date: input.target_date,
+  };
+  const result = await createSliceFn({ data: serverInput });
+  return {
+    id: result.id,
     account_id: input.account_id,
     name: input.name,
     kind: input.kind,
     color_token: input.color_token,
-    is_default: !slices.some((s) => s.account_id === input.account_id),
+    is_default: false,
     amount: Math.abs(input.amount),
     target_amount: input.kind === "earmark" ? input.target_amount : null,
     target_date: input.kind === "earmark" ? input.target_date : null,
   };
-  slices.push(row);
-  return row;
-}
-
-export async function createSlice(input: NewSliceInput): Promise<Slice> {
-  if (await hasSession()) {
-    const serverInput: CreateSliceInput = {
-      account_id: input.account_id,
-      name: input.name,
-      kind: input.kind,
-      amount: input.amount,
-      color_token: input.color_token,
-      target_amount: input.target_amount,
-      target_date: input.target_date,
-    };
-    const result = await createSliceFn({ data: serverInput });
-    return {
-      id: result.id,
-      account_id: input.account_id,
-      name: input.name,
-      kind: input.kind,
-      color_token: input.color_token,
-      is_default: false,
-      amount: Math.abs(input.amount),
-      target_amount: input.kind === "earmark" ? input.target_amount : null,
-      target_date: input.kind === "earmark" ? input.target_date : null,
-    };
-  }
-  return createSliceLocal(input);
 }
 
 /**
  * Removes a slice and hands its remaining money back to the account's default
  * slice. The last remaining slice of an account can never be archived.
  */
-function archiveSliceLocal(id: string): boolean {
-  const index = slices.findIndex((s) => s.id === id);
-  if (index === -1) return false;
-  const slice = slices[index]!;
-  const siblings = slices.filter((s) => s.account_id === slice.account_id && s.id !== id);
-  if (!siblings.length) return false;
-  const fallback = siblings.find((s) => s.is_default) ?? siblings[0]!;
-  fallback.amount += slice.amount;
-  slices.splice(index, 1);
-  return true;
-}
-
 export async function archiveSlice(id: string): Promise<boolean> {
-  if (await hasSession()) {
-    const serverInput: ArchiveSliceInput = { id };
-    try {
-      await archiveSliceFn({ data: serverInput });
-      return true;
-    } catch {
-      return false;
-    }
+  const serverInput: ArchiveSliceInput = { id };
+  try {
+    await archiveSliceFn({ data: serverInput });
+    return true;
+  } catch {
+    return false;
   }
-  return archiveSliceLocal(id);
 }
 
 // =============================================================================
@@ -226,13 +148,21 @@ export interface NewAccountInput {
   credit_limit: Paise | null;
 }
 
-function createAccountLocal(input: NewAccountInput): Account {
+export async function createAccount(input: NewAccountInput): Promise<Account> {
+  const serverInput: CreateAccountInput = {
+    name: input.name,
+    institution: input.institution,
+    kind: input.kind,
+    balance: input.balance,
+    credit_limit: input.credit_limit,
+  };
+  const result = await createAccountFn({ data: serverInput });
   const signed =
     input.kind === "credit_card" || input.kind === "loan"
       ? -Math.abs(input.balance)
       : Math.abs(input.balance);
-  const row: Account = {
-    id: uid("acc"),
+  return {
+    id: result.id,
     name: input.name,
     institution: input.institution,
     kind: input.kind,
@@ -244,53 +174,6 @@ function createAccountLocal(input: NewAccountInput): Account {
     trend: flatTrend(Math.round(Math.abs(signed) / 100000) || 1),
     change_pct: 0,
   };
-  accounts.push(row);
-  // Every sliceable account starts life with one default slice.
-  if (input.kind === "bank" || input.kind === "cash" || input.kind === "investment") {
-    slices.push({
-      id: uid("slc"),
-      account_id: row.id,
-      name: "Mine",
-      kind: "owned",
-      color_token: "chart-2",
-      is_default: true,
-      amount: signed,
-      target_amount: null,
-      target_date: null,
-    });
-  }
-  return row;
-}
-
-export async function createAccount(input: NewAccountInput): Promise<Account> {
-  if (await hasSession()) {
-    const serverInput: CreateAccountInput = {
-      name: input.name,
-      institution: input.institution,
-      kind: input.kind,
-      balance: input.balance,
-      credit_limit: input.credit_limit,
-    };
-    const result = await createAccountFn({ data: serverInput });
-    const signed =
-      input.kind === "credit_card" || input.kind === "loan"
-        ? -Math.abs(input.balance)
-        : Math.abs(input.balance);
-    return {
-      id: result.id,
-      name: input.name,
-      institution: input.institution,
-      kind: input.kind,
-      balance: signed,
-      credit_limit: input.credit_limit,
-      currency: "INR",
-      is_primary: false,
-      last_activity_at: new Date().toISOString(),
-      trend: flatTrend(Math.round(Math.abs(signed) / 100000) || 1),
-      change_pct: 0,
-    };
-  }
-  return createAccountLocal(input);
 }
 
 // =============================================================================
@@ -307,37 +190,28 @@ export interface NewGoalInput {
   monthly_contribution: Paise;
 }
 
-function createGoalLocal(input: NewGoalInput): Goal {
-  const row: Goal = { id: uid("goal"), icon: "flag", ...input };
-  goals.push(row);
-  return row;
-}
-
 export async function createGoal(input: NewGoalInput): Promise<Goal> {
-  if (await hasSession()) {
-    const serverInput: CreateGoalInput = {
-      name: input.name,
-      blurb: input.blurb,
-      target: input.target,
-      saved: input.saved,
-      target_date: input.target_date,
-      account_id: input.account_id,
-      monthly_contribution: input.monthly_contribution,
-    };
-    const result = await createGoalFn({ data: serverInput });
-    return {
-      id: result.id,
-      name: input.name,
-      blurb: input.blurb,
-      target: input.target,
-      saved: input.saved,
-      target_date: input.target_date,
-      account_id: input.account_id,
-      monthly_contribution: input.monthly_contribution,
-      icon: "flag",
-    };
-  }
-  return createGoalLocal(input);
+  const serverInput: CreateGoalInput = {
+    name: input.name,
+    blurb: input.blurb,
+    target: input.target,
+    saved: input.saved,
+    target_date: input.target_date,
+    account_id: input.account_id,
+    monthly_contribution: input.monthly_contribution,
+  };
+  const result = await createGoalFn({ data: serverInput });
+  return {
+    id: result.id,
+    name: input.name,
+    blurb: input.blurb,
+    target: input.target,
+    saved: input.saved,
+    target_date: input.target_date,
+    account_id: input.account_id,
+    monthly_contribution: input.monthly_contribution,
+    icon: "flag",
+  };
 }
 
 // =============================================================================
@@ -350,29 +224,20 @@ export interface NewBudgetInput {
   planned: Paise;
 }
 
-function createBudgetLocal(input: NewBudgetInput): BudgetPeriod {
-  const row: BudgetPeriod = { id: uid("bgt"), spent: 0, ...input };
-  budgetPeriods.push(row);
-  return row;
-}
-
 export async function createBudget(input: NewBudgetInput): Promise<BudgetPeriod> {
-  if (await hasSession()) {
-    const serverInput: CreateBudgetInput = {
-      period: input.period,
-      category_id: input.category_id,
-      planned: input.planned,
-    };
-    const result = await createBudgetFn({ data: serverInput });
-    return {
-      id: result.id,
-      period: input.period,
-      category_id: input.category_id,
-      planned: input.planned,
-      spent: 0,
-    };
-  }
-  return createBudgetLocal(input);
+  const serverInput: CreateBudgetInput = {
+    period: input.period,
+    category_id: input.category_id,
+    planned: input.planned,
+  };
+  const result = await createBudgetFn({ data: serverInput });
+  return {
+    id: result.id,
+    period: input.period,
+    category_id: input.category_id,
+    planned: input.planned,
+    spent: 0,
+  };
 }
 
 // =============================================================================
@@ -388,33 +253,24 @@ export interface NewHoldingInput {
   account_id: string;
 }
 
-function createHoldingLocal(input: NewHoldingInput): Holding {
-  const row: Holding = { id: uid("hld"), day_change_pct: 0, ...input };
-  holdings.push(row);
-  return row;
-}
-
 export async function createHolding(input: NewHoldingInput): Promise<Holding> {
-  if (await hasSession()) {
-    const serverInput: CreateHoldingInput = {
-      name: input.name,
-      asset_class: input.asset_class,
-      units: input.units,
-      invested: input.invested,
-      current_value: input.current_value,
-      account_id: input.account_id,
-    };
-    const result = await createHoldingFn({ data: serverInput });
-    return {
-      id: result.id,
-      name: input.name,
-      asset_class: input.asset_class,
-      units: input.units,
-      invested: input.invested,
-      current_value: input.current_value,
-      account_id: input.account_id,
-      day_change_pct: 0,
-    };
-  }
-  return createHoldingLocal(input);
+  const serverInput: CreateHoldingInput = {
+    name: input.name,
+    asset_class: input.asset_class,
+    units: input.units,
+    invested: input.invested,
+    current_value: input.current_value,
+    account_id: input.account_id,
+  };
+  const result = await createHoldingFn({ data: serverInput });
+  return {
+    id: result.id,
+    name: input.name,
+    asset_class: input.asset_class,
+    units: input.units,
+    invested: input.invested,
+    current_value: input.current_value,
+    account_id: input.account_id,
+    day_change_pct: 0,
+  };
 }

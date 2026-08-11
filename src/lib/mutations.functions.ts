@@ -222,6 +222,7 @@ export const archiveSliceFn = createServerFn({ method: "POST" })
       .is("deleted_at", null)
       .single();
     if (sliceError) throw sliceError;
+    if (!slice.account_id) throw new Error("Slice has no account_id");
 
     // Count siblings
     const { count } = await supabase

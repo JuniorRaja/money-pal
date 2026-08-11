@@ -1,11 +1,9 @@
 /**
  * Live PostgreSQL reads.
  *
- * Every function here returns `null` when there is no signed-in session (or
- * when the backend has nothing for this user yet), which lets
- * `@/data/repository` transparently fall back to the mock ledger. Nothing in
- * the UI knows the difference — the return shapes are the domain types from
- * `@/data/schema`.
+ * Every function here queries Supabase and returns the domain types from
+ * `@/data/schema`. When there is no data yet (new user), empty arrays are
+ * returned so the UI can render an appropriate empty state.
  *
  * All reads go through the database views, so no arithmetic is duplicated in
  * TypeScript: balances, budget pacing, goal progress and holdings valuation
@@ -37,14 +35,14 @@ export async function hasSession(): Promise<boolean> {
   }
 }
 
-/** Runs a live read, swallowing "not signed in" / transport errors. */
-async function live<T>(run: () => Promise<T | null>): Promise<T | null> {
-  if (!(await hasSession())) return null;
+/** Runs a live read. Returns empty fallback when not signed in or on error. */
+async function live<T>(run: () => Promise<T>, fallback: T): Promise<T> {
+  if (!(await hasSession())) return fallback;
   try {
     return await run();
   } catch (error) {
-    console.warn("[live] falling back to local ledger", error);
-    return null;
+    console.warn("[live] query failed", error);
+    return fallback;
   }
 }
 
@@ -71,14 +69,14 @@ function lastTwelveMonths(): string[] {
   return out;
 }
 
-export const liveAccounts = () =>
+export const liveAccounts = (): Promise<Account[]> =>
   live<Account[]>(async () => {
     const [balances, flow] = await Promise.all([
       supabase.from("v_account_balances").select("*"),
       supabase.from("v_account_monthly_flow").select("*"),
     ]);
     if (balances.error) throw balances.error;
-    if (!balances.data?.length) return null;
+    if (!balances.data?.length) return [];
 
     const months = lastTwelveMonths();
     const byAccount = new Map<string, { deltas: Map<string, number>; last: string }>();
@@ -111,17 +109,16 @@ export const liveAccounts = () =>
         change_pct: first === 0 ? 0 : Math.round(((last - first) / Math.abs(first)) * 100),
       };
     });
-  });
+  }, []);
 
-export const liveCategories = () =>
+export const liveCategories = (): Promise<Category[]> =>
   live<Category[]>(async () => {
     const { data, error } = await supabase
       .from("categories")
       .select("id, name, kind, icon, color_token")
       .order("sort_order");
     if (error) throw error;
-    if (!data?.length) return null;
-    return data.map(
+    return (data ?? []).map(
       (row): Category => ({
         id: row.id,
         name: row.name,
@@ -130,16 +127,15 @@ export const liveCategories = () =>
         color_token: row.color_token ?? "chart-1",
       }),
     );
-  });
+  }, []);
 
-export const liveLabels = () =>
+export const liveLabels = (): Promise<Label[]> =>
   live<Label[]>(async () => {
     const { data, error } = await supabase
       .from("labels")
       .select("id, name, color_token, account_id, kind, is_default");
     if (error) throw error;
-    if (!data?.length) return null;
-    return data.map(
+    return (data ?? []).map(
       (row): Label => ({
         id: row.id,
         name: row.name,
@@ -149,15 +145,14 @@ export const liveLabels = () =>
         is_default: Boolean(row.is_default),
       }),
     );
-  });
+  }, []);
 
 /** Slices of every account, with amounts derived in SQL. */
-export const liveSlices = () =>
+export const liveSlices = (): Promise<Slice[]> =>
   live<Slice[]>(async () => {
     const { data, error } = await supabase.from("v_account_slices").select("*");
     if (error) throw error;
-    if (!data?.length) return null;
-    return data.map(
+    return (data ?? []).map(
       (row): Slice => ({
         id: row.slice_id as string,
         account_id: row.account_id as string,
@@ -170,15 +165,14 @@ export const liveSlices = () =>
         target_date: (row.target_date as string | null) ?? null,
       }),
     );
-  });
+  }, []);
 
 /** Allocated vs unallocated money per account. */
-export const liveAllocations = () =>
+export const liveAllocations = (): Promise<AccountAllocation[]> =>
   live<AccountAllocation[]>(async () => {
     const { data, error } = await supabase.from("v_account_allocation").select("*");
     if (error) throw error;
-    if (!data?.length) return null;
-    return data.map(
+    return (data ?? []).map(
       (row): AccountAllocation => ({
         account_id: row.account_id as string,
         balance: Number(row.balance ?? 0),
@@ -190,9 +184,9 @@ export const liveAllocations = () =>
         earmarked: Number(row.earmarked_amount ?? 0),
       }),
     );
-  });
+  }, []);
 
-export const liveTransactions = () =>
+export const liveTransactions = (): Promise<Transaction[]> =>
   live<Transaction[]>(async () => {
     const { data, error } = await supabase
       .from("v_transactions_flat")
@@ -200,8 +194,7 @@ export const liveTransactions = () =>
       .order("occurred_at", { ascending: false })
       .limit(500);
     if (error) throw error;
-    if (!data?.length) return null;
-    return data.map(
+    return (data ?? []).map(
       (row): Transaction => ({
         id: row.entry_id as string,
         occurred_at: row.occurred_at as string,
@@ -219,9 +212,9 @@ export const liveTransactions = () =>
         attachments: Number(row.attachments ?? 0),
       }),
     );
-  });
+  }, []);
 
-export const liveTimeline = () =>
+export const liveTimeline = (): Promise<TimelineEvent[]> =>
   live<TimelineEvent[]>(async () => {
     const { data, error } = await supabase
       .from("timeline_events")
@@ -229,8 +222,7 @@ export const liveTimeline = () =>
       .order("occurred_at", { ascending: false })
       .limit(200);
     if (error) throw error;
-    if (!data?.length) return null;
-    return data.map(
+    return (data ?? []).map(
       (row): TimelineEvent => ({
         id: row.id,
         occurred_at: row.occurred_at,
@@ -242,17 +234,16 @@ export const liveTimeline = () =>
         action_label: row.action_label,
       }),
     );
-  });
+  }, []);
 
-export const liveBudgets = (period: string) =>
+export const liveBudgets = (period: string): Promise<BudgetPeriod[]> =>
   live<BudgetPeriod[]>(async () => {
     const { data, error } = await supabase
       .from("v_budget_progress")
       .select("*")
       .eq("period_month", `${period}-01`);
     if (error) throw error;
-    if (!data?.length) return null;
-    return data.map(
+    return (data ?? []).map(
       (row): BudgetPeriod => ({
         id: `${period}-${row.category_id as string}`,
         period,
@@ -261,14 +252,13 @@ export const liveBudgets = (period: string) =>
         spent: Number(row.spent ?? 0),
       }),
     );
-  });
+  }, []);
 
-export const liveGoals = () =>
+export const liveGoals = (): Promise<Goal[]> =>
   live<Goal[]>(async () => {
     const { data, error } = await supabase.from("v_goal_progress").select("*");
     if (error) throw error;
-    if (!data?.length) return null;
-    return data.map(
+    return (data ?? []).map(
       (row): Goal => ({
         id: row.goal_id as string,
         name: row.name as string,
@@ -281,14 +271,13 @@ export const liveGoals = () =>
         icon: (row.icon as string | null) ?? "target",
       }),
     );
-  });
+  }, []);
 
-export const liveHoldings = () =>
+export const liveHoldings = (): Promise<Holding[]> =>
   live<Holding[]>(async () => {
     const { data, error } = await supabase.from("v_holdings_valuation").select("*");
     if (error) throw error;
-    if (!data?.length) return null;
-    return data.map((row): Holding => {
+    return (data ?? []).map((row): Holding => {
       const invested = Number(row.invested ?? 0);
       const current = Number(row.current_value ?? 0);
       return {
@@ -303,16 +292,15 @@ export const liveHoldings = () =>
         account_id: row.account_id as string,
       };
     });
-  });
+  }, []);
 
-export const liveMonthlyRollups = () =>
+export const liveMonthlyRollups = (): Promise<MonthlyRollup[]> =>
   live<MonthlyRollup[]>(async () => {
     const [cashflow, budgets] = await Promise.all([
       supabase.from("v_monthly_cashflow").select("*").order("period_month"),
       supabase.from("v_budget_progress").select("period_month, planned"),
     ]);
     if (cashflow.error) throw cashflow.error;
-    if ((cashflow.data?.length ?? 0) < 3) return null;
 
     const planned = new Map<string, number>();
     for (const row of budgets.data ?? []) {
@@ -331,4 +319,4 @@ export const liveMonthlyRollups = () =>
       });
     }
     return [...merged.values()].sort((a, b) => (a.period < b.period ? -1 : 1)).slice(-12);
-  });
+  }, []);

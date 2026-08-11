@@ -1,19 +1,9 @@
 /**
  * The single data access boundary for the whole app.
  *
- * Reads are live-first: when a Supabase session exists, every figure comes
- * from the PostgreSQL views (balances, budget pacing, goal progress and
- * holdings valuation are all computed in SQL). With no session — the current
- * mock passphrase login — the in-memory demo ledger answers instead, so the
- * UI is identical either way.
+ * All reads go through the live Supabase layer. When the user has no data yet
+ * (fresh signup), empty arrays are returned and the UI shows empty states.
  */
-import { accounts } from "@/data/seed/accounts";
-import { budgetPeriods, goals, holdings, monthlyRollups } from "@/data/seed/plan";
-import { SLICEABLE_KINDS, slices } from "@/data/seed/slices";
-import { categories, labels } from "@/data/seed/taxonomy";
-import { timelineEvents } from "@/data/seed/timeline";
-import { transactions } from "@/data/seed/transactions";
-import { importJobs, importReviewItems, importSources, userSettings } from "@/data/seed/workshop";
 import {
   liveAccounts,
   liveAllocations,
@@ -48,29 +38,46 @@ import type {
   UserSettings,
 } from "@/data/schema";
 
-/** The demo ledger is pinned to this date so every screen reads consistently. */
-export const TODAY = "2026-08-07";
-export const CURRENT_PERIOD = "2026-08";
+/** Current period for budget/transaction queries. */
+export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
 
-const ok = <T>(value: T): Promise<T> => Promise.resolve(value);
+/** Today's date as ISO date string (YYYY-MM-DD). */
+export const TODAY = new Date().toISOString().slice(0, 10);
 
-/** Live rows when signed in, demo rows otherwise. */
-async function resolve<T>(loadLive: () => Promise<T | null>, fallback: T): Promise<T> {
-  return (await loadLive()) ?? fallback;
-}
+/** Account kinds that can be split into slices. */
+export const SLICEABLE_KINDS = ["bank", "cash", "investment"] as const;
 
-export const getAccounts = () => resolve<Account[]>(liveAccounts, accounts);
-export const getCategories = () => resolve<Category[]>(liveCategories, categories);
-export const getLabels = () => resolve<Label[]>(liveLabels, labels);
-export const getSettings = () => ok<UserSettings>(userSettings);
-export const getTimelineEvents = () => resolve<TimelineEvent[]>(liveTimeline, timelineEvents);
-export const getGoals = () => resolve<Goal[]>(liveGoals, goals);
-export const getHoldings = () => resolve<Holding[]>(liveHoldings, holdings);
-export const getMonthlyRollups = () => resolve<MonthlyRollup[]>(liveMonthlyRollups, monthlyRollups);
-export const getSlices = () => resolve<Slice[]>(liveSlices, slices);
-export const getImportSources = () => ok<ImportSource[]>(importSources);
-export const getImportJobs = () => ok<ImportJob[]>(importJobs);
-export const getImportReviewItems = () => ok<ImportReviewItem[]>(importReviewItems);
+export const getAccounts = (): Promise<Account[]> => liveAccounts();
+export const getCategories = (): Promise<Category[]> => liveCategories();
+export const getLabels = (): Promise<Label[]> => liveLabels();
+export const getTimelineEvents = (): Promise<TimelineEvent[]> => liveTimeline();
+export const getGoals = (): Promise<Goal[]> => liveGoals();
+export const getHoldings = (): Promise<Holding[]> => liveHoldings();
+export const getMonthlyRollups = (): Promise<MonthlyRollup[]> => liveMonthlyRollups();
+export const getSlices = (): Promise<Slice[]> => liveSlices();
+
+// Import/workshop features — return empty until backend is wired up.
+export const getImportSources = (): Promise<ImportSource[]> => Promise.resolve([]);
+export const getImportJobs = (): Promise<ImportJob[]> => Promise.resolve([]);
+export const getImportReviewItems = (): Promise<ImportReviewItem[]> => Promise.resolve([]);
+
+// Settings — return sensible defaults; real settings come from profile table later.
+export const getSettings = (): Promise<UserSettings> =>
+  Promise.resolve({
+    user_id: "",
+    display_name: "",
+    email: "",
+    currency: "INR",
+    week_starts_on: "Monday",
+    number_format: "indian",
+    round_to_nearest: true,
+    theme: "light",
+    accent: "Antique gold",
+    sidebar: "expanded",
+    reduce_motion: false,
+    assistant_tone: "concise",
+    assistant_context: true,
+  });
 
 
 export interface TransactionFilter {
@@ -98,26 +105,22 @@ export function filterTransactions(rows: Transaction[], filter: TransactionFilte
   });
 }
 
-export const listTransactions = async (filter: TransactionFilter = {}) => {
-  const rows = await resolve<Transaction[]>(liveTransactions, transactions);
+export const listTransactions = async (filter: TransactionFilter = {}): Promise<Transaction[]> => {
+  const rows = await liveTransactions();
   return filterTransactions(rows, filter).sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1));
 };
 
-export const getBudgets = (period: string = CURRENT_PERIOD) =>
-  resolve<BudgetPeriod[]>(
-    () => liveBudgets(period),
-    budgetPeriods.filter((b) => b.period === period),
-  );
-
+export const getBudgets = (period: string = CURRENT_PERIOD): Promise<BudgetPeriod[]> =>
+  liveBudgets(period);
 
 /** Accounts whose balance can be split into slices. */
 export const isSliceable = (kind: Account["kind"]) =>
   (SLICEABLE_KINDS as readonly string[]).includes(kind);
 
-/** Allocated vs unallocated money per account, live rows when signed in. */
+/** Allocated vs unallocated money per account. */
 export async function getAllocations(): Promise<AccountAllocation[]> {
   const live = await liveAllocations();
-  if (live) return live;
+  if (live.length) return live;
   const [accs, rows] = await Promise.all([getAccounts(), getSlices()]);
   return accs.filter((a) => isSliceable(a.kind)).map((a) => allocationFor(a, rows));
 }
@@ -222,13 +225,12 @@ export async function getAssistantContext(): Promise<string> {
     .map(([id, v]) => `${nameOf(id)}=${r(v)}`)
     .join(", ");
   return [
-    `Currency INR. Today ${TODAY}. Period ${CURRENT_PERIOD}.`,
+    `Currency INR. Period ${CURRENT_PERIOD}.`,
     `NetWorth=${r(nw.net_worth)} cash=${r(nw.cash)} investments=${r(nw.investments)} liabilities=${r(nw.liabilities)}.`,
     `Month: income=${r(cf.income)} expense=${r(cf.expense)} net=${r(cf.net)} txns=${cf.count}.`,
     `Top spend: ${catLine}.`,
     `Budgets: ${budgets.map((b) => `${nameOf(b.category_id)}=${r(b.spent)}/${r(b.planned)}`).join(", ")}.`,
     `Goals: ${gls.map((g) => `${g.name}=${r(g.saved)}/${r(g.target)} by ${g.target_date}`).join(", ")}.`,
-
     `Holdings value=${r(hlds.reduce((s, h) => s + h.current_value, 0))}, invested=${r(hlds.reduce((s, h) => s + h.invested, 0))}.`,
   ].join("\n");
 }
