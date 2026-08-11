@@ -20,13 +20,43 @@ export interface Account {
   kind: AccountKind;
   /** Positive for assets, negative outstanding for credit/loan accounts. */
   balance: Paise;
+  /** Credit cards: current limit. Null for other kinds. */
   credit_limit: Paise | null;
+  /** Credit cards: day of month statement is generated (1–31). */
+  bill_generation_day: number | null;
+  /** Credit cards: payment due day of month (1–31). */
+  due_day: number | null;
+  /** Loans: annual interest in basis points (850 = 8.50%). */
+  interest_rate_bps: number | null;
+  /** Loans: EMI amount in paise. */
+  emi_amount: Paise | null;
+  /** Loans: tenure in months. */
+  tenure_months: number | null;
+  /** Loans: lender / bank name. */
+  lender: string | null;
+  /** Ledger-derived outstanding for credit cards (null otherwise). */
+  used_amount: Paise | null;
   currency: "INR";
   is_primary: boolean;
   last_activity_at: ISODateTime;
   /** 12 point balance history, oldest first — used for sparklines. */
   trend: number[];
   change_pct: number;
+}
+
+/** One billing cycle for a credit card account. */
+export interface CreditCardCycle {
+  id: string;
+  account_id: string;
+  statement_date: ISODate;
+  due_date: ISODate;
+  credit_limit: Paise;
+  statement_balance: Paise;
+  payment_due_amount: Paise;
+  minimum_due: Paise;
+  amount_paid: Paise;
+  is_current: boolean;
+  notes: string | null;
 }
 
 export interface Category {

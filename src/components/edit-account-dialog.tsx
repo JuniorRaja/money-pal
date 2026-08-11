@@ -39,18 +39,29 @@ export function EditAccountDialog({
   const [institution, setInstitution] = useState("");
   const [kind, setKind] = useState<AccountKind>("bank");
   const [creditLimit, setCreditLimit] = useState("");
+  const [billDay, setBillDay] = useState("");
+  const [dueDay, setDueDay] = useState("");
+  const [ratePct, setRatePct] = useState("");
+  const [emi, setEmi] = useState("");
+  const [tenure, setTenure] = useState("");
+  const [lender, setLender] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Populate fields when dialog opens with account data
   useEffect(() => {
     if (account && open) {
       setName(account.name);
       setInstitution(account.institution);
       setKind(account.kind);
-      setCreditLimit(
-        account.credit_limit !== null ? String(account.credit_limit / 100) : "",
+      setCreditLimit(account.credit_limit !== null ? String(account.credit_limit / 100) : "");
+      setBillDay(account.bill_generation_day !== null ? String(account.bill_generation_day) : "");
+      setDueDay(account.due_day !== null ? String(account.due_day) : "");
+      setRatePct(
+        account.interest_rate_bps !== null ? String(account.interest_rate_bps / 100) : "",
       );
+      setEmi(account.emi_amount !== null ? String(account.emi_amount / 100) : "");
+      setTenure(account.tenure_months !== null ? String(account.tenure_months) : "");
+      setLender(account.lender ?? "");
       setError(null);
     }
   }, [account, open]);
@@ -82,6 +93,14 @@ export function EditAccountDialog({
         institution: trimmedInstitution,
         kind,
         credit_limit: parsedLimit,
+        bill_generation_day:
+          kind === "credit_card" && billDay.trim() ? Number(billDay) : null,
+        due_day: kind === "credit_card" && dueDay.trim() ? Number(dueDay) : null,
+        interest_rate_bps:
+          kind === "loan" && ratePct.trim() ? Math.round(Number(ratePct) * 100) : null,
+        emi_amount: kind === "loan" && emi.trim() ? Math.round(Number(emi) * 100) : null,
+        tenure_months: kind === "loan" && tenure.trim() ? Number(tenure) : null,
+        lender: kind === "loan" ? lender.trim() || null : null,
       });
       toast.success("Account updated");
       onOpenChange(false);
@@ -103,7 +122,6 @@ export function EditAccountDialog({
         </DialogHeader>
 
         <form onSubmit={submit} className="mt-2 space-y-4">
-          {/* Name */}
           <div className="space-y-1.5">
             <label htmlFor="edit-acc-name" className="text-xs font-medium text-muted-foreground">
               Account Name
@@ -121,7 +139,6 @@ export function EditAccountDialog({
             />
           </div>
 
-          {/* Institution */}
           <div className="space-y-1.5">
             <label htmlFor="edit-acc-institution" className="text-xs font-medium text-muted-foreground">
               Institution
@@ -138,7 +155,6 @@ export function EditAccountDialog({
             />
           </div>
 
-          {/* Kind */}
           <div className="space-y-1.5">
             <label htmlFor="edit-acc-kind" className="text-xs font-medium text-muted-foreground">
               Account Type
@@ -160,24 +176,113 @@ export function EditAccountDialog({
             </select>
           </div>
 
-          {/* Credit Limit (only for credit cards) */}
           {kind === "credit_card" && (
-            <div className="space-y-1.5">
-              <label htmlFor="edit-acc-limit" className="text-xs font-medium text-muted-foreground">
-                Credit Limit
-              </label>
-              <input
-                id="edit-acc-limit"
-                className={fieldBase}
-                value={creditLimit}
-                onChange={(e) => {
-                  setCreditLimit(e.target.value);
-                  setError(null);
-                }}
-                placeholder="e.g. 200000"
-                inputMode="decimal"
-              />
-            </div>
+            <>
+              <div className="space-y-1.5">
+                <label htmlFor="edit-acc-limit" className="text-xs font-medium text-muted-foreground">
+                  Credit Limit
+                </label>
+                <input
+                  id="edit-acc-limit"
+                  className={fieldBase}
+                  value={creditLimit}
+                  onChange={(e) => {
+                    setCreditLimit(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="e.g. 200000"
+                  inputMode="decimal"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-bill-day" className="text-xs font-medium text-muted-foreground">
+                    Bill day
+                  </label>
+                  <input
+                    id="edit-bill-day"
+                    className={fieldBase}
+                    value={billDay}
+                    onChange={(e) => setBillDay(e.target.value)}
+                    placeholder="1–31"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-due-day" className="text-xs font-medium text-muted-foreground">
+                    Due day
+                  </label>
+                  <input
+                    id="edit-due-day"
+                    className={fieldBase}
+                    value={dueDay}
+                    onChange={(e) => setDueDay(e.target.value)}
+                    placeholder="1–31"
+                    inputMode="numeric"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {kind === "loan" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-rate" className="text-xs font-medium text-muted-foreground">
+                    Rate (% p.a.)
+                  </label>
+                  <input
+                    id="edit-rate"
+                    className={fieldBase}
+                    value={ratePct}
+                    onChange={(e) => setRatePct(e.target.value)}
+                    placeholder="8.5"
+                    inputMode="decimal"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-emi" className="text-xs font-medium text-muted-foreground">
+                    EMI (₹)
+                  </label>
+                  <input
+                    id="edit-emi"
+                    className={fieldBase}
+                    value={emi}
+                    onChange={(e) => setEmi(e.target.value)}
+                    placeholder="25000"
+                    inputMode="decimal"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-tenure" className="text-xs font-medium text-muted-foreground">
+                    Tenure (months)
+                  </label>
+                  <input
+                    id="edit-tenure"
+                    className={fieldBase}
+                    value={tenure}
+                    onChange={(e) => setTenure(e.target.value)}
+                    placeholder="36"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-lender" className="text-xs font-medium text-muted-foreground">
+                    Lender
+                  </label>
+                  <input
+                    id="edit-lender"
+                    className={fieldBase}
+                    value={lender}
+                    onChange={(e) => setLender(e.target.value)}
+                    placeholder="HDFC Bank"
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           {error && <p className="text-xs text-destructive">{error}</p>}

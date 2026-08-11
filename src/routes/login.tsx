@@ -85,7 +85,7 @@ function LoginPage() {
     }
 
     setLoading(true);
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
     });
@@ -93,8 +93,15 @@ function LoginPage() {
 
     if (signUpError) {
       setError(signUpError.message);
+    } else if (data.session) {
+      navigate({ to: "/" });
     } else {
-      setMessage("Check your email for a confirmation link to complete sign up.");
+      // Project may require email confirm for session issuance; we auto-confirm
+      // in DB, so password sign-in works immediately after signup.
+      setMode("signin");
+      setMessage("Account created. Sign in with your email and password.");
+      setPassword("");
+      setConfirmPassword("");
     }
   }
 

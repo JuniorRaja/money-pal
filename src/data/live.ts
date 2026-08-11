@@ -15,6 +15,7 @@ import type {
   AccountAllocation,
   BudgetPeriod,
   Category,
+  CreditCardCycle,
   Goal,
   Holding,
   Label,
@@ -102,6 +103,13 @@ export const liveAccounts = (): Promise<Account[]> =>
         kind: row.kind as Account["kind"],
         balance,
         credit_limit: row.credit_limit === null ? null : Number(row.credit_limit),
+        bill_generation_day: row.bill_generation_day === null ? null : Number(row.bill_generation_day),
+        due_day: row.due_day === null ? null : Number(row.due_day),
+        interest_rate_bps: row.interest_rate_bps === null ? null : Number(row.interest_rate_bps),
+        emi_amount: row.emi_amount === null ? null : Number(row.emi_amount),
+        tenure_months: row.tenure_months === null ? null : Number(row.tenure_months),
+        lender: (row.lender as string | null) ?? null,
+        used_amount: row.used_amount === null || row.used_amount === undefined ? null : Number(row.used_amount),
         currency: row.currency_code as Account["currency"],
         is_primary: Boolean(row.is_primary),
         last_activity_at: bucket?.last || new Date().toISOString(),
@@ -109,6 +117,35 @@ export const liveAccounts = (): Promise<Account[]> =>
         change_pct: first === 0 ? 0 : Math.round(((last - first) / Math.abs(first)) * 100),
       };
     });
+  }, []);
+
+export const liveCreditCardCycles = (accountId?: string): Promise<CreditCardCycle[]> =>
+  live<CreditCardCycle[]>(async () => {
+    let query = supabase
+      .from("credit_card_cycles")
+      .select(
+        "id, account_id, statement_date, due_date, credit_limit, statement_balance, payment_due_amount, minimum_due, amount_paid, is_current, notes",
+      )
+      .is("deleted_at", null)
+      .order("statement_date", { ascending: false });
+    if (accountId) query = query.eq("account_id", accountId);
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []).map(
+      (row): CreditCardCycle => ({
+        id: row.id,
+        account_id: row.account_id,
+        statement_date: row.statement_date,
+        due_date: row.due_date,
+        credit_limit: Number(row.credit_limit),
+        statement_balance: Number(row.statement_balance),
+        payment_due_amount: Number(row.payment_due_amount),
+        minimum_due: Number(row.minimum_due),
+        amount_paid: Number(row.amount_paid),
+        is_current: Boolean(row.is_current),
+        notes: row.notes ?? null,
+      }),
+    );
   }, []);
 
 export const liveCategories = (): Promise<Category[]> =>

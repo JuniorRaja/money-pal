@@ -16,54 +16,72 @@ export type Database = {
     Tables: {
       accounts: {
         Row: {
+          bill_generation_day: number | null
           created_at: string
           created_by: string | null
           credit_limit: number | null
           currency_code: string
           deleted_at: string | null
+          due_day: number | null
+          emi_amount: number | null
           id: string
           institution: string | null
+          interest_rate_bps: number | null
           is_active: boolean
           is_primary: boolean
           kind: Database["public"]["Enums"]["account_kind"]
+          lender: string | null
           modified_at: string
           modified_by: string | null
           name: string
           opening_balance: number
+          tenure_months: number | null
           user_id: string
         }
         Insert: {
+          bill_generation_day?: number | null
           created_at?: string
           created_by?: string | null
           credit_limit?: number | null
           currency_code: string
           deleted_at?: string | null
+          due_day?: number | null
+          emi_amount?: number | null
           id?: string
           institution?: string | null
+          interest_rate_bps?: number | null
           is_active?: boolean
           is_primary?: boolean
           kind: Database["public"]["Enums"]["account_kind"]
+          lender?: string | null
           modified_at?: string
           modified_by?: string | null
           name: string
           opening_balance?: number
+          tenure_months?: number | null
           user_id: string
         }
         Update: {
+          bill_generation_day?: number | null
           created_at?: string
           created_by?: string | null
           credit_limit?: number | null
           currency_code?: string
           deleted_at?: string | null
+          due_day?: number | null
+          emi_amount?: number | null
           id?: string
           institution?: string | null
+          interest_rate_bps?: number | null
           is_active?: boolean
           is_primary?: boolean
           kind?: Database["public"]["Enums"]["account_kind"]
+          lender?: string | null
           modified_at?: string
           modified_by?: string | null
           name?: string
           opening_balance?: number
+          tenure_months?: number | null
           user_id?: string
         }
         Relationships: [
@@ -289,6 +307,98 @@ export type Database = {
           },
         ]
       }
+      credit_card_cycles: {
+        Row: {
+          account_id: string
+          amount_paid: number
+          created_at: string
+          created_by: string | null
+          credit_limit: number
+          deleted_at: string | null
+          due_date: string
+          id: string
+          is_active: boolean
+          is_current: boolean
+          minimum_due: number
+          modified_at: string
+          modified_by: string | null
+          notes: string | null
+          payment_due_amount: number
+          statement_balance: number
+          statement_date: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          amount_paid?: number
+          created_at?: string
+          created_by?: string | null
+          credit_limit: number
+          deleted_at?: string | null
+          due_date: string
+          id?: string
+          is_active?: boolean
+          is_current?: boolean
+          minimum_due: number
+          modified_at?: string
+          modified_by?: string | null
+          notes?: string | null
+          payment_due_amount: number
+          statement_balance: number
+          statement_date: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          amount_paid?: number
+          created_at?: string
+          created_by?: string | null
+          credit_limit?: number
+          deleted_at?: string | null
+          due_date?: string
+          id?: string
+          is_active?: boolean
+          is_current?: boolean
+          minimum_due?: number
+          modified_at?: string
+          modified_by?: string | null
+          notes?: string | null
+          payment_due_amount?: number
+          statement_balance?: number
+          statement_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_card_cycles_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_card_cycles_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "credit_card_cycles_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "credit_card_cycles_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_card_current"
+            referencedColumns: ["account_id"]
+          },
+        ]
+      }
       currencies: {
         Row: {
           code: string
@@ -454,6 +564,13 @@ export type Database = {
             referencedRelation: "v_transactions_flat"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "goal_contributions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_flat"
+            referencedColumns: ["transaction_id"]
+          },
         ]
       }
       goals: {
@@ -531,6 +648,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "goals_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_card_current"
             referencedColumns: ["account_id"]
           },
           {
@@ -617,6 +741,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "holdings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_card_current"
             referencedColumns: ["account_id"]
           },
           {
@@ -868,6 +999,13 @@ export type Database = {
             referencedRelation: "v_account_balances"
             referencedColumns: ["account_id"]
           },
+          {
+            foreignKeyName: "labels_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_card_current"
+            referencedColumns: ["account_id"]
+          },
         ]
       }
       profiles: {
@@ -1025,6 +1163,13 @@ export type Database = {
             referencedColumns: ["account_id"]
           },
           {
+            foreignKeyName: "timeline_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_card_current"
+            referencedColumns: ["account_id"]
+          },
+          {
             foreignKeyName: "timeline_events_currency_code_fkey"
             columns: ["currency_code"]
             isOneToOne: false
@@ -1044,6 +1189,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_transactions_flat"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeline_events_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_flat"
+            referencedColumns: ["transaction_id"]
           },
         ]
       }
@@ -1116,6 +1268,13 @@ export type Database = {
             referencedColumns: ["account_id"]
           },
           {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_card_current"
+            referencedColumns: ["account_id"]
+          },
+          {
             foreignKeyName: "transaction_entries_currency_code_fkey"
             columns: ["currency_code"]
             isOneToOne: false
@@ -1149,6 +1308,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_transactions_flat"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_flat"
+            referencedColumns: ["transaction_id"]
           },
         ]
       }
@@ -1274,14 +1440,21 @@ export type Database = {
         Row: {
           account_id: string | null
           balance: number | null
+          bill_generation_day: number | null
           credit_limit: number | null
           currency_code: string | null
+          due_day: number | null
+          emi_amount: number | null
           institution: string | null
+          interest_rate_bps: number | null
           is_primary: boolean | null
           kind: Database["public"]["Enums"]["account_kind"] | null
+          lender: string | null
           minor_unit: number | null
           name: string | null
           symbol: string | null
+          tenure_months: number | null
+          used_amount: number | null
           user_id: string | null
         }
         Relationships: [
@@ -1323,6 +1496,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_card_current"
             referencedColumns: ["account_id"]
           },
         ]
@@ -1370,6 +1550,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "labels_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_card_current"
             referencedColumns: ["account_id"]
           },
         ]
@@ -1427,6 +1614,38 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_credit_card_current: {
+        Row: {
+          account_credit_limit: number | null
+          account_id: string | null
+          amount_paid: number | null
+          balance: number | null
+          bill_generation_day: number | null
+          currency_code: string | null
+          cycle_credit_limit: number | null
+          cycle_due_date: string | null
+          cycle_id: string | null
+          due_day: number | null
+          institution: string | null
+          is_current: boolean | null
+          minimum_due: number | null
+          name: string | null
+          payment_due_amount: number | null
+          statement_balance: number | null
+          statement_date: string | null
+          used_amount: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_currency_code_fkey"
+            columns: ["currency_code"]
+            isOneToOne: false
+            referencedRelation: "currencies"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -1518,6 +1737,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "holdings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_card_current"
             referencedColumns: ["account_id"]
           },
           {
@@ -1628,6 +1854,13 @@ export type Database = {
             referencedColumns: ["account_id"]
           },
           {
+            foreignKeyName: "transaction_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_card_current"
+            referencedColumns: ["account_id"]
+          },
+          {
             foreignKeyName: "transaction_entries_currency_code_fkey"
             columns: ["currency_code"]
             isOneToOne: false
@@ -1669,9 +1902,17 @@ export type Database = {
         }
         Returns: string
       }
+      fn_assert_slice_on_account: {
+        Args: { p_account: string; p_label: string; p_uid: string }
+        Returns: undefined
+      }
       fn_convert: {
         Args: { p_amount: number; p_from: string; p_on?: string; p_to: string }
         Returns: number
+      }
+      fn_delete_transaction: {
+        Args: { p_transaction_id: string }
+        Returns: boolean
       }
       fn_record_transaction: {
         Args: {
@@ -1710,14 +1951,6 @@ export type Database = {
           p_type?: Database["public"]["Enums"]["txn_type"]
         }
         Returns: string
-      }
-      fn_delete_transaction: {
-        Args: { p_transaction_id: string }
-        Returns: boolean
-      }
-      fn_assert_slice_on_account: {
-        Args: { p_account: string; p_label: string; p_uid: string }
-        Returns: undefined
       }
     }
     Enums: {

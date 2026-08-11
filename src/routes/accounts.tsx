@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Briefcase, CreditCard, Landmark, MoreVertical, Pencil, PlusCircle, Scissors, Trash2, TrendingUp, Wallet } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
 import { DeleteAccountDialog } from "@/components/delete-account-dialog";
 import { EditAccountDialog } from "@/components/edit-account-dialog";
+import { ManageCyclesDialog } from "@/components/manage-cycles-dialog";
 import { ManageSlicesDialog } from "@/components/manage-slices-dialog";
 import { Panel, Ring, SliceBar, Sparkline, StatCard } from "@/components/mm-ui";
 import {
@@ -16,11 +17,12 @@ import {
 import {
   allocationFor,
   getAccounts,
+  getCreditCardCycles,
   getSlices,
   summariseNetWorth,
   summariseOwnership,
 } from "@/data/repository";
-import type { Account, Slice } from "@/data/schema";
+import type { Account, CreditCardCycle, Slice } from "@/data/schema";
 import { formatMoney, formatPct } from "@/lib/money";
 
 export const Route = createFileRoute("/accounts")({
@@ -37,24 +39,28 @@ export const Route = createFileRoute("/accounts")({
     ],
   }),
   loader: async () => {
-    const [accounts, slices] = await Promise.all([getAccounts(), getSlices()]);
-    return { accounts, slices };
+    const [accounts, slices, cycles] = await Promise.all([
+      getAccounts(),
+      getSlices(),
+      getCreditCardCycles(),
+    ]);
+    return { accounts, slices, cycles };
   },
   component: AccountsPage,
 });
 
 function AccountsPage() {
-  const { accounts, slices } = Route.useLoaderData() as {
+  const { accounts, slices, cycles } = Route.useLoaderData() as {
     accounts: Account[];
     slices: Slice[];
+    cycles: CreditCardCycle[];
   };
   const [manage, setManage] = useState<Account | null>(null);
+  const [cyclesFor, setCyclesFor] = useState<Account | null>(null);
   const [editing, setEditing] = useState<Account | null>(null);
   const [deleting, setDeleting] = useState<Account | null>(null);
   const nw = summariseNetWorth(accounts);
-  const sliceable = accounts.filter(
-    (a) => a.kind === "bank" || a.kind === "cash" || a.kind === "investment",
-  );
+  const sliceable = accounts.filter((a) => a.kind === "bank" || a.kind === "cash");
   const ownership = summariseOwnership(
     accounts,
     sliceable.map((a) => allocationFor(a, slices)),
@@ -63,6 +69,14 @@ function AccountsPage() {
   const cards = accounts.filter((a) => a.kind === "credit_card");
   const investments = accounts.filter((a) => a.kind === "investment");
   const loans = accounts.filter((a) => a.kind === "loan");
+
+  const currentByAccount = useMemo(() => {
+    const map = new Map<string, CreditCardCycle>();
+    for (const c of cycles) {
+      if (c.is_current) map.set(c.account_id, c);
+    }
+    return map;
+  }, [cycles]);
 
   return (
     <AppShell
@@ -108,8 +122,9 @@ function AccountsPage() {
 
       <Group title="Credit Cards" count={cards.length} icon={<CreditCard className="h-4 w-4 text-primary" />}>
         {cards.map((a) => {
-          const used = Math.abs(a.balance);
+          const used = a.used_amount ?? Math.abs(a.balance);
           const util = a.credit_limit ? (used / a.credit_limit) * 100 : 0;
+          const current = currentByAccount.get(a.id);
           return (
             <div key={a.id} className="card-lift grain ledger-pattern rounded-2xl border border-border bg-card p-5">
               <div className="flex items-start justify-between">
@@ -118,13 +133,17 @@ function AccountsPage() {
                   <p className="text-xs text-muted-foreground">{a.institution}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
+                  <AccountMenu
+                    onEdit={() => setEditing(a)}
+                    onDelete={() => setDeleting(a)}
+                    onCycles={() => setCyclesFor(a)}
+                  />
                   <Ring value={util} size={52} label={`${util.toFixed(1)}%`} tone={util > 40 ? "destructive" : "primary"} />
                 </div>
               </div>
               <div className="mt-4 flex items-end justify-between">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Outstanding</p>
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Used</p>
                   <p className="numeric text-2xl text-foreground">{formatMoney(used, { whole: true })}</p>
                 </div>
                 <div className="text-right">
@@ -134,10 +153,26 @@ function AccountsPage() {
                   </p>
                 </div>
               </div>
-              <div className="mt-5 flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">Due 12 Aug 2026</p>
-                <button className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-transform hover:scale-[1.03]">
-                  Pay Now
+              <div className="mt-5 flex items-center justify-between gap-2">
+                <div className="text-xs text-muted-foreground">
+                  {current ? (
+                    <>
+                      Due {current.due_date}
+                      <span className="mx-1">·</span>
+                      Min {formatMoney(current.minimum_due, { whole: true })}
+                    </>
+                  ) : a.due_day ? (
+                    <>Due day {a.due_day} · Bill day {a.bill_generation_day ?? "—"}</>
+                  ) : (
+                    <>No cycle yet</>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCyclesFor(a)}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-transform hover:scale-[1.03]"
+                >
+                  Cycles
                 </button>
               </div>
             </div>
@@ -160,7 +195,6 @@ function AccountsPage() {
               <span className="text-xs text-success">{formatPct(a.change_pct)} vs last month</span>
               <Sparkline points={a.trend} width={92} height={28} />
             </div>
-            <AccountSlices account={a} slices={slices} onManage={() => setManage(a)} />
           </div>
         ))}
       </Group>
@@ -171,14 +205,21 @@ function AccountsPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-medium text-foreground">{a.name}</p>
-                <p className="text-xs text-muted-foreground">{a.institution}</p>
+                <p className="text-xs text-muted-foreground">
+                  {a.lender || a.institution}
+                  {a.interest_rate_bps !== null && (
+                    <> · {(a.interest_rate_bps / 100).toFixed(2)}% p.a.</>
+                  )}
+                </p>
               </div>
               <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
             </div>
             <p className="numeric mt-4 text-2xl text-foreground">{formatMoney(Math.abs(a.balance), { whole: true })}</p>
-            <div className="mt-3 flex items-end justify-between">
-              <span className="text-xs text-success">{formatPct(a.change_pct)} outstanding</span>
-              <Sparkline points={a.trend} width={92} height={28} tone="primary" />
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+              <p>EMI {a.emi_amount !== null ? formatMoney(a.emi_amount, { whole: true }) : "—"}</p>
+              <p className="text-right">
+                Tenure {a.tenure_months !== null ? `${a.tenure_months} mo` : "—"}
+              </p>
             </div>
           </div>
         ))}
@@ -192,6 +233,11 @@ function AccountsPage() {
         slices={slices}
         open={manage !== null}
         onOpenChange={(next) => !next && setManage(null)}
+      />
+      <ManageCyclesDialog
+        account={cyclesFor}
+        open={cyclesFor !== null}
+        onOpenChange={(next) => !next && setCyclesFor(null)}
       />
       <EditAccountDialog
         account={editing}
@@ -243,7 +289,15 @@ function AccountSlices({
 }
 
 /** Dropdown menu with Edit and Archive actions for an account card. */
-function AccountMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+function AccountMenu({
+  onEdit,
+  onDelete,
+  onCycles,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+  onCycles?: () => void;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -252,10 +306,15 @@ function AccountMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () =>
           <span className="sr-only">Account actions</span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-36">
+      <DropdownMenuContent align="end" className="w-40">
         <DropdownMenuItem onClick={onEdit} className="gap-2">
           <Pencil className="h-3.5 w-3.5" /> Edit
         </DropdownMenuItem>
+        {onCycles && (
+          <DropdownMenuItem onClick={onCycles} className="gap-2">
+            <CreditCard className="h-3.5 w-3.5" /> Cycles
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={onDelete} className="gap-2 text-destructive focus:text-destructive">
           <Trash2 className="h-3.5 w-3.5" /> Archive
         </DropdownMenuItem>

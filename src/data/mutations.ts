@@ -17,6 +17,8 @@ import {
   createGoalFn,
   createBudgetFn,
   createHoldingFn,
+  upsertCreditCardCycleFn,
+  archiveCreditCardCycleFn,
   type CreateTransactionInput,
   type UpdateTransactionInput,
   type DeleteTransactionInput,
@@ -29,6 +31,8 @@ import {
   type CreateGoalInput,
   type CreateBudgetInput,
   type CreateHoldingInput,
+  type UpsertCreditCardCycleInput,
+  type ArchiveCreditCardCycleInput,
 } from "@/lib/mutations.functions";
 import type {
   Account,
@@ -233,6 +237,12 @@ export interface NewAccountInput {
   kind: AccountKind;
   balance: Paise;
   credit_limit: Paise | null;
+  bill_generation_day?: number | null;
+  due_day?: number | null;
+  interest_rate_bps?: number | null;
+  emi_amount?: Paise | null;
+  tenure_months?: number | null;
+  lender?: string | null;
 }
 
 export async function createAccount(input: NewAccountInput): Promise<Account> {
@@ -242,6 +252,12 @@ export async function createAccount(input: NewAccountInput): Promise<Account> {
     kind: input.kind,
     balance: input.balance,
     credit_limit: input.credit_limit,
+    bill_generation_day: input.bill_generation_day ?? null,
+    due_day: input.due_day ?? null,
+    interest_rate_bps: input.interest_rate_bps ?? null,
+    emi_amount: input.emi_amount ?? null,
+    tenure_months: input.tenure_months ?? null,
+    lender: input.lender ?? null,
   };
   const result = await createAccountFn({ data: serverInput });
   const signed =
@@ -255,6 +271,13 @@ export async function createAccount(input: NewAccountInput): Promise<Account> {
     kind: input.kind,
     balance: signed,
     credit_limit: input.credit_limit,
+    bill_generation_day: input.bill_generation_day ?? null,
+    due_day: input.due_day ?? null,
+    interest_rate_bps: input.interest_rate_bps ?? null,
+    emi_amount: input.emi_amount ?? null,
+    tenure_months: input.tenure_months ?? null,
+    lender: input.lender ?? null,
+    used_amount: input.kind === "credit_card" ? Math.abs(signed) : null,
     currency: "INR",
     is_primary: false,
     last_activity_at: new Date().toISOString(),
@@ -273,6 +296,12 @@ export interface EditAccountInput {
   institution: string;
   kind: AccountKind;
   credit_limit: Paise | null;
+  bill_generation_day?: number | null;
+  due_day?: number | null;
+  interest_rate_bps?: number | null;
+  emi_amount?: Paise | null;
+  tenure_months?: number | null;
+  lender?: string | null;
 }
 
 export async function updateAccount(input: EditAccountInput): Promise<void> {
@@ -282,10 +311,26 @@ export async function updateAccount(input: EditAccountInput): Promise<void> {
     institution: input.institution,
     kind: input.kind,
     credit_limit: input.credit_limit,
+    bill_generation_day: input.bill_generation_day ?? null,
+    due_day: input.due_day ?? null,
+    interest_rate_bps: input.interest_rate_bps ?? null,
+    emi_amount: input.emi_amount ?? null,
+    tenure_months: input.tenure_months ?? null,
+    lender: input.lender ?? null,
   };
   await updateAccountFn({ data: serverInput });
 }
 
+export async function upsertCreditCardCycle(
+  input: UpsertCreditCardCycleInput,
+): Promise<{ id: string }> {
+  return upsertCreditCardCycleFn({ data: input });
+}
+
+export async function archiveCreditCardCycle(id: string): Promise<void> {
+  const serverInput: ArchiveCreditCardCycleInput = { id };
+  await archiveCreditCardCycleFn({ data: serverInput });
+}
 // =============================================================================
 // ARCHIVE ACCOUNT (soft delete)
 // =============================================================================

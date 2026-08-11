@@ -201,6 +201,12 @@ export interface CreateAccountInput {
   kind: AccountKind;
   balance: number; // opening balance in paise
   credit_limit: number | null;
+  bill_generation_day: number | null;
+  due_day: number | null;
+  interest_rate_bps: number | null;
+  emi_amount: number | null;
+  tenure_months: number | null;
+  lender: string | null;
 }
 
 export const createAccountFn = createServerFn({ method: "POST" })
@@ -219,7 +225,9 @@ export const createAccountFn = createServerFn({ method: "POST" })
         ? -Math.abs(data.balance)
         : Math.abs(data.balance);
 
-    // Insert account
+    const isCard = data.kind === "credit_card";
+    const isLoan = data.kind === "loan";
+
     const { data: account, error: accountError } = await supabase
       .from("accounts")
       .insert({
@@ -229,15 +237,20 @@ export const createAccountFn = createServerFn({ method: "POST" })
         kind: data.kind,
         currency_code: "INR",
         opening_balance: signedBalance,
-        credit_limit: data.credit_limit,
+        credit_limit: isCard ? data.credit_limit : null,
+        bill_generation_day: isCard ? data.bill_generation_day : null,
+        due_day: isCard ? data.due_day : null,
+        interest_rate_bps: isLoan ? data.interest_rate_bps : null,
+        emi_amount: isLoan ? data.emi_amount : null,
+        tenure_months: isLoan ? data.tenure_months : null,
+        lender: isLoan ? data.lender : null,
         is_primary: false,
       })
       .select("id")
       .single();
     if (accountError) throw accountError;
 
-    // Default slice is created automatically by the trg_account_default_slice
-    // database trigger for bank, cash, and investment accounts.
+    // Default slice is created automatically by trg_account_default_slice for bank/cash.
 
     return { id: account.id };
   });
@@ -252,6 +265,12 @@ export interface UpdateAccountInput {
   institution: string;
   kind: AccountKind;
   credit_limit: number | null;
+  bill_generation_day: number | null;
+  due_day: number | null;
+  interest_rate_bps: number | null;
+  emi_amount: number | null;
+  tenure_months: number | null;
+  lender: string | null;
 }
 
 export const updateAccountFn = createServerFn({ method: "POST" })
@@ -264,6 +283,8 @@ export const updateAccountFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
     const { supabase } = context;
+    const isCard = data.kind === "credit_card";
+    const isLoan = data.kind === "loan";
 
     const { error } = await supabase
       .from("accounts")
@@ -271,7 +292,13 @@ export const updateAccountFn = createServerFn({ method: "POST" })
         name: data.name,
         institution: data.institution,
         kind: data.kind,
-        credit_limit: data.credit_limit,
+        credit_limit: isCard ? data.credit_limit : null,
+        bill_generation_day: isCard ? data.bill_generation_day : null,
+        due_day: isCard ? data.due_day : null,
+        interest_rate_bps: isLoan ? data.interest_rate_bps : null,
+        emi_amount: isLoan ? data.emi_amount : null,
+        tenure_months: isLoan ? data.tenure_months : null,
+        lender: isLoan ? data.lender : null,
         modified_at: new Date().toISOString(),
       })
       .eq("id", data.id)
@@ -688,4 +715,99 @@ export const createHoldingFn = createServerFn({ method: "POST" })
     if (holdingError) throw holdingError;
 
     return { id: holding.id };
+  });
+
+// =============================================================================
+// CREDIT CARD CYCLES
+// =============================================================================
+
+export interface UpsertCreditCardCycleInput {
+  id?: string | undefined;
+  account_id: string;
+  statement_date: string;
+  due_date: string;
+  credit_limit: number;
+  statement_balance: number;
+  payment_due_amount: number;
+  minimum_due: number;
+  amount_paid: number;
+  is_current: boolean;
+  notes?: string | null | undefined;
+}
+
+export const upsertCreditCardCycleFn = createServerFn({ method: "POST" })
+  .validator((input: UpsertCreditCardCycleInput) => {
+    if (!input.account_id) throw new Error("account_id is required");
+    if (!input.statement_date) throw new Error("statement_date is required");
+    if (!input.due_date) throw new Error("due_date is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+
+    if (data.is_current) {
+      const { error: clearError } = await supabase
+        .from("credit_card_cycles")
+        .update({ is_current: false, modified_at: new Date().toISOString() })
+        .eq("account_id", data.account_id)
+        .eq("is_current", true)
+        .is("deleted_at", null);
+      if (clearError) throw clearError;
+    }
+
+    const payload = {
+      user_id: userId,
+      account_id: data.account_id,
+      statement_date: data.statement_date,
+      due_date: data.due_date,
+      credit_limit: data.credit_limit,
+      statement_balance: data.statement_balance,
+      payment_due_amount: data.payment_due_amount,
+      minimum_due: data.minimum_due,
+      amount_paid: data.amount_paid,
+      is_current: data.is_current,
+      notes: data.notes ?? null,
+      modified_at: new Date().toISOString(),
+    };
+
+    if (data.id) {
+      const { error } = await supabase
+        .from("credit_card_cycles")
+        .update(payload)
+        .eq("id", data.id)
+        .is("deleted_at", null);
+      if (error) throw error;
+      return { id: data.id };
+    }
+
+    const { data: row, error } = await supabase
+      .from("credit_card_cycles")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (error) throw error;
+    return { id: row.id };
+  });
+
+export interface ArchiveCreditCardCycleInput {
+  id: string;
+}
+
+export const archiveCreditCardCycleFn = createServerFn({ method: "POST" })
+  .validator((input: ArchiveCreditCardCycleInput) => {
+    if (!input.id) throw new Error("id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("credit_card_cycles")
+      .update({ deleted_at: now, is_active: false, is_current: false, modified_at: now })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return { id: data.id };
   });

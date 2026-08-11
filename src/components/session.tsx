@@ -83,25 +83,43 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Listen to Supabase auth state changes
   useEffect(() => {
+    const ensureProfile = async (user: User) => {
+      try {
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (existing) return;
+        await supabase.from("profiles").upsert({
+          user_id: user.id,
+          email: user.email ?? null,
+          display_name: user.email?.split("@")[0] ?? null,
+        });
+      } catch (err) {
+        console.warn("[session] ensureProfile failed", err);
+      }
+    };
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
-      // Clear any previous auth errors on successful auth events
       if (newSession) {
         setAuthError(null);
+        if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+          void ensureProfile(newSession.user);
+        }
       }
 
       if (event === "SIGNED_OUT") {
         setSession(null);
       } else if (event === "TOKEN_REFRESHED") {
-        // Token was successfully refreshed
         setSession(newSession);
         setAuthError(null);
       } else if (newSession) {
         setSession(newSession);
       }
 
-      // Mark hydrated after the initial session check
       if (event === "INITIAL_SESSION") {
         setHydrated(true);
       }

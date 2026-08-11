@@ -72,6 +72,12 @@ const schemas = {
     kind: z.enum(["bank", "cash", "credit_card", "investment", "loan"]),
     balance: rupees,
     credit_limit: z.string().optional(),
+    bill_generation_day: z.string().optional(),
+    due_day: z.string().optional(),
+    interest_rate_pct: z.string().optional(),
+    emi_amount: z.string().optional(),
+    tenure_months: z.string().optional(),
+    lender: z.string().optional(),
   }),
   goal: z.object({
     name: text(60),
@@ -116,7 +122,19 @@ const defaults: Record<RecordKind, Record<string, string>> = {
     to_label_id: "",
     note: "",
   },
-  account: { name: "", institution: "", kind: "bank", balance: "", credit_limit: "" },
+  account: {
+    name: "",
+    institution: "",
+    kind: "bank",
+    balance: "",
+    credit_limit: "",
+    bill_generation_day: "",
+    due_day: "",
+    interest_rate_pct: "",
+    emi_amount: "",
+    tenure_months: "",
+    lender: "",
+  },
   goal: {
     name: "",
     blurb: "",
@@ -268,7 +286,21 @@ export function AddRecordDialog({
           institution: v['institution']!,
           kind: v['kind'] as Account["kind"],
           balance: paise(v['balance']),
-          credit_limit: v['kind'] === "credit_card" && v['credit_limit'] ? paise(v['credit_limit']) : null,
+          credit_limit:
+            v['kind'] === "credit_card" && v['credit_limit'] ? paise(v['credit_limit']) : null,
+          bill_generation_day:
+            v['kind'] === "credit_card" && v['bill_generation_day']
+              ? Number(v['bill_generation_day'])
+              : null,
+          due_day: v['kind'] === "credit_card" && v['due_day'] ? Number(v['due_day']) : null,
+          interest_rate_bps:
+            v['kind'] === "loan" && v['interest_rate_pct']
+              ? Math.round(Number(v['interest_rate_pct']) * 100)
+              : null,
+          emi_amount: v['kind'] === "loan" && v['emi_amount'] ? paise(v['emi_amount']) : null,
+          tenure_months:
+            v['kind'] === "loan" && v['tenure_months'] ? Number(v['tenure_months']) : null,
+          lender: v['kind'] === "loan" ? (v['lender']?.trim() || null) : null,
         });
       } else if (kind === "goal") {
         await createGoal({
@@ -549,15 +581,80 @@ export function AddRecordDialog({
                 </Field>
               </div>
               {values['kind'] === "credit_card" && (
-                <Field label="Credit limit (₹)" error={errors['credit_limit']}>
-                  <input
-                    inputMode="decimal"
-                    className={fieldBase}
-                    placeholder="250000"
-                    value={values['credit_limit'] ?? ""}
-                    onChange={(e) => set("credit_limit", e.target.value)}
-                  />
-                </Field>
+                <>
+                  <Field label="Credit limit (₹)" error={errors['credit_limit']}>
+                    <input
+                      inputMode="decimal"
+                      className={fieldBase}
+                      placeholder="250000"
+                      value={values['credit_limit'] ?? ""}
+                      onChange={(e) => set("credit_limit", e.target.value)}
+                    />
+                  </Field>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Bill generation day" error={errors['bill_generation_day']}>
+                      <input
+                        inputMode="numeric"
+                        className={fieldBase}
+                        placeholder="1–31"
+                        value={values['bill_generation_day'] ?? ""}
+                        onChange={(e) => set("bill_generation_day", e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Due day" error={errors['due_day']}>
+                      <input
+                        inputMode="numeric"
+                        className={fieldBase}
+                        placeholder="1–31"
+                        value={values['due_day'] ?? ""}
+                        onChange={(e) => set("due_day", e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                </>
+              )}
+              {values['kind'] === "loan" && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Interest rate (% p.a.)" error={errors['interest_rate_pct']}>
+                      <input
+                        inputMode="decimal"
+                        className={fieldBase}
+                        placeholder="8.5"
+                        value={values['interest_rate_pct'] ?? ""}
+                        onChange={(e) => set("interest_rate_pct", e.target.value)}
+                      />
+                    </Field>
+                    <Field label="EMI (₹)" error={errors['emi_amount']}>
+                      <input
+                        inputMode="decimal"
+                        className={fieldBase}
+                        placeholder="25000"
+                        value={values['emi_amount'] ?? ""}
+                        onChange={(e) => set("emi_amount", e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Tenure (months)" error={errors['tenure_months']}>
+                      <input
+                        inputMode="numeric"
+                        className={fieldBase}
+                        placeholder="36"
+                        value={values['tenure_months'] ?? ""}
+                        onChange={(e) => set("tenure_months", e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Lender" error={errors['lender']}>
+                      <input
+                        className={fieldBase}
+                        placeholder="HDFC Bank"
+                        value={values['lender'] ?? ""}
+                        onChange={(e) => set("lender", e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                </>
               )}
             </>
           )}

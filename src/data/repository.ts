@@ -9,6 +9,7 @@ import {
   liveAllocations,
   liveBudgets,
   liveCategories,
+  liveCreditCardCycles,
   liveGoals,
   liveHoldings,
   liveLabels,
@@ -22,6 +23,7 @@ import type {
   AccountAllocation,
   BudgetPeriod,
   Category,
+  CreditCardCycle,
   Goal,
   Holding,
   ImportJob,
@@ -45,7 +47,7 @@ export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
 export const TODAY = new Date().toISOString().slice(0, 10);
 
 /** Account kinds that can be split into slices. */
-export const SLICEABLE_KINDS = ["bank", "cash", "investment"] as const;
+export const SLICEABLE_KINDS = ["bank", "cash"] as const;
 
 export const getAccounts = (): Promise<Account[]> => liveAccounts();
 export const getCategories = (): Promise<Category[]> => liveCategories();
@@ -55,6 +57,8 @@ export const getGoals = (): Promise<Goal[]> => liveGoals();
 export const getHoldings = (): Promise<Holding[]> => liveHoldings();
 export const getMonthlyRollups = (): Promise<MonthlyRollup[]> => liveMonthlyRollups();
 export const getSlices = (): Promise<Slice[]> => liveSlices();
+export const getCreditCardCycles = (accountId?: string): Promise<CreditCardCycle[]> =>
+  liveCreditCardCycles(accountId);
 
 // Import/workshop features — return empty until backend is wired up.
 export const getImportSources = (): Promise<ImportSource[]> => Promise.resolve([]);
