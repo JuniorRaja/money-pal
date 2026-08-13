@@ -9,6 +9,7 @@ import {
   liveAllocations,
   liveBudgets,
   liveCategories,
+  liveCategorySpend,
   liveCreditCardCycles,
   liveGoals,
   liveHoldings,
@@ -23,6 +24,7 @@ import type {
   AccountAllocation,
   BudgetPeriod,
   Category,
+  CategorySpend,
   CreditCardCycle,
   Goal,
   Holding,
@@ -40,8 +42,10 @@ import type {
   UserSettings,
 } from "@/data/schema";
 
-/** Current period for budget/transaction queries. */
-export const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
+import { currentPeriod } from "@/lib/period";
+
+/** Current local calendar period for budget/transaction queries. */
+export const CURRENT_PERIOD = currentPeriod();
 
 /** Today's date as ISO date string (YYYY-MM-DD). */
 export const TODAY = new Date().toISOString().slice(0, 10);
@@ -116,6 +120,9 @@ export const listTransactions = async (filter: TransactionFilter = {}): Promise<
 
 export const getBudgets = (period: string = CURRENT_PERIOD): Promise<BudgetPeriod[]> =>
   liveBudgets(period);
+
+export const getCategorySpend = (period: string = CURRENT_PERIOD): Promise<CategorySpend[]> =>
+  liveCategorySpend(period);
 
 /** Accounts whose balance can be split into slices. */
 export const isSliceable = (kind: Account["kind"]) =>

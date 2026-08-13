@@ -14,7 +14,7 @@ import type {
   Account,
   AccountAllocation,
   BudgetPeriod,
-  Category,
+  CategorySpend,
   CreditCardCycle,
   Goal,
   Holding,
@@ -303,13 +303,31 @@ export const liveBudgets = (period: string): Promise<BudgetPeriod[]> =>
     if (error) throw error;
     return (data ?? []).map(
       (row): BudgetPeriod => ({
-        id: `${period}-${row.category_id as string}`,
+        id: row.budget_line_id as string,
+        budget_id: (row.budget_id as string) ?? "",
         period,
         category_id: row.category_id as string,
         planned: Number(row.planned ?? 0),
         spent: Number(row.spent ?? 0),
       }),
     );
+  }, []);
+
+export const liveCategorySpend = (period: string): Promise<CategorySpend[]> =>
+  live<CategorySpend[]>(async () => {
+    const { data, error } = await supabase
+      .from("v_category_spend")
+      .select("category_id, spent")
+      .eq("period_month", `${period}-01`);
+    if (error) throw error;
+    return (data ?? [])
+      .filter((row) => row.category_id)
+      .map(
+        (row): CategorySpend => ({
+          category_id: row.category_id as string,
+          spent: Number(row.spent ?? 0),
+        }),
+      );
   }, []);
 
 export const liveGoals = (): Promise<Goal[]> =>

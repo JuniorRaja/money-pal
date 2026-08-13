@@ -19,6 +19,10 @@ import {
   createHoldingFn,
   upsertCreditCardCycleFn,
   archiveCreditCardCycleFn,
+  updateBudgetLineFn,
+  archiveBudgetLineFn,
+  applyBudgetTemplateFn,
+  copyBudgetFromPreviousFn,
   type CreateTransactionInput,
   type UpdateTransactionInput,
   type DeleteTransactionInput,
@@ -30,6 +34,10 @@ import {
   type UpdateSliceInput,
   type CreateGoalInput,
   type CreateBudgetInput,
+  type UpdateBudgetLineInput,
+  type ArchiveBudgetLineInput,
+  type ApplyBudgetTemplateInput,
+  type CopyBudgetFromPreviousInput,
   type CreateHoldingInput,
   type UpsertCreditCardCycleInput,
   type ArchiveCreditCardCycleInput,
@@ -393,7 +401,7 @@ export interface NewBudgetInput {
   planned: Paise;
 }
 
-export async function createBudget(input: NewBudgetInput): Promise<BudgetPeriod> {
+export async function createBudget(input: NewBudgetInput): Promise<BudgetPeriod & { wasUpdate: boolean }> {
   const serverInput: CreateBudgetInput = {
     period: input.period,
     category_id: input.category_id,
@@ -402,11 +410,45 @@ export async function createBudget(input: NewBudgetInput): Promise<BudgetPeriod>
   const result = await createBudgetFn({ data: serverInput });
   return {
     id: result.id,
+    budget_id: result.budget_id,
     period: input.period,
     category_id: input.category_id,
     planned: input.planned,
     spent: 0,
+    wasUpdate: result.wasUpdate,
   };
+}
+
+export async function updateBudgetLine(input: { id: string; planned: Paise }): Promise<void> {
+  const serverInput: UpdateBudgetLineInput = { id: input.id, planned: input.planned };
+  await updateBudgetLineFn({ data: serverInput });
+}
+
+export async function archiveBudgetLine(id: string): Promise<boolean> {
+  const serverInput: ArchiveBudgetLineInput = { id };
+  const result = await archiveBudgetLineFn({ data: serverInput });
+  return result.success;
+}
+
+export async function applyBudgetTemplate(input: {
+  period: string;
+  monthly_income: Paise;
+}): Promise<{ linesAdded: number }> {
+  const serverInput: ApplyBudgetTemplateInput = {
+    period: input.period,
+    monthly_income: input.monthly_income,
+  };
+  const result = await applyBudgetTemplateFn({ data: serverInput });
+  return { linesAdded: result.linesAdded };
+}
+
+export async function copyBudgetFromPrevious(period: string): Promise<{
+  copied: number;
+  skipped: number;
+  reason: "none" | "empty" | "ok";
+}> {
+  const serverInput: CopyBudgetFromPreviousInput = { period };
+  return copyBudgetFromPreviousFn({ data: serverInput });
 }
 
 // =============================================================================

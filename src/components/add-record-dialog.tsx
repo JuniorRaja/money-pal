@@ -20,6 +20,7 @@ import {
   createTransaction,
 } from "@/data/mutations";
 import type { Account, Category, Slice } from "@/data/schema";
+import { BUDGETABLE_GROUPS } from "@/data/schema";
 import { cn } from "@/lib/utils";
 
 export type RecordKind = "transaction" | "account" | "goal" | "budget" | "investment";
@@ -183,9 +184,11 @@ function Field({
 export function AddRecordDialog({
   kind,
   onOpenChange,
+  defaultPeriod,
 }: {
   kind: RecordKind | null;
   onOpenChange: (open: boolean) => void;
+  defaultPeriod?: string;
 }) {
   const router = useRouter();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -204,10 +207,13 @@ export function AddRecordDialog({
 
   useEffect(() => {
     if (kind) {
-      setValues({ ...defaults[kind] });
+      setValues({
+        ...defaults[kind],
+        ...(kind === "budget" && defaultPeriod ? { period: defaultPeriod } : {}),
+      });
       setErrors({});
     }
-  }, [kind]);
+  }, [kind, defaultPeriod]);
 
   const set = (name: string, value: string) => {
     // Switching account invalidates any slice picked from the previous one.
@@ -246,6 +252,10 @@ export function AddRecordDialog({
     ? toAccount.kind === "bank" || toAccount.kind === "cash" || toAccount.kind === "investment"
     : false;
 
+  const budgetCategories = useMemo(
+    () => categories.filter((c) => (BUDGETABLE_GROUPS as readonly string[]).includes(c.group)),
+    [categories],
+  );
   const investmentAccounts = useMemo(
     () => accounts.filter((a) => a.kind === "investment"),
     [accounts],
@@ -313,11 +323,16 @@ export function AddRecordDialog({
           monthly_contribution: paise(v['monthly_contribution']),
         });
       } else if (kind === "budget") {
-        await createBudget({
+        const result = await createBudget({
           period: v['period']!,
           category_id: v['category_id']!,
           planned: paise(v['planned']),
         });
+        const verb = result.wasUpdate ? "updated" : "added";
+        toast.success(`Budget ${verb}`, { description: "Your ledger has been updated." });
+        onOpenChange(false);
+        void router.invalidate();
+        return;
       } else {
         await createHolding({
           name: v['name']!,
@@ -741,7 +756,7 @@ export function AddRecordDialog({
                   onChange={(e) => set("category_id", e.target.value)}
                 >
                   <option value="">Select category</option>
-                  {categories.map((c) => (
+                  {budgetCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>

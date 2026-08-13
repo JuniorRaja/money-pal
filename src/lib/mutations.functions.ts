@@ -4,9 +4,47 @@
  * These run on the server with the user's authenticated Supabase client,
  * respecting RLS policies. Ledger writes go through atomic Postgres RPCs.
  */
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { AccountKind, HoldingClass, SliceKind, TransactionType } from "@/data/schema";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
+import { shiftPeriod } from "@/lib/period";
+
+type AppSupabase = SupabaseClient<Database>;
+
+async function getOrCreateBudget(
+  supabase: AppSupabase,
+  userId: string,
+  periodMonth: string,
+): Promise<string> {
+  const { data: existing } = await supabase
+    .from("budgets")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("period_month", periodMonth)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (existing) return existing.id;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("base_currency")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const { data: created, error } = await supabase
+    .from("budgets")
+    .insert({
+      user_id: userId,
+      period_month: periodMonth,
+      currency_code: profile?.base_currency ?? "INR",
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return created.id;
+}
 
 // =============================================================================
 // CREATE TRANSACTION
@@ -620,53 +658,196 @@ export const createBudgetFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    const budgetId = await getOrCreateBudget(supabase, userId, `${data.period}-01`);
 
-    // Get or create the budget for this period
-    const periodMonth = `${data.period}-01`;
-
-    let budgetId: string;
-
-    const { data: existingBudget } = await supabase
-      .from("budgets")
+    const { data: existingLine } = await supabase
+      .from("budget_lines")
       .select("id")
-      .eq("user_id", userId)
-      .eq("period_month", periodMonth)
+      .eq("budget_id", budgetId)
+      .eq("category_id", data.category_id)
       .is("deleted_at", null)
-      .single();
+      .maybeSingle();
 
-    if (existingBudget) {
-      budgetId = existingBudget.id;
-    } else {
-      const { data: newBudget, error: budgetError } = await supabase
-        .from("budgets")
-        .insert({
-          user_id: userId,
-          period_month: periodMonth,
-          currency_code: "INR",
-        })
-        .select("id")
-        .single();
-      if (budgetError) throw budgetError;
-      budgetId = newBudget.id;
+    if (existingLine) {
+      const { error } = await supabase
+        .from("budget_lines")
+        .update({ planned: data.planned, modified_at: new Date().toISOString() })
+        .eq("id", existingLine.id);
+      if (error) throw error;
+      return { id: existingLine.id, budget_id: budgetId, wasUpdate: true };
     }
 
-    // Upsert the budget line for this category
     const { data: line, error: lineError } = await supabase
       .from("budget_lines")
-      .upsert(
-        {
-          budget_id: budgetId,
-          user_id: userId,
-          category_id: data.category_id,
-          planned: data.planned,
-        },
-        { onConflict: "budget_id,category_id" },
-      )
+      .insert({
+        budget_id: budgetId,
+        user_id: userId,
+        category_id: data.category_id,
+        planned: data.planned,
+      })
       .select("id")
       .single();
     if (lineError) throw lineError;
 
-    return { id: line.id };
+    return { id: line.id, budget_id: budgetId, wasUpdate: false };
+  });
+
+export interface UpdateBudgetLineInput {
+  id: string;
+  planned: number;
+}
+
+export const updateBudgetLineFn = createServerFn({ method: "POST" })
+  .validator((input: UpdateBudgetLineInput) => {
+    if (!input.id) throw new Error("id is required");
+    if (input.planned < 0) throw new Error("planned cannot be negative");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("budget_lines")
+      .update({ planned: data.planned, modified_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return { id: data.id };
+  });
+
+export interface ArchiveBudgetLineInput {
+  id: string;
+}
+
+export const archiveBudgetLineFn = createServerFn({ method: "POST" })
+  .validator((input: ArchiveBudgetLineInput) => {
+    if (!input.id) throw new Error("id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("budget_lines")
+      .update({ deleted_at: now, is_active: false, modified_at: now })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return { success: true };
+  });
+
+export interface ApplyBudgetTemplateInput {
+  period: string;
+  monthly_income: number;
+}
+
+export const applyBudgetTemplateFn = createServerFn({ method: "POST" })
+  .validator((input: ApplyBudgetTemplateInput) => {
+    if (!input.period) throw new Error("period is required");
+    if (input.monthly_income <= 0) throw new Error("monthly income must be positive");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const periodMonth = `${data.period}-01`;
+
+    // Count budget lines before applying template
+    const { count: beforeCount } = await supabase
+      .from("budget_lines")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .is("deleted_at", null);
+
+    const { data: budgetId, error } = await supabase.rpc("fn_apply_budget_template", {
+      p_template_name: "Balanced 50/30/20",
+      p_period_month: periodMonth,
+      p_monthly_income: data.monthly_income,
+    });
+    if (error) throw error;
+
+    // Count budget lines after applying template
+    const { count: afterCount } = await supabase
+      .from("budget_lines")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .is("deleted_at", null);
+
+    return {
+      id: budgetId as string,
+      linesAdded: (afterCount ?? 0) - (beforeCount ?? 0),
+    };
+  });
+
+export interface CopyBudgetFromPreviousInput {
+  period: string;
+}
+
+export const copyBudgetFromPreviousFn = createServerFn({ method: "POST" })
+  .validator((input: CopyBudgetFromPreviousInput) => {
+    if (!input.period) throw new Error("period is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const prevPeriod = shiftPeriod(data.period, -1);
+    const prevMonth = `${prevPeriod}-01`;
+
+    const { data: prevBudget } = await supabase
+      .from("budgets")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("period_month", prevMonth)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (!prevBudget) {
+      return { copied: 0, skipped: 0, reason: "none" as const };
+    }
+
+    const { data: prevLines, error: prevError } = await supabase
+      .from("budget_lines")
+      .select("category_id, planned")
+      .eq("budget_id", prevBudget.id)
+      .is("deleted_at", null);
+    if (prevError) throw prevError;
+
+    const source = prevLines ?? [];
+    if (source.length === 0) {
+      return { copied: 0, skipped: 0, reason: "empty" as const };
+    }
+
+    const budgetId = await getOrCreateBudget(supabase, userId, `${data.period}-01`);
+
+    const { data: currentLines, error: currentError } = await supabase
+      .from("budget_lines")
+      .select("category_id")
+      .eq("budget_id", budgetId)
+      .is("deleted_at", null);
+    if (currentError) throw currentError;
+
+    const existing = new Set((currentLines ?? []).map((row) => row.category_id));
+    const toInsert = source.filter((row) => !existing.has(row.category_id));
+
+    if (toInsert.length > 0) {
+      const { error: insertError } = await supabase.from("budget_lines").insert(
+        toInsert.map((row) => ({
+          budget_id: budgetId,
+          user_id: userId,
+          category_id: row.category_id,
+          planned: row.planned,
+        })),
+      );
+      if (insertError) throw insertError;
+    }
+
+    return {
+      copied: toInsert.length,
+      skipped: source.length - toInsert.length,
+      reason: "ok" as const,
+    };
   });
 
 // =============================================================================

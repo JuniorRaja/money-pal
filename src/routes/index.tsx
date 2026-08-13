@@ -182,9 +182,9 @@ function OverviewPage() {
             <div className="pt-2">
               <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                 <span>Budget used</span>
-                <span className="numeric">{Math.round((spent / planned) * 100)}%</span>
+                <span className="numeric">{planned === 0 ? "—" : `${Math.round((spent / planned) * 100)}%`}</span>
               </div>
-              <Bar value={(spent / planned) * 100} tone="primary" />
+              <Bar value={planned === 0 ? 0 : (spent / planned) * 100} tone="primary" />
             </div>
           </div>
         </Panel>

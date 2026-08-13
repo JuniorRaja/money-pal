@@ -1563,6 +1563,8 @@ export type Database = {
       }
       v_budget_progress: {
         Row: {
+          budget_id: string | null
+          budget_line_id: string | null
           category_id: string | null
           category_name: string | null
           color_token: string | null

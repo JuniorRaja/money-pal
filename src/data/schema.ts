@@ -139,12 +139,26 @@ export interface Transaction {
 }
 
 export interface BudgetPeriod {
+  /** budget_lines.id */
   id: string;
+  budget_id: string;
   period: string; // "2026-08"
   category_id: string;
   planned: Paise;
   spent: Paise;
 }
+
+export interface CategorySpend {
+  category_id: string;
+  spent: Paise;
+}
+
+/** Categories that can have a monthly spend plan. */
+export const BUDGETABLE_GROUPS: readonly Category["group"][] = [
+  "essentials",
+  "lifestyle",
+  "investment",
+];
 
 export interface Goal {
   id: string;
