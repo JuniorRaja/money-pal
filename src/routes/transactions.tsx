@@ -95,12 +95,40 @@ function TransactionsPage() {
     labels: Label[];
   };
   const [filter, setFilter] = useState<TransactionFilter>({ period: CURRENT_PERIOD });
+  const [sliceNameFilter, setSliceNameFilter] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // Slice options: if account is selected, show only that account's slices
+  // Otherwise show all slices with "Account - Name" format
+  const sliceOptions = useMemo(() => {
+    if (filter.account_id) {
+      // Account selected: show just that account's slice names
+      const accountLabels = labels.filter((l) => l.account_id === filter.account_id);
+      return accountLabels.map((l) => ({ value: l.id, label: l.name }));
+    }
+    // No account selected: show all slices with account prefix
+    return labels.map((l) => {
+      const acc = accounts.find((a) => a.id === l.account_id);
+      const accName = acc?.name ?? "Unknown";
+      return { value: l.id, label: `${accName} - ${l.name}` };
+    });
+  }, [labels, accounts, filter.account_id]);
+
+  // Reset slice filter when account changes and current slice isn't in new options
+  useEffect(() => {
+    if (sliceNameFilter && !sliceOptions.some((opt) => opt.value === sliceNameFilter)) {
+      setSliceNameFilter("");
+    }
+  }, [sliceOptions, sliceNameFilter]);
+
   const rows = useMemo(() => {
-    const filtered = filterTransactions(transactions, filter);
+    let filtered = filterTransactions(transactions, filter);
+    // Apply slice filter by label ID
+    if (sliceNameFilter) {
+      filtered = filtered.filter((t) => t.label_id === sliceNameFilter);
+    }
     return groupTransactionsForDisplay(filtered);
-  }, [transactions, filter]);
+  }, [transactions, filter, sliceNameFilter]);
   const summary = summariseCashflow(rows);
   const selected = rows.find((t) => t.transaction_id === selectedId) ?? null;
 
@@ -157,9 +185,12 @@ function TransactionsPage() {
             options={[{ value: "", label: "Category: All" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
           />
           <Select
-            value={filter.label_id ?? ""}
-            onChange={(v) => setFilter({ ...filter, label_id: v || undefined })}
-            options={[{ value: "", label: "Slice: All" }, ...labels.map((l) => ({ value: l.id, label: l.name }))]}
+            value={sliceNameFilter}
+            onChange={(v) => setSliceNameFilter(v)}
+            options={[
+              { value: "", label: "Slice: All" },
+              ...sliceOptions,
+            ]}
           />
           <Select
             value={filter.type ?? ""}

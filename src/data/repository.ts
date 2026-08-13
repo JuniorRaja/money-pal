@@ -228,6 +228,26 @@ export function groupTransactionsForDisplay(rows: Transaction[]): Transaction[] 
   return out;
 }
 
+/**
+ * Get unique slice/label names across all accounts.
+ * Useful for filters where we want to show "Mine", "Mum's" etc. without duplicates.
+ */
+export async function getUniqueSliceNames(): Promise<string[]> {
+  const labels = await getLabels();
+  const uniqueNames = Array.from(new Set(labels.map((l) => l.name)));
+  return uniqueNames.sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Get all label IDs that match a given name.
+ * Since the same slice name (e.g. "Mine") can exist on multiple accounts,
+ * this returns all matching label IDs for filtering transactions.
+ */
+export async function getLabelIdsByName(name: string): Promise<string[]> {
+  const labels = await getLabels();
+  return labels.filter((l) => l.name === name).map((l) => l.id);
+}
+
 export const timelineKinds: { id: TimelineKind | "all"; label: string }[] = [
   { id: "all", label: "All Events" },
   { id: "money", label: "Money" },
