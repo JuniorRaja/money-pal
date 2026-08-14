@@ -15,6 +15,12 @@ import {
   archiveSliceFn,
   updateSliceFn,
   createGoalFn,
+  updateGoalFn,
+  archiveGoalFn,
+  addGoalContributionFn,
+  linkGoalContributionFn,
+  unlinkGoalContributionFn,
+  voidGoalContributionFn,
   createBudgetFn,
   createHoldingFn,
   upsertCreditCardCycleFn,
@@ -33,6 +39,12 @@ import {
   type ArchiveSliceInput,
   type UpdateSliceInput,
   type CreateGoalInput,
+  type UpdateGoalInput,
+  type ArchiveGoalInput,
+  type AddGoalContributionInput,
+  type LinkGoalContributionInput,
+  type UnlinkGoalContributionInput,
+  type VoidGoalContributionInput,
   type CreateBudgetInput,
   type UpdateBudgetLineInput,
   type ArchiveBudgetLineInput,
@@ -384,11 +396,58 @@ export async function createGoal(input: NewGoalInput): Promise<Goal> {
     blurb: input.blurb,
     target: input.target,
     saved: input.saved,
+    saved_this_month: input.saved,
     target_date: input.target_date,
     account_id: input.account_id,
     monthly_contribution: input.monthly_contribution,
     icon: "flag",
   };
+}
+
+export async function updateGoal(input: {
+  id: string;
+  name: string;
+  blurb: string;
+  target: Paise;
+  target_date: string;
+  account_id: string;
+  monthly_contribution: Paise;
+}): Promise<void> {
+  const serverInput: UpdateGoalInput = input;
+  await updateGoalFn({ data: serverInput });
+}
+
+export async function archiveGoal(id: string): Promise<boolean> {
+  const serverInput: ArchiveGoalInput = { id };
+  const result = await archiveGoalFn({ data: serverInput });
+  return result.success;
+}
+
+export async function addGoalContribution(input: {
+  goal_id: string;
+  amount: Paise;
+  contributed_on: string;
+  transaction_id?: string | null;
+}): Promise<string> {
+  const serverInput: AddGoalContributionInput = input;
+  const result = await addGoalContributionFn({ data: serverInput });
+  return result.id;
+}
+
+export async function linkGoalContribution(id: string, transaction_id: string): Promise<void> {
+  const serverInput: LinkGoalContributionInput = { id, transaction_id };
+  await linkGoalContributionFn({ data: serverInput });
+}
+
+export async function unlinkGoalContribution(id: string): Promise<void> {
+  const serverInput: UnlinkGoalContributionInput = { id };
+  await unlinkGoalContributionFn({ data: serverInput });
+}
+
+export async function voidGoalContribution(id: string): Promise<boolean> {
+  const serverInput: VoidGoalContributionInput = { id };
+  const result = await voidGoalContributionFn({ data: serverInput });
+  return result.success;
 }
 
 // =============================================================================

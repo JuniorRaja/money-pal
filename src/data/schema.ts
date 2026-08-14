@@ -166,10 +166,23 @@ export interface Goal {
   blurb: string;
   target: Paise;
   saved: Paise;
+  saved_this_month: Paise;
   target_date: ISODate;
   account_id: string;
   monthly_contribution: Paise;
   icon: string;
+  /** True when the goal has been soft-deleted (archived). */
+  archived?: boolean;
+}
+
+export interface GoalContribution {
+  id: string;
+  goal_id: string;
+  amount: Paise;
+  contributed_on: ISODate;
+  transaction_id: string | null;
+  merchant: string | null;
+  descriptor: string | null;
 }
 
 export type HoldingClass = "equity" | "mutual_fund" | "gold" | "fixed_income" | "crypto";

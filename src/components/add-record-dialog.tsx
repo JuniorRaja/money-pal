@@ -85,9 +85,28 @@ const schemas = {
     blurb: z.string().trim().max(120).optional(),
     target: rupees,
     saved: z.string().optional(),
-    target_date: isoDate,
-    account_id: text(40),
-    monthly_contribution: rupees,
+    target_date: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v), "Pick a valid date"),
+    account_id: z.string().optional(),
+    monthly_contribution: z
+      .string()
+      .trim()
+      .refine(
+        (v) => v === "" || (Number.isFinite(Number(v)) && Number(v) >= 0),
+        "Enter 0 or more",
+      ),
+  }).superRefine((val, ctx) => {
+    const targetAmount = Number(val.target || 0);
+    const savedAmount = Number(val.saved || 0);
+    if (savedAmount > targetAmount) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["saved"],
+        message: "Already saved cannot exceed target amount",
+      });
+    }
   }),
   budget: z.object({
     category_id: text(40),
@@ -318,8 +337,8 @@ export function AddRecordDialog({
           blurb: v['blurb'] || "Saving towards this goal.",
           target: paise(v['target']),
           saved: paise(v['saved']),
-          target_date: v['target_date']!,
-          account_id: v['account_id']!,
+          target_date: v['target_date'] || "",
+          account_id: v['account_id'] || "",
           monthly_contribution: paise(v['monthly_contribution']),
         });
       } else if (kind === "budget") {
@@ -703,7 +722,7 @@ export function AddRecordDialog({
                     onChange={(e) => set("target", e.target.value)}
                   />
                 </Field>
-                <Field label="Already saved (₹)">
+                <Field label="Already saved (₹)" error={errors['saved']}>
                   <input
                     inputMode="decimal"
                     className={fieldBase}
@@ -713,13 +732,13 @@ export function AddRecordDialog({
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Linked account" error={errors['account_id']}>
+                <Field label="Linked account">
                   <select
                     className={fieldBase}
                     value={values['account_id'] ?? ""}
                     onChange={(e) => set("account_id", e.target.value)}
                   >
-                    <option value="">Select account</option>
+                    <option value="">None</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
@@ -727,7 +746,7 @@ export function AddRecordDialog({
                     ))}
                   </select>
                 </Field>
-                <Field label="Monthly contribution (₹)" error={errors['monthly_contribution']}>
+                <Field label="Monthly plan (₹)" error={errors['monthly_contribution']}>
                   <input
                     inputMode="decimal"
                     className={fieldBase}

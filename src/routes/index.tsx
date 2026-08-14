@@ -191,18 +191,21 @@ function OverviewPage() {
 
         <Panel className="col-span-4" title="Goals in motion" action={<Link to="/goals" className="text-xs text-primary">View all</Link>}>
           <ul className="space-y-4">
-            {goals.slice(0, 3).map((g) => (
-              <li key={g.id} className="flex items-center gap-4">
-                <Ring value={(g.saved / g.target) * 100} label={`${Math.round((g.saved / g.target) * 100)}%`} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-foreground">{g.name}</p>
-                  <p className="numeric text-xs text-muted-foreground">
-                    {formatCompact(g.saved)} of {formatCompact(g.target)}
-                  </p>
-                </div>
-                <PiggyBank className="h-4 w-4 text-muted-foreground" />
-              </li>
-            ))}
+            {goals.slice(0, 3).map((g) => {
+              const pct = g.target === 0 ? 0 : (g.saved / g.target) * 100;
+              return (
+                <li key={g.id} className="flex items-center gap-4">
+                  <Ring value={pct} label={`${Math.round(pct)}%`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-foreground">{g.name}</p>
+                    <p className="numeric text-xs text-muted-foreground">
+                      {formatCompact(g.saved)} of {formatCompact(g.target)}
+                    </p>
+                  </div>
+                  <PiggyBank className="h-4 w-4 text-muted-foreground" />
+                </li>
+              );
+            })}
           </ul>
         </Panel>
 

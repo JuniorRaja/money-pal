@@ -17,6 +17,7 @@ import type {
   CategorySpend,
   CreditCardCycle,
   Goal,
+  GoalContribution,
   Holding,
   Label,
   MonthlyRollup,
@@ -249,7 +250,7 @@ export const liveTransactions = (): Promise<Transaction[]> =>
       const counterparty =
         row.type === "transfer"
           ? (siblings.find((s) => s.entry_id !== row.entry_id)?.account_id as string | undefined) ??
-            null
+          null
           : null;
       return {
         id: row.entry_id as string,
@@ -341,12 +342,101 @@ export const liveGoals = (): Promise<Goal[]> =>
         blurb: (row.blurb as string | null) ?? "",
         target: Number(row.target_amount ?? 0),
         saved: Number(row.saved ?? 0),
+        saved_this_month: Number(row.saved_this_month ?? 0),
         target_date: (row.target_date as string | null) ?? "",
-        account_id: "",
+        account_id: (row.account_id as string | null) ?? "",
         monthly_contribution: Number(row.monthly_contribution ?? 0),
         icon: (row.icon as string | null) ?? "target",
+        archived: false,
       }),
     );
+  }, []);
+
+/** Fetches archived (soft-deleted) goals directly from the goals table. */
+export const liveArchivedGoals = (): Promise<Goal[]> =>
+  live<Goal[]>(async () => {
+    const { data, error } = await supabase
+      .from("goals")
+      .select("id, name, blurb, target_amount, target_date, account_id, monthly_contribution, icon")
+      .not("deleted_at", "is", null);
+    if (error) throw error;
+
+    // For archived goals, we need to fetch their saved amounts from contributions
+    const goalIds = (data ?? []).map(g => g.id);
+    if (goalIds.length === 0) return [];
+
+    const { data: contribs } = await supabase
+      .from("goal_contributions")
+      .select("goal_id, amount")
+      .in("goal_id", goalIds)
+      .is("deleted_at", null);
+
+    const savedByGoal = new Map<string, number>();
+    for (const c of contribs ?? []) {
+      savedByGoal.set(c.goal_id, (savedByGoal.get(c.goal_id) ?? 0) + Number(c.amount ?? 0));
+    }
+
+    return (data ?? []).map(
+      (row): Goal => ({
+        id: row.id as string,
+        name: row.name as string,
+        blurb: (row.blurb as string | null) ?? "",
+        target: Number(row.target_amount ?? 0),
+        saved: savedByGoal.get(row.id) ?? 0,
+        saved_this_month: 0, // Archived goals don't track this month
+        target_date: (row.target_date as string | null) ?? "",
+        account_id: (row.account_id as string | null) ?? "",
+        monthly_contribution: Number(row.monthly_contribution ?? 0),
+        icon: (row.icon as string | null) ?? "target",
+        archived: true,
+      }),
+    );
+  }, []);
+
+function pickContributionTxn(
+  headerId: string,
+  goalAccountId: string,
+  txns: Transaction[],
+): Transaction | undefined {
+  const legs = txns.filter((t) => t.transaction_id === headerId);
+  if (goalAccountId) {
+    const match = legs.find((t) => t.account_id === goalAccountId);
+    if (match) return match;
+  }
+  return legs.find((t) => t.amount < 0) ?? legs[0];
+}
+
+export const liveGoalContributions = (): Promise<GoalContribution[]> =>
+  live<GoalContribution[]>(async () => {
+    const [contrib, goalsRes, txns] = await Promise.all([
+      supabase
+        .from("goal_contributions")
+        .select("id, goal_id, amount, contributed_on, transaction_id")
+        .is("deleted_at", null)
+        .order("contributed_on", { ascending: false }),
+      supabase.from("goals").select("id, account_id").is("deleted_at", null),
+      liveTransactions(),
+    ]);
+    if (contrib.error) throw contrib.error;
+    if (goalsRes.error) throw goalsRes.error;
+    const accountByGoal = new Map(
+      (goalsRes.data ?? []).map((g) => [g.id, g.account_id ?? ""]),
+    );
+    return (contrib.data ?? []).map((row): GoalContribution => {
+      const headerId = row.transaction_id;
+      const txn = headerId
+        ? pickContributionTxn(headerId, accountByGoal.get(row.goal_id) ?? "", txns)
+        : undefined;
+      return {
+        id: row.id,
+        goal_id: row.goal_id,
+        amount: Number(row.amount ?? 0),
+        contributed_on: row.contributed_on,
+        transaction_id: headerId,
+        merchant: txn?.merchant ?? null,
+        descriptor: txn?.descriptor ?? null,
+      };
+    });
   }, []);
 
 export const liveHoldings = (): Promise<Holding[]> =>

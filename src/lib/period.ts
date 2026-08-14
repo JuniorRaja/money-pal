@@ -26,6 +26,22 @@ export function formatPeriodLabel(period: string): string {
   });
 }
 
+/** Local calendar date (YYYY-MM-DD). Avoid UTC `toISOString()` slice. */
+export function localISODate(now = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** Whole months from now to a YYYY-MM-DD date (negative if the month has passed). */
+export function monthsUntil(isoDate: string, now = new Date()): number {
+  const y = Number(isoDate.slice(0, 4));
+  const m = Number(isoDate.slice(5, 7));
+  if (!y || !m) return 0;
+  return (y - now.getFullYear()) * 12 + (m - (now.getMonth() + 1));
+}
+
 export function periodPace(
   period: string,
   now = new Date(),

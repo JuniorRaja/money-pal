@@ -21,3 +21,19 @@ Copying last month into the visible month get-or-creates the header and inserts 
 ## Budgets — category source of truth
 
 Category lives on `transactions`, not on ledger entries. Budget progress follows that live model. The older PRD entry-side category layout is not used.
+
+## Goals — saved is stored contributions
+
+Goal progress is `SUM(goal_contributions.amount)` via `v_goal_progress`. It is **not** an earmark slice balance. PRD Phase 6 (goal funded by an EARMARK label) is deferred. Earmark slices on Accounts keep their own target amount and date.
+
+## Goals — optional transaction links
+
+A contribution may point at a `transactions` header id. Linking does not move ledger money. Unlinking clears the pointer and leaves saved unchanged. Deleting a transaction sets `transaction_id` to null (`ON DELETE SET NULL`) and leaves saved. One live contribution per transaction.
+
+## Goals — monthly plan is not an auto-transfer
+
+`monthly_contribution` is used for ETA and pace only. Nothing is transferred automatically.
+
+## Goals — archive leaves the ledger
+
+Soft-deleting a goal hides it from progress. Contribution rows stay. Accounts, slices, and transactions are not changed.

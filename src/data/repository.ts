@@ -12,6 +12,8 @@ import {
   liveCategorySpend,
   liveCreditCardCycles,
   liveGoals,
+  liveArchivedGoals,
+  liveGoalContributions,
   liveHoldings,
   liveLabels,
   liveMonthlyRollups,
@@ -27,6 +29,7 @@ import type {
   CategorySpend,
   CreditCardCycle,
   Goal,
+  GoalContribution,
   Holding,
   ImportJob,
   ImportReviewItem,
@@ -58,6 +61,8 @@ export const getCategories = (): Promise<Category[]> => liveCategories();
 export const getLabels = (): Promise<Label[]> => liveLabels();
 export const getTimelineEvents = (): Promise<TimelineEvent[]> => liveTimeline();
 export const getGoals = (): Promise<Goal[]> => liveGoals();
+export const getArchivedGoals = (): Promise<Goal[]> => liveArchivedGoals();
+export const getGoalContributions = (): Promise<GoalContribution[]> => liveGoalContributions();
 export const getHoldings = (): Promise<Holding[]> => liveHoldings();
 export const getMonthlyRollups = (): Promise<MonthlyRollup[]> => liveMonthlyRollups();
 export const getSlices = (): Promise<Slice[]> => liveSlices();

@@ -582,6 +582,28 @@ export const updateSliceFn = createServerFn({ method: "POST" })
     return { id: data.id };
   });
 
+function isUniqueViolation(error: { code?: string } | null): boolean {
+  return error?.code === "23505";
+}
+
+function localDate(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+async function savedForGoal(supabase: AppSupabase, goalId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("v_goal_progress")
+    .select("saved")
+    .eq("goal_id", goalId)
+    .maybeSingle();
+  if (error) throw error;
+  return Number(data?.saved ?? 0);
+}
+
 // =============================================================================
 // CREATE GOAL
 // =============================================================================
@@ -600,22 +622,29 @@ export const createGoalFn = createServerFn({ method: "POST" })
   .validator((input: CreateGoalInput) => {
     if (!input.name?.trim()) throw new Error("name is required");
     if (input.target <= 0) throw new Error("target must be positive");
+    if (input.saved < 0) throw new Error("saved cannot be negative");
+    if (input.monthly_contribution < 0) throw new Error("monthly contribution cannot be negative");
     return input;
   })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
 
-    // Insert goal
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("base_currency")
+      .eq("user_id", userId)
+      .maybeSingle();
+
     const { data: goal, error: goalError } = await supabase
       .from("goals")
       .insert({
         user_id: userId,
-        name: data.name,
+        name: data.name.trim(),
         blurb: data.blurb,
         icon: "flag",
         target_amount: data.target,
-        currency_code: "INR",
+        currency_code: profile?.base_currency ?? "INR",
         target_date: data.target_date || null,
         account_id: data.account_id || null,
         monthly_contribution: data.monthly_contribution,
@@ -624,18 +653,183 @@ export const createGoalFn = createServerFn({ method: "POST" })
       .single();
     if (goalError) throw goalError;
 
-    // If there's an initial saved amount, create a contribution
     if (data.saved > 0) {
       const { error: contribError } = await supabase.from("goal_contributions").insert({
         goal_id: goal.id,
         user_id: userId,
         amount: data.saved,
-        contributed_on: new Date().toISOString().slice(0, 10),
+        contributed_on: localDate(),
       });
       if (contribError) throw contribError;
     }
 
     return { id: goal.id };
+  });
+
+export interface UpdateGoalInput {
+  id: string;
+  name: string;
+  blurb: string;
+  target: number;
+  target_date: string;
+  account_id: string;
+  monthly_contribution: number;
+}
+
+export const updateGoalFn = createServerFn({ method: "POST" })
+  .validator((input: UpdateGoalInput) => {
+    if (!input.id) throw new Error("id is required");
+    if (!input.name?.trim()) throw new Error("name is required");
+    if (input.target <= 0) throw new Error("target must be positive");
+    if (input.monthly_contribution < 0) throw new Error("monthly contribution cannot be negative");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("goals")
+      .update({
+        name: data.name.trim(),
+        blurb: data.blurb,
+        target_amount: data.target,
+        target_date: data.target_date || null,
+        account_id: data.account_id || null,
+        monthly_contribution: data.monthly_contribution,
+        modified_at: new Date().toISOString(),
+      })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return { id: data.id };
+  });
+
+export interface ArchiveGoalInput {
+  id: string;
+}
+
+export const archiveGoalFn = createServerFn({ method: "POST" })
+  .validator((input: ArchiveGoalInput) => {
+    if (!input.id) throw new Error("id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("goals")
+      .update({ deleted_at: now, is_active: false, modified_at: now })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return { success: true };
+  });
+
+export interface AddGoalContributionInput {
+  goal_id: string;
+  amount: number;
+  contributed_on: string;
+  transaction_id?: string | null;
+}
+
+export const addGoalContributionFn = createServerFn({ method: "POST" })
+  .validator((input: AddGoalContributionInput) => {
+    if (!input.goal_id) throw new Error("goal is required");
+    if (!input.amount || input.amount === 0) throw new Error("amount cannot be zero");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.contributed_on)) throw new Error("date is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    if (data.amount < 0) {
+      const saved = await savedForGoal(supabase, data.goal_id);
+      if (saved + data.amount < 0) throw new Error("Withdraw cannot exceed saved so far");
+    }
+
+    const { data: row, error } = await supabase
+      .from("goal_contributions")
+      .insert({
+        goal_id: data.goal_id,
+        user_id: userId,
+        amount: data.amount,
+        contributed_on: data.contributed_on,
+        transaction_id: data.transaction_id || null,
+      })
+      .select("id")
+      .single();
+    if (isUniqueViolation(error)) throw new Error("That transaction is already linked to a goal");
+    if (error) throw error;
+    if (!row) throw new Error("Could not add contribution");
+    return { id: row.id };
+  });
+
+export interface LinkGoalContributionInput {
+  id: string;
+  transaction_id: string;
+}
+
+export const linkGoalContributionFn = createServerFn({ method: "POST" })
+  .validator((input: LinkGoalContributionInput) => {
+    if (!input.id) throw new Error("id is required");
+    if (!input.transaction_id) throw new Error("transaction is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("goal_contributions")
+      .update({ transaction_id: data.transaction_id, modified_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (isUniqueViolation(error)) throw new Error("That transaction is already linked to a goal");
+    if (error) throw error;
+    return { id: data.id };
+  });
+
+export interface UnlinkGoalContributionInput {
+  id: string;
+}
+
+export const unlinkGoalContributionFn = createServerFn({ method: "POST" })
+  .validator((input: UnlinkGoalContributionInput) => {
+    if (!input.id) throw new Error("id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("goal_contributions")
+      .update({ transaction_id: null, modified_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return { id: data.id };
+  });
+
+export interface VoidGoalContributionInput {
+  id: string;
+}
+
+export const voidGoalContributionFn = createServerFn({ method: "POST" })
+  .validator((input: VoidGoalContributionInput) => {
+    if (!input.id) throw new Error("id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("goal_contributions")
+      .update({ deleted_at: now, is_active: false, modified_at: now })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return { success: true };
   });
 
 // =============================================================================

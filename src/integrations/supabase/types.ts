@@ -1653,6 +1653,7 @@ export type Database = {
       }
       v_goal_progress: {
         Row: {
+          account_id: string | null
           blurb: string | null
           currency_code: string | null
           goal_id: string | null
@@ -1662,11 +1663,33 @@ export type Database = {
           progress_bps: number | null
           remaining: number | null
           saved: number | null
+          saved_this_month: number | null
           target_amount: number | null
           target_date: string | null
           user_id: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "goals_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goals_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_allocation"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "goals_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "v_account_balances"
+            referencedColumns: ["account_id"]
+          },
           {
             foreignKeyName: "goals_currency_code_fkey"
             columns: ["currency_code"]
