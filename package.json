@@ -73,7 +73,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@lovable.dev/vite-tanstack-config": "^2.10.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.16.5",
     "@types/papaparse": "^5.5.2",
