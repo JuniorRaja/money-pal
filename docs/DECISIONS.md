@@ -48,7 +48,31 @@ First-class presets: **HDFC savings**, **HDFC credit card**, **DBS**. Other Indi
 
 ## Import — hub, wizard, card review
 
-Keep Connected sources, Parsing activity, and Needs your eye. New import is a real wizard (account required, optional preset, then file). Review is Tinder-style cards. A job can be paused and resumed (commit part of the file, come back later). Gmail and PDF are coming-soon tiles, not live sources. No Gmail OAuth in this pass.
+Keep Connected sources, activity, and Needs your eye. Review is Tinder-style cards. A job can be paused and resumed (commit part of the file, come back later). Gmail and PDF are coming-soon tiles, not live sources. No Gmail OAuth in this pass.
+
+## Import — wizard is file-first, not account-first
+
+Supersedes the earlier "account required, optional preset, then file" order. The wizard is **file → columns → account**: drop the statement, we detect the bank and map columns, and the account step appears only when the match is ambiguous. When exactly one importable account matches the detected bank, staging happens without asking. The account is still required before anything is written — it is inferred rather than demanded up front, because the statement usually identifies it.
+
+The import flow lives in a dialog opened from the hub (`ImportFlowDialog`). There is no standalone `/imports/new` route.
+
+## Import — amount and date parsing
+
+Leading and trailing currency tokens (`₹`, `Rs`, `Rs.`, `INR`) are stripped from an amount cell before parsing; parentheses and `Dr`/`Cr` suffixes set direction. A cell that still will not parse means the row is skipped and counted in `skippedRowCount` — never silently zeroed or scaled.
+
+Ambiguous numeric dates default to **DMY** (Indian statements). `MDY` is inferred when the first component cannot be a day. The mapping editor offers Auto / DMY / MDY only: ISO dates are recognised before any hint is consulted, so a `YMD` choice could only break a `dd/mm` file.
+
+## Import — everything is IST
+
+Staged and committed rows use midnight Asia/Kolkata (`midnightIst`). Postgres returns that as `…T18:30:00+00:00`, so a calendar day is **always** derived with `dayKey()` from `lib/money.ts`, never by slicing the first ten characters of a timestamp. Slicing loses a day for every row.
+
+## Import — Excel parsing comes from the SheetJS CDN
+
+`xlsx` is pinned to `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`, not the npm registry. The newest npm build is 0.18.5 and carries unpatched prototype-pollution and ReDoS advisories; SheetJS ships fixes only from their own CDN. Do not "upgrade" this back to a registry version. No `bunfig.toml` exclusion applies — `minimumReleaseAgeExcludes` entries are package names, and an `xlsx` entry would whitelist the registry build being avoided.
+
+## Import — one custom mapping per account
+
+`import_profiles` is unique on `(user_id, account_id, bank_preset)`, and every unrecognised bank maps to the `custom` preset. So a second custom-mapped bank on the same account overwrites the first one's saved mapping. Known limitation, accepted: fixing it needs a header-signature column in the profile key. Revisit if anyone actually runs two unrecognised banks into one account.
 
 ## Import — categorisation and default slice
 
@@ -61,6 +85,12 @@ Imported rows are income or expense only. Transfers are not auto-detected. The u
 ## Import — hash dedupe
 
 Hash is `sha256(account_id | date | signed_amount | normalized_narration | n)` where `n` is the 0-based index among rows that share the same date + amount + narration **in this file**. Re-importing the same mapped file skips those hashes (`skipped_duplicate`). Two genuine identical charges in one statement get `n=0` and `n=1`. Unique `ux_txn_external` on `transactions(user_id, external_ref)` stores the hash as `external_ref`. `fn_record_transaction` accepts `p_source` (CSV uses `csv`; manual stays `manual`), `p_external_ref`, and `p_confidence`.
+
+## Import — review queue kinds
+
+A staged row reaches "Needs your eye" as exactly one of `pending`, `held`, or `low_confidence` (confidence below `IMPORT_LOW_CONFIDENCE_MAX`, 0.8 — the single threshold; there is no second one). The `review_kind` Postgres enum (`duplicate` / `unknown_merchant` / `large_transfer`) belongs to the superseded `import_review_items` table and is not read by any code path.
+
+Row status transitions between `pending` / `skipped` / `held` go through `fn_set_import_row_status`, which owns the `import_jobs.rows_done` counter in the same locked statement. Only `skipped` counts a row as done; `held` leaves it open, so a job holding rows never reports finished. `imported` and `skipped_duplicate` are terminal.
 
 ## Import — live model vs PRD
 

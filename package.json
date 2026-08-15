@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test:unit": "tsx --test src/lib/import/hash.test.ts src/lib/import/presets.test.ts",
+    "test:unit": "tsx --test src/lib/import/hash.test.ts src/lib/import/normalize.test.ts src/lib/import/presets.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
