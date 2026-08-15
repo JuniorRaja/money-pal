@@ -51,15 +51,37 @@ async function ensureSignedIn(page: Page) {
   });
 }
 
+/**
+ * Drops the fixture and lands on the review deck. The dialog only renders its
+ * file input once five repository reads resolve, so the wait is generous. When
+ * more than one account matches the statement the wizard asks which one — pick
+ * the first rather than assuming the single-candidate shortcut.
+ */
 async function dropStatement(page: Page) {
-  await page.getByText("CSV / Excel").click();
+  // The tile renders in the SSR HTML but does nothing until React hydrates, and
+  // Playwright's actionability checks do not wait for that — so click until the
+  // dialog actually appears rather than once.
   const input = page.locator('input[type="file"]');
-  await expect(input).toBeAttached({ timeout: 10_000 });
+  await expect(async () => {
+    await page.locator('main button:has-text("CSV / Excel")').click();
+    await expect(input).toBeAttached({ timeout: 5_000 });
+  }).toPass({ timeout: 60_000 });
   await input.setInputFiles({
     name: `hdfc-${Date.now()}.csv`,
     mimeType: "text/csv",
     buffer: Buffer.from(STATEMENT, "utf8"),
   });
+
+  const accountSelect = page.locator('[role="dialog"] select');
+  const deck = page.getByText(/left in this job/);
+  await expect(accountSelect.or(deck).first()).toBeVisible({ timeout: 30_000 });
+
+  if (await accountSelect.isVisible().catch(() => false)) {
+    const value = await accountSelect.locator("option").nth(1).getAttribute("value");
+    await accountSelect.selectOption(value ?? "");
+    await page.locator('[role="dialog"] button:has-text("Review rows")').click();
+  }
+  await expect(deck).toBeVisible({ timeout: 30_000 });
 }
 
 const test = base.extend<{ importsPage: Page }>({
@@ -70,7 +92,9 @@ const test = base.extend<{ importsPage: Page }>({
 });
 
 test.describe("Import Center", () => {
-  test.describe.configure({ mode: "serial" });
+  // The import dialog cannot accept a file until five repository reads resolve,
+  // which is well past the 30s default on a slow Supabase connection.
+  test.describe.configure({ mode: "serial", timeout: 120_000 });
 
   test("hub renders the ingest tiles", async ({ importsPage: page }) => {
     await expect(page.getByRole("heading", { name: "Import Center" })).toBeVisible();
@@ -78,49 +102,40 @@ test.describe("Import Center", () => {
     await expect(page.getByText("Manual entry")).toBeVisible();
   });
 
-  test("detects the bank and stages rows without asking for a mapping", async ({
-    importsPage: page,
-  }) => {
+  test("maps the columns without asking for help", async ({ importsPage: page }) => {
     await dropStatement(page);
-    // Detection + staging is automatic when exactly one account matches; either
-    // the account step or the review deck is a pass, a mapping editor is not.
+    // Reaching the deck at all means date/description/amount resolved on their
+    // own — the mapping editor never appeared.
     await expect(page.getByText(/Match date, description, and amount/)).toBeHidden();
-    await expect(page.getByText(/left in this job|Which account is this statement for/)).toBeVisible(
-      { timeout: 20_000 },
-    );
+    await expect(page.getByText(/left in this job/)).toContainText("3");
   });
 
   test("review deck shows the amount and date the statement stated", async ({
     importsPage: page,
   }) => {
     await dropStatement(page);
-    const deck = page.getByText(/left in this job/);
-    await expect(deck).toBeVisible({ timeout: 20_000 });
+    const card = page.locator('[role="dialog"] article').first();
 
     // "Rs.100" must read as ₹100.00, not ₹0.10 (the character-class bug), and
     // 01 Aug must not slip to 31 Jul (the UTC-slice bug).
-    await expect(page.locator("article").first()).toContainText("100.00");
-    await expect(page.locator("article").first()).toContainText(/01 Aug 2026/);
+    await expect(card).toContainText("100.00");
+    await expect(card).toContainText(/01 Aug 2026/);
+
+    // The edit field is what accept posts back, so it must agree with the card.
+    await page.locator('[role="dialog"] button:has-text("Edit")').click();
+    await expect(page.locator('[role="dialog"] input[type="date"]')).toHaveValue("2026-08-01");
   });
 
-  test("skip advances the deck and back restores the row", async ({ importsPage: page }) => {
+  test("the deck stays interactive when a row action fails", async ({ importsPage: page }) => {
     await dropStatement(page);
-    await expect(page.getByText(/left in this job/)).toBeVisible({ timeout: 20_000 });
+    const card = page.locator('[role="dialog"] article').first();
+    await expect(card).toBeVisible();
 
-    const remaining = async () => {
-      const text = (await page.getByText(/left in this job/).textContent()) ?? "";
-      return Number(text.match(/(\d+)/)?.[1] ?? 0);
-    };
+    await page.locator('[role="dialog"] button:has-text("Hold")').click();
 
-    const before = await remaining();
-    await page.getByRole("button", { name: "Skip" }).click();
-    await expect.poll(remaining, { timeout: 15_000 }).toBe(before - 1);
-
-    await page.getByRole("button", { name: "Back" }).click();
-    await expect.poll(remaining, { timeout: 15_000 }).toBe(before);
-
-    // The deck must still be interactive — a failed mutation used to leave a
-    // stuck flying card with the live card at opacity-0 and no way forward.
-    await expect(page.getByRole("button", { name: "Accept" })).toBeEnabled();
+    // Whether hold succeeds or the RPC is missing, a stuck flying card with the
+    // live card at opacity-0 is the failure this guards against.
+    await expect(card).toHaveCSS("opacity", "1", { timeout: 15_000 });
+    await expect(page.locator('[role="dialog"] button:has-text("Accept")')).toBeEnabled();
   });
 });

@@ -10,7 +10,8 @@ if (existsSync(envPath)) {
     const eq = trimmed.indexOf("=");
     if (eq < 1) continue;
     const key = trimmed.slice(0, eq);
-    const value = trimmed.slice(eq + 1);
+    // Values may be quoted in .env; the quotes are delimiters, not part of the value.
+    const value = trimmed.slice(eq + 1).replace(/^(['"])(.*)\1$/, "$2");
     if (process.env[key] === undefined) process.env[key] = value;
   }
 }
