@@ -9,7 +9,10 @@
  * TypeScript: balances, budget pacing, goal progress and holdings valuation
  * all arrive pre-computed.
  */
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as browserSupabase } from "@/integrations/supabase/client";
+import { createServerSupabase } from "@/integrations/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import type {
   Account,
   AccountAllocation,
@@ -40,10 +43,19 @@ import type {
 import { IMPORT_LOW_CONFIDENCE_MAX } from "@/data/schema";
 import { dayKey } from "@/lib/money";
 
-/** True when a Supabase session exists in this environment (browser only). */
-export async function hasSession(): Promise<boolean> {
-  if (typeof window === "undefined") return false;
+/** Browser singleton in the browser; a fresh request-scoped client on the server. */
+async function getSupabase(): Promise<SupabaseClient<Database>> {
+  if (typeof window !== "undefined") return browserSupabase;
+  return createServerSupabase();
+}
+
+/** getSession() revalidates nothing browser-side (fine, it's local); getClaims() verifies the JWT server-side. */
+async function checkSession(supabase: SupabaseClient<Database>): Promise<boolean> {
   try {
+    if (typeof window === "undefined") {
+      const { data, error } = await supabase.auth.getClaims();
+      return !error && Boolean(data?.claims);
+    }
     const { data } = await supabase.auth.getSession();
     return Boolean(data.session);
   } catch {
@@ -51,11 +63,17 @@ export async function hasSession(): Promise<boolean> {
   }
 }
 
+/** True when a Supabase session exists in this environment. */
+export async function hasSession(): Promise<boolean> {
+  return checkSession(await getSupabase());
+}
+
 /** Runs a live read. Returns empty fallback when not signed in or on error. */
-async function live<T>(run: () => Promise<T>, fallback: T): Promise<T> {
-  if (!(await hasSession())) return fallback;
+async function live<T>(run: (supabase: SupabaseClient<Database>) => Promise<T>, fallback: T): Promise<T> {
+  const supabase = await getSupabase();
+  if (!(await checkSession(supabase))) return fallback;
   try {
-    return await run();
+    return await run(supabase);
   } catch (error) {
     console.warn("[live] query failed", error);
     return fallback;
@@ -86,7 +104,7 @@ function lastTwelveMonths(): string[] {
 }
 
 export const liveAccounts = (): Promise<Account[]> =>
-  live<Account[]>(async () => {
+  live<Account[]>(async (supabase) => {
     const [balances, flow] = await Promise.all([
       supabase.from("v_account_balances").select("*"),
       supabase.from("v_account_monthly_flow").select("*"),
@@ -135,7 +153,7 @@ export const liveAccounts = (): Promise<Account[]> =>
   }, []);
 
 export const liveCreditCardCycles = (accountId?: string): Promise<CreditCardCycle[]> =>
-  live<CreditCardCycle[]>(async () => {
+  live<CreditCardCycle[]>(async (supabase) => {
     let query = supabase
       .from("credit_card_cycles")
       .select(
@@ -164,7 +182,7 @@ export const liveCreditCardCycles = (accountId?: string): Promise<CreditCardCycl
   }, []);
 
 export const liveCategories = (): Promise<Category[]> =>
-  live<Category[]>(async () => {
+  live<Category[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("categories")
       .select("id, name, kind, icon, color_token")
@@ -182,7 +200,7 @@ export const liveCategories = (): Promise<Category[]> =>
   }, []);
 
 export const liveLabels = (): Promise<Label[]> =>
-  live<Label[]>(async () => {
+  live<Label[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("labels")
       .select("id, name, color_token, account_id, kind, is_default");
@@ -201,7 +219,7 @@ export const liveLabels = (): Promise<Label[]> =>
 
 /** Slices of every account, with amounts derived in SQL. */
 export const liveSlices = (): Promise<Slice[]> =>
-  live<Slice[]>(async () => {
+  live<Slice[]>(async (supabase) => {
     const { data, error } = await supabase.from("v_account_slices").select("*");
     if (error) throw error;
     return (data ?? []).map(
@@ -222,7 +240,7 @@ export const liveSlices = (): Promise<Slice[]> =>
 
 /** Allocated vs unallocated money per account. */
 export const liveAllocations = (): Promise<AccountAllocation[]> =>
-  live<AccountAllocation[]>(async () => {
+  live<AccountAllocation[]>(async (supabase) => {
     const { data, error } = await supabase.from("v_account_allocation").select("*");
     if (error) throw error;
     return (data ?? []).map(
@@ -240,7 +258,7 @@ export const liveAllocations = (): Promise<AccountAllocation[]> =>
   }, []);
 
 export const liveTransactions = (): Promise<Transaction[]> =>
-  live<Transaction[]>(async () => {
+  live<Transaction[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("v_transactions_flat")
       .select("*")
@@ -288,7 +306,7 @@ export const liveTransactions = (): Promise<Transaction[]> =>
   }, []);
 
 export const liveTimeline = (): Promise<TimelineEvent[]> =>
-  live<TimelineEvent[]>(async () => {
+  live<TimelineEvent[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("timeline_events")
       .select("id, occurred_at, kind, title, detail, amount, account_id, action_label")
@@ -310,7 +328,7 @@ export const liveTimeline = (): Promise<TimelineEvent[]> =>
   }, []);
 
 export const liveBudgets = (period: string): Promise<BudgetPeriod[]> =>
-  live<BudgetPeriod[]>(async () => {
+  live<BudgetPeriod[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("v_budget_progress")
       .select("*")
@@ -329,7 +347,7 @@ export const liveBudgets = (period: string): Promise<BudgetPeriod[]> =>
   }, []);
 
 export const liveCategorySpend = (period: string): Promise<CategorySpend[]> =>
-  live<CategorySpend[]>(async () => {
+  live<CategorySpend[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("v_category_spend")
       .select("category_id, spent")
@@ -346,7 +364,7 @@ export const liveCategorySpend = (period: string): Promise<CategorySpend[]> =>
   }, []);
 
 export const liveGoals = (): Promise<Goal[]> =>
-  live<Goal[]>(async () => {
+  live<Goal[]>(async (supabase) => {
     const { data, error } = await supabase.from("v_goal_progress").select("*");
     if (error) throw error;
     return (data ?? []).map(
@@ -368,7 +386,7 @@ export const liveGoals = (): Promise<Goal[]> =>
 
 /** Fetches archived (soft-deleted) goals directly from the goals table. */
 export const liveArchivedGoals = (): Promise<Goal[]> =>
-  live<Goal[]>(async () => {
+  live<Goal[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("goals")
       .select("id, name, blurb, target_amount, target_date, account_id, monthly_contribution, icon")
@@ -421,7 +439,7 @@ function pickContributionTxn(
 }
 
 export const liveGoalContributions = (): Promise<GoalContribution[]> =>
-  live<GoalContribution[]>(async () => {
+  live<GoalContribution[]>(async (supabase) => {
     const [contrib, goalsRes, txns] = await Promise.all([
       supabase
         .from("goal_contributions")
@@ -454,7 +472,7 @@ export const liveGoalContributions = (): Promise<GoalContribution[]> =>
   }, []);
 
 export const liveHoldings = (): Promise<Holding[]> =>
-  live<Holding[]>(async () => {
+  live<Holding[]>(async (supabase) => {
     const { data, error } = await supabase.from("v_holdings_valuation").select("*");
     if (error) throw error;
     return (data ?? []).map((row): Holding => {
@@ -475,7 +493,7 @@ export const liveHoldings = (): Promise<Holding[]> =>
   }, []);
 
 export const liveMonthlyRollups = (): Promise<MonthlyRollup[]> =>
-  live<MonthlyRollup[]>(async () => {
+  live<MonthlyRollup[]>(async (supabase) => {
     const [cashflow, budgets] = await Promise.all([
       supabase.from("v_monthly_cashflow").select("*").order("period_month"),
       supabase.from("v_budget_progress").select("period_month, planned"),
@@ -571,7 +589,7 @@ function mapReviewItem(row: ImportJobRow): ImportReviewItem {
 }
 
 export const liveImportSources = (): Promise<ImportSource[]> =>
-  live<ImportSource[]>(async () => {
+  live<ImportSource[]>(async (supabase) => {
     const [sources, profiles] = await Promise.all([
       supabase
         .from("import_sources")
@@ -609,7 +627,7 @@ export const liveImportSources = (): Promise<ImportSource[]> =>
   }, []);
 
 export const liveImportProfiles = (): Promise<ImportProfile[]> =>
-  live<ImportProfile[]>(async () => {
+  live<ImportProfile[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("import_profiles")
       .select("id, account_id, source_id, bank_preset, mapping")
@@ -628,7 +646,7 @@ export const liveImportProfiles = (): Promise<ImportProfile[]> =>
   }, []);
 
 export const liveImportJobs = (): Promise<ImportJob[]> =>
-  live<ImportJob[]>(async () => {
+  live<ImportJob[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("import_jobs")
       .select("id, source_id, title, rows_done, rows_total, finished_at, imported, duplicates")
@@ -656,7 +674,7 @@ export const liveImportJobRows = (
   jobId: string,
   statuses?: ImportRowStatus[],
 ): Promise<ImportJobRow[]> =>
-  live<ImportJobRow[]>(async () => {
+  live<ImportJobRow[]>(async (supabase) => {
     let query = supabase
       .from("import_job_rows")
       .select(JOB_ROW_COLUMNS)
@@ -673,7 +691,7 @@ export const liveImportJobQueue = (jobId: string): Promise<ImportJobRow[]> =>
   liveImportJobRows(jobId, ["pending", "held"]);
 
 export const liveImportReviewItems = (): Promise<ImportReviewItem[]> =>
-  live<ImportReviewItem[]>(async () => {
+  live<ImportReviewItem[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("import_job_rows")
       .select(JOB_ROW_COLUMNS)
@@ -691,7 +709,7 @@ export const liveImportReviewItems = (): Promise<ImportReviewItem[]> =>
   }, []);
 
 export const liveImportRules = (): Promise<ImportRule[]> =>
-  live<ImportRule[]>(async () => {
+  live<ImportRule[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("import_rules")
       .select("id, match, category_id, account_id")
