@@ -548,7 +548,7 @@ function reviewKindFor(row: ImportJobRow): ReviewKind {
   if (row.confidence !== null && row.confidence < IMPORT_LOW_CONFIDENCE_MAX) {
     return "low_confidence";
   }
-  return "unknown_merchant";
+  return "pending";
 }
 
 function mapReviewItem(row: ImportJobRow): ImportReviewItem {

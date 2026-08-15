@@ -83,6 +83,3 @@ export type HeuristicSuggestion = {
 };
 
 export const PREVIEW_ROW_COUNT = 8;
-
-/** Rows at or above this confidence can be treated as easy-accept in review UI. */
-export const HEURISTIC_REVIEW_THRESHOLD = 0.75;

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { Category, ImportJobRow, ImportRule } from "@/data/schema";
+import { IMPORT_LOW_CONFIDENCE_MAX } from "@/data/schema";
 import { commitImportRow, holdImportRow, reopenImportRow, skipImportRow } from "@/data/mutations";
-import { HEURISTIC_REVIEW_THRESHOLD, midnightIst, resolveSuggestedCategoryId } from "@/lib/import";
+import { midnightIst, resolveSuggestedCategoryId } from "@/lib/import";
 import { dayKey, formatDay, formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
@@ -450,7 +451,7 @@ export function ReviewDeck({
                 Held
               </span>
             )}
-            {(current.confidence ?? 0) < HEURISTIC_REVIEW_THRESHOLD && (
+            {(current.confidence ?? 0) < IMPORT_LOW_CONFIDENCE_MAX && (
               <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] text-destructive">
                 Needs a look
               </span>

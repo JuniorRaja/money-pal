@@ -103,9 +103,6 @@ function accountName(accounts: Account[], id: string | null): string | null {
 }
 
 const KIND_COPY: Record<ReviewKind, { label: string; action: string }> = {
-  duplicate: { label: "Duplicate", action: "Resolve" },
-  unknown_merchant: { label: "Unknown merchant", action: "Categorise" },
-  large_transfer: { label: "Large transfer", action: "Accept" },
   pending: { label: "Needs review", action: "Review" },
   held: { label: "Held", action: "Resume" },
   low_confidence: { label: "Unknown merchant", action: "Categorise" },
@@ -175,7 +172,7 @@ function ImportsHub() {
       {activeJobs.length > 0 && (
         <div className="mt-5 space-y-4">
           {activeJobs.map((job) => (
-            <Panel key={job.id} title={`Parsing ${job.title}`}>
+            <Panel key={job.id} title={`Waiting on you · ${job.title}`}>
               <JobProgress job={job} onReview={() => setFlow({ kind: "review", jobId: job.id })} />
             </Panel>
           ))}

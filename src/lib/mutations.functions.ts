@@ -1378,44 +1378,21 @@ async function ensureImportSourceAndProfile(
   return { sourceId, profileId: createdProfile.id };
 }
 
-async function bumpJobRowsDone(supabase: AppSupabase, jobId: string): Promise<void> {
-  const { data: job, error } = await supabase
-    .from("import_jobs")
-    .select("rows_done, rows_total")
-    .eq("id", jobId)
-    .is("deleted_at", null)
-    .single();
-  if (error) throw error;
-  const next = Number(job.rows_done ?? 0) + 1;
-  const patch: Database["public"]["Tables"]["import_jobs"]["Update"] = {
-    rows_done: next,
-    modified_at: new Date().toISOString(),
-  };
-  if (job.rows_total > 0 && next >= job.rows_total) {
-    patch.finished_at = new Date().toISOString();
-  }
-  const { error: updateError } = await supabase.from("import_jobs").update(patch).eq("id", jobId);
-  if (updateError) throw updateError;
-}
-
-async function unbumpJobRowsDone(supabase: AppSupabase, jobId: string): Promise<void> {
-  const { data: job, error } = await supabase
-    .from("import_jobs")
-    .select("rows_done")
-    .eq("id", jobId)
-    .is("deleted_at", null)
-    .single();
-  if (error) throw error;
-  const next = Math.max(0, Number(job.rows_done ?? 0) - 1);
-  const { error: updateError } = await supabase
-    .from("import_jobs")
-    .update({
-      rows_done: next,
-      finished_at: null,
-      modified_at: new Date().toISOString(),
-    })
-    .eq("id", jobId);
-  if (updateError) throw updateError;
+/**
+ * Move a staged row between pending / skipped / held. The RPC owns the
+ * import_jobs.rows_done bookkeeping so it stays atomic against a concurrent
+ * accept, which updates the same counter.
+ */
+async function setImportRowStatus(
+  supabase: AppSupabase,
+  rowId: string,
+  status: "pending" | "skipped" | "held",
+): Promise<void> {
+  const { error } = await supabase.rpc("fn_set_import_row_status", {
+    p_row_id: rowId,
+    p_status: status,
+  });
+  if (error) fail(error);
 }
 
 export interface UpsertImportProfileInput {
@@ -1622,27 +1599,8 @@ export const skipImportRowFn = createServerFn({ method: "POST" })
   })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
-    const { data: row, error } = await supabase
-      .from("import_job_rows")
-      .select("id, job_id, status")
-      .eq("id", data.row_id)
-      .is("deleted_at", null)
-      .single();
-    if (error || !row) throw new Error("import row not found");
-    if (row.status === "skipped") return { row_id: row.id, status: "skipped" as const };
-    if (row.status === "imported" || row.status === "skipped_duplicate") {
-      throw new Error("import row is already resolved");
-    }
-
-    const { error: updateError } = await supabase
-      .from("import_job_rows")
-      .update({ status: "skipped", modified_at: new Date().toISOString() })
-      .eq("id", row.id);
-    if (updateError) throw updateError;
-
-    await bumpJobRowsDone(supabase, row.job_id);
-    return { row_id: row.id, status: "skipped" as const };
+    await setImportRowStatus(context.supabase, data.row_id, "skipped");
+    return { row_id: data.row_id, status: "skipped" as const };
   });
 
 export interface ReopenImportRowInput {
@@ -1656,27 +1614,8 @@ export const reopenImportRowFn = createServerFn({ method: "POST" })
   })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
-    const { data: row, error } = await supabase
-      .from("import_job_rows")
-      .select("id, job_id, status")
-      .eq("id", data.row_id)
-      .is("deleted_at", null)
-      .single();
-    if (error || !row) throw new Error("import row not found");
-    if (row.status === "pending") return { row_id: row.id, status: "pending" as const };
-    if (row.status === "imported" || row.status === "skipped_duplicate") {
-      throw new Error("imported rows cannot be reopened");
-    }
-
-    const { error: updateError } = await supabase
-      .from("import_job_rows")
-      .update({ status: "pending", modified_at: new Date().toISOString() })
-      .eq("id", row.id);
-    if (updateError) throw updateError;
-
-    if (row.status === "skipped") await unbumpJobRowsDone(supabase, row.job_id);
-    return { row_id: row.id, status: "pending" as const };
+    await setImportRowStatus(context.supabase, data.row_id, "pending");
+    return { row_id: data.row_id, status: "pending" as const };
   });
 
 export interface HoldImportRowInput {
@@ -1690,23 +1629,8 @@ export const holdImportRowFn = createServerFn({ method: "POST" })
   })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
-    const { data: row, error } = await supabase
-      .from("import_job_rows")
-      .select("id, status")
-      .eq("id", data.row_id)
-      .is("deleted_at", null)
-      .single();
-    if (error || !row) throw new Error("import row not found");
-    if (row.status === "held") return { row_id: row.id, status: "held" as const };
-    if (row.status !== "pending") throw new Error("only pending rows can be held");
-
-    const { error: updateError } = await supabase
-      .from("import_job_rows")
-      .update({ status: "held", modified_at: new Date().toISOString() })
-      .eq("id", row.id);
-    if (updateError) throw updateError;
-    return { row_id: row.id, status: "held" as const };
+    await setImportRowStatus(context.supabase, data.row_id, "held");
+    return { row_id: data.row_id, status: "held" as const };
   });
 
 export interface UpsertImportRuleInput {

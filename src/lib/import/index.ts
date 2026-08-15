@@ -9,7 +9,7 @@ export type {
   StatementParseResult,
   UnsignedAmountMeans,
 } from "./types";
-export { HEURISTIC_REVIEW_THRESHOLD, PREVIEW_ROW_COUNT } from "./types";
+export { PREVIEW_ROW_COUNT } from "./types";
 
 export {
   BANK_PRESETS,

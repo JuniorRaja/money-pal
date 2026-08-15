@@ -280,13 +280,13 @@ export interface ImportRule {
 /** Hub “Needs your eye”: pending/held staging rows (and low-confidence pending). */
 export const IMPORT_LOW_CONFIDENCE_MAX = 0.8;
 
-export type ReviewKind =
-  | "duplicate"
-  | "unknown_merchant"
-  | "large_transfer"
-  | "pending"
-  | "held"
-  | "low_confidence";
+/**
+ * What put a staged row in front of the user. Only these three are produced —
+ * see `reviewKindFor` in `data/live.ts`. The dormant `review_kind` Postgres enum
+ * (duplicate/unknown_merchant/large_transfer) belongs to the superseded
+ * `import_review_items` table and is not read by any code path.
+ */
+export type ReviewKind = "pending" | "held" | "low_confidence";
 
 export interface ImportReviewItem {
   id: string;
