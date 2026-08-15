@@ -116,11 +116,14 @@ function toArrayBuffer(bytes: ArrayBuffer | Uint8Array): ArrayBuffer {
   return bytes;
 }
 
-export async function parseImportBuffer(
-  bytes: ArrayBuffer | Uint8Array,
+/**
+ * Map an already-decoded grid. Split out from `parseImportBuffer` so the wizard
+ * can re-map on every column change without re-decoding the file each time.
+ */
+export function parseImportGrid(
+  grid: readonly (readonly string[])[],
   options: ParseImportOptions,
-): Promise<StatementParseResult> {
-  const grid = parseFileToGrid(toArrayBuffer(bytes), options.filename);
+): StatementParseResult {
   const headerRowIndex = findHeaderRowIndex(grid, options.preset);
   const headerRow = grid[headerRowIndex] ?? [];
   const headers = headerRow.map((h, i) => h || `Column ${i + 1}`);
@@ -131,7 +134,8 @@ export async function parseImportBuffer(
   const dataRows = grid.slice(headerRowIndex + 1);
   const previewRows = dataRows
     .filter((row) => row.some((c) => c.trim()))
-    .slice(0, PREVIEW_ROW_COUNT);
+    .slice(0, PREVIEW_ROW_COUNT)
+    .map((row) => [...row]);
 
   if (mappingErrors.length) {
     return {
@@ -191,6 +195,13 @@ export async function parseImportBuffer(
   };
 }
 
+export async function parseImportBuffer(
+  bytes: ArrayBuffer | Uint8Array,
+  options: ParseImportOptions,
+): Promise<StatementParseResult> {
+  return parseImportGrid(parseFileToGrid(toArrayBuffer(bytes), options.filename), options);
+}
+
 export async function parseImportText(
   text: string,
   options: ParseImportOptions,
@@ -199,13 +210,4 @@ export async function parseImportText(
     ? options.filename
     : `${options.filename}.csv`;
   return parseImportBuffer(new TextEncoder().encode(text), { ...options, filename });
-}
-
-export async function parseImportFile(
-  file: Blob,
-  options: ParseImportOptions,
-): Promise<StatementParseResult> {
-  const bytes = await file.arrayBuffer();
-  const filename = "name" in file && typeof file.name === "string" ? file.name : options.filename;
-  return parseImportBuffer(bytes, { ...options, filename });
 }

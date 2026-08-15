@@ -108,7 +108,6 @@ export function MappingEditor({
           >
             <option value="auto">Auto (India: DD/MM)</option>
             <option value="DMY">DD/MM/YYYY</option>
-            <option value="YMD">YYYY-MM-DD</option>
             <option value="MDY">MM/DD/YYYY</option>
           </select>
         </label>

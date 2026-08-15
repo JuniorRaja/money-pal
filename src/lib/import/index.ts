@@ -23,8 +23,8 @@ export {
 
 export {
   parseFileToGrid,
+  parseImportGrid,
   parseImportBuffer,
-  parseImportFile,
   parseImportText,
   isSpreadsheetFilename,
 } from "./parse";

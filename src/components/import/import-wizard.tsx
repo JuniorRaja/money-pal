@@ -11,7 +11,8 @@ import {
   attachHashesToRows,
   bankPresetLabel,
   importableAccounts,
-  parseImportFile,
+  parseFileToGrid,
+  parseImportGrid,
   suggestImportAccounts,
   toStageDrafts,
   validateMapping,
@@ -55,6 +56,7 @@ export function ImportWizard({
     : null;
 
   const [file, setFile] = useState<File | null>(null);
+  const [grid, setGrid] = useState<string[][] | null>(null);
   const [parsed, setParsed] = useState<StatementParseResult | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping | null>(asColumnMapping(profile?.mapping));
   const [accountId, setAccountId] = useState(source?.account_id ?? "");
@@ -91,7 +93,10 @@ export function ImportWizard({
     setParseError(null);
     try {
       const savedMapping = source ? asColumnMapping(profile?.mapping) : null;
-      const result = await parseImportFile(next, {
+      // Decode once; onMappingChange re-maps this grid instead of re-reading the file.
+      const nextGrid = parseFileToGrid(await next.arrayBuffer(), next.name);
+      setGrid(nextGrid);
+      const result = parseImportGrid(nextGrid, {
         filename: next.name,
         preset: (source?.bank_preset as BankPresetId | null) ?? undefined,
         mapping: nextMapping ?? savedMapping ?? undefined,
@@ -130,13 +135,12 @@ export function ImportWizard({
     }
   }
 
-  async function onMappingChange(next: ColumnMapping) {
+  function onMappingChange(next: ColumnMapping) {
     setMapping(next);
-    if (!file) return;
-    setBusy(true);
+    if (!file || !grid) return;
     setParseError(null);
     try {
-      const result = await parseImportFile(file, {
+      const result = parseImportGrid(grid, {
         filename: file.name,
         mapping: next,
         preset: parsed?.detectedPreset ?? "custom",
@@ -146,8 +150,6 @@ export function ImportWizard({
       if (result.mappingErrors.length === 0 && result.rows.length > 0) setStep("account");
     } catch (error) {
       setParseError(mutationErrorMessage(error, "Could not re-parse with this mapping"));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -253,7 +255,7 @@ export function ImportWizard({
                   previewRows={parsed.previewRows}
                   mapping={mapping}
                   errors={mappingErrors}
-                  onChange={(next) => void onMappingChange(next)}
+                  onChange={onMappingChange}
                 />
                 <div className="flex gap-2">
                   <button

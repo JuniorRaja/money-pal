@@ -164,8 +164,8 @@ export function ReviewDeck({
       if (!current) return;
       setFlying({ row: current, stamp });
       try {
-        await new Promise((resolve) => window.setTimeout(resolve, 420));
-        await work();
+        // Run the request alongside the card animation, not after it.
+        await Promise.all([work(), new Promise((resolve) => window.setTimeout(resolve, 420))]);
         setHistory((prev) => [...prev, { row: current, stamp }]);
       } finally {
         // Without this the card stays hidden behind a stuck ghost on any failure.
@@ -295,6 +295,8 @@ export function ReviewDeck({
         onDone();
         return;
       }
+      // Enter already fires the focused button's own click — don't accept as well.
+      if (event.key === "Enter" && target?.tagName === "BUTTON") return;
       if (!current || busy) return;
       if (event.key === "a" || event.key === "A" || event.key === "Enter") {
         event.preventDefault();
