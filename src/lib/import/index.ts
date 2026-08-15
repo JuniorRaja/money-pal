@@ -52,7 +52,6 @@ export {
 } from "./normalize";
 
 export { suggestImportAccounts, importableAccounts } from "./match-accounts";
-export { setPendingImportFile, takePendingImportFile } from "./pending-file";
 
 export {
   applyImportRules,

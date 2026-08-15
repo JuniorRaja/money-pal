@@ -1,6 +1,5 @@
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
-import { computeImportHashes } from "./hash";
 import { applyHeuristics } from "./heuristics";
 import { mapRawRecord, recordFromRow, validateMapping } from "./map";
 import { cellToString, midnightIst } from "./normalize";
@@ -83,20 +82,14 @@ function resolveMapping(
 }
 
 function buildMappedRows(
-  hashes: Array<{ occurrence_index: number; import_hash: string }>,
   staged: Array<{
     date: string;
     narration: string;
     amount_paise: number;
     type: "income" | "expense";
-    raw: Record<string, string>;
   }>,
 ): MappedImportRow[] {
-  return staged.map((row, i) => {
-    const hashed = hashes[i];
-    if (!hashed) {
-      throw new Error("import hash alignment failed");
-    }
+  return staged.map((row, index) => {
     const heuristic = applyHeuristics({ narration: row.narration, type: row.type });
     return {
       occurred_on: row.date,
@@ -105,11 +98,10 @@ function buildMappedRows(
       descriptor: row.narration,
       amount_paise: row.amount_paise,
       type: row.type,
-      import_hash: hashed.import_hash,
-      occurrence_index: hashed.occurrence_index,
+      import_hash: "",
+      occurrence_index: index,
       suggested_category_name: heuristic.suggested_category_name,
       confidence: heuristic.confidence,
-      raw: row.raw,
     };
   });
 }
@@ -160,7 +152,6 @@ export async function parseImportBuffer(
     narration: string;
     amount_paise: number;
     type: "income" | "expense";
-    raw: Record<string, string>;
   }> = [];
   let skippedRowCount = 0;
 
@@ -180,27 +171,12 @@ export async function parseImportBuffer(
       narration: mapped.narration,
       amount_paise: mapped.amount.amount_paise,
       type: mapped.amount.type,
-      raw,
     });
   }
 
-  const placeholderHashes = staged.map((_, index) => ({
-    occurrence_index: index,
-    import_hash: "",
-  }));
-  const mapped = buildMappedRows(
-    options.accountId
-      ? await computeImportHashes(
-          options.accountId,
-          staged.map((row) => ({
-            date: row.date,
-            signedAmountPaise: row.amount_paise,
-            narration: row.narration,
-          })),
-        )
-      : placeholderHashes,
-    staged,
-  );
+  // Hashes stay empty here: they are account-scoped, and the account is only
+  // known once the user picks one. `attachHashesToRows` fills them in.
+  const mapped = buildMappedRows(staged);
 
   return {
     filename: options.filename,
