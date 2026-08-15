@@ -38,6 +38,7 @@ import type {
   Transaction,
 } from "@/data/schema";
 import { IMPORT_LOW_CONFIDENCE_MAX } from "@/data/schema";
+import { dayKey } from "@/lib/money";
 
 /** True when a Supabase session exists in this environment (browser only). */
 export async function hasSession(): Promise<boolean> {
@@ -552,7 +553,7 @@ function reviewKindFor(row: ImportJobRow): ReviewKind {
 
 function mapReviewItem(row: ImportJobRow): ImportReviewItem {
   const kind = reviewKindFor(row);
-  const when = row.occurred_at.slice(0, 10);
+  const when = dayKey(row.occurred_at);
   return {
     id: row.id,
     kind,

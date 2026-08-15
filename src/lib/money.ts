@@ -41,6 +41,13 @@ const timeFmt = new Intl.DateTimeFormat("en-IN", {
   hour12: true,
   timeZone: "Asia/Kolkata",
 });
+// en-CA renders as YYYY-MM-DD, which is the key format the app stores and compares.
+const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: "Asia/Kolkata",
+});
 
 export function formatDay(iso: string) {
   return dayFmt.format(new Date(iso));
@@ -50,8 +57,13 @@ export function formatTime(iso: string) {
   return timeFmt.format(new Date(iso)).toUpperCase();
 }
 
+/**
+ * "YYYY-MM-DD" for the IST calendar day an instant falls on. Never slice the raw
+ * string: Postgres hands back midnight IST as "…T18:30:00+00:00", so a prefix
+ * slice yields the previous day.
+ */
 export function dayKey(iso: string) {
-  return iso.slice(0, 10);
+  return dayKeyFmt.format(new Date(iso));
 }
 
 /** "Today" / "Yesterday" / "Sat" relative to the app's fixed demo clock. */

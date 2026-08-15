@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import type { Category, ImportJobRow, ImportRule } from "@/data/schema";
 import { commitImportRow, holdImportRow, reopenImportRow, skipImportRow } from "@/data/mutations";
 import { HEURISTIC_REVIEW_THRESHOLD, midnightIst, resolveSuggestedCategoryId } from "@/lib/import";
-import { formatDay, formatMoney } from "@/lib/money";
+import { dayKey, formatDay, formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 type StampKind = "accepted" | "skipped" | "held";
@@ -143,7 +143,7 @@ export function ReviewDeck({
       accountId: current.account_id,
     });
     setEdit({
-      occurred_on: current.occurred_at.slice(0, 10),
+      occurred_on: dayKey(current.occurred_at),
       merchant: current.merchant,
       descriptor: current.descriptor,
       amount: paiseToRupees(current.amount_paise),
@@ -162,10 +162,14 @@ export function ReviewDeck({
     async (stamp: StampKind, work: () => Promise<void>) => {
       if (!current) return;
       setFlying({ row: current, stamp });
-      await new Promise((resolve) => window.setTimeout(resolve, 420));
-      await work();
-      setHistory((prev) => [...prev, { row: current, stamp }]);
-      setFlying(null);
+      try {
+        await new Promise((resolve) => window.setTimeout(resolve, 420));
+        await work();
+        setHistory((prev) => [...prev, { row: current, stamp }]);
+      } finally {
+        // Without this the card stays hidden behind a stuck ghost on any failure.
+        setFlying(null);
+      }
     },
     [current],
   );
