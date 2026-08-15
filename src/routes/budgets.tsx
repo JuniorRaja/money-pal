@@ -1,5 +1,15 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
-import { AlertTriangle, ChevronLeft, ChevronRight, Copy, LayoutTemplate, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  LayoutTemplate,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { toast } from "sonner";
@@ -55,7 +65,10 @@ export const Route = createFileRoute("/budgets")({
         content: "Plan every category, watch the pace, and get warned before a budget slips.",
       },
       { property: "og:title", content: "Budgets — Money Pal" },
-      { property: "og:description", content: "Give every rupee a job before the month spends it for you." },
+      {
+        property: "og:description",
+        content: "Give every rupee a job before the month spends it for you.",
+      },
     ],
   }),
   component: BudgetsPage,
@@ -169,7 +182,10 @@ function BudgetsPage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="min-w-[9.5rem] text-center text-sm font-medium text-foreground" data-testid="budget-month-label">
+            <span
+              className="min-w-[9.5rem] text-center text-sm font-medium text-foreground"
+              data-testid="budget-month-label"
+            >
               {formatPeriodLabel(period)}
             </span>
             <button
@@ -211,7 +227,11 @@ function BudgetsPage() {
       }
     >
       <div className="grid grid-cols-4 gap-5">
-        <StatCard label="Planned" value={formatMoney(planned, { whole: true })} hint={formatPeriodLabel(period)} />
+        <StatCard
+          label="Planned"
+          value={formatMoney(planned, { whole: true })}
+          hint={formatPeriodLabel(period)}
+        />
         <StatCard
           label="Spent so far"
           value={formatMoney(spent, { whole: true })}
@@ -240,8 +260,13 @@ function BudgetsPage() {
           }
         >
           {budgets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="budget-empty">
-              <p className="text-sm text-foreground">No categories planned for {formatPeriodLabel(period)}.</p>
+            <div
+              className="flex flex-col items-center justify-center py-12 text-center"
+              data-testid="budget-empty"
+            >
+              <p className="text-sm text-foreground">
+                No categories planned for {formatPeriodLabel(period)}.
+              </p>
               <p className="mt-1 max-w-sm text-xs text-muted-foreground">
                 Add a line, copy last month, or apply the 50/30/20 template. Spent is never stored —
                 it follows the ledger.
@@ -270,7 +295,9 @@ function BudgetsPage() {
                       value={pct}
                       tone={over ? "destructive" : fast || pct > 85 ? "warning" : "primary"}
                     />
-                    <p className={`mt-1 text-[11px] ${over ? "text-destructive" : "text-muted-foreground"}`}>
+                    <p
+                      className={`mt-1 text-[11px] ${over ? "text-destructive" : "text-muted-foreground"}`}
+                    >
                       {over
                         ? `Over by ${formatMoney(b.spent - b.planned)}`
                         : fast
@@ -287,12 +314,21 @@ function BudgetsPage() {
         <div className="col-span-4 space-y-5">
           <Panel title="Where it went">
             {pie.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">No spending in this month yet.</p>
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                No spending in this month yet.
+              </p>
             ) : (
               <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={pie} dataKey="value" innerRadius={58} outerRadius={92} paddingAngle={2} stroke="none">
+                    <Pie
+                      data={pie}
+                      dataKey="value"
+                      innerRadius={58}
+                      outerRadius={92}
+                      paddingAngle={2}
+                      stroke="none"
+                    >
                       {pie.map((_, i) => (
                         <Cell key={i} fill={slices[i % slices.length]} />
                       ))}
@@ -304,7 +340,9 @@ function BudgetsPage() {
                         borderRadius: 12,
                         fontSize: 12,
                       }}
-                      formatter={(v: number | string) => `\u20B9${Number(v).toLocaleString("en-IN")}`}
+                      formatter={(v: number | string) =>
+                        `\u20B9${Number(v).toLocaleString("en-IN")}`
+                      }
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -314,11 +352,16 @@ function BudgetsPage() {
 
           <Panel title="Alerts">
             {alerts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No overspend or pace warnings this month.</p>
+              <p className="text-sm text-muted-foreground">
+                No overspend or pace warnings this month.
+              </p>
             ) : (
               <ul className="space-y-3">
                 {alerts.map((b) => (
-                  <li key={b.id} className="flex gap-3 rounded-xl border border-border bg-accent/40 p-3">
+                  <li
+                    key={b.id}
+                    className="flex gap-3 rounded-xl border border-border bg-accent/40 p-3"
+                  >
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
                     <div>
                       <p className="text-sm text-foreground">{nameOf(b.category_id)}</p>
@@ -366,7 +409,11 @@ function BudgetsPage() {
         open={Boolean(removing)}
         onOpenChange={(open) => !open && setRemoving(null)}
       />
-      <ApplyBudgetTemplateDialog period={period} open={templateOpen} onOpenChange={setTemplateOpen} />
+      <ApplyBudgetTemplateDialog
+        period={period}
+        open={templateOpen}
+        onOpenChange={setTemplateOpen}
+      />
     </AppShell>
   );
 }
@@ -387,7 +434,10 @@ function LineMenu({ onEdit, onRemove }: { onEdit: () => void; onRemove: () => vo
         <DropdownMenuItem onClick={onEdit} className="gap-2">
           <Pencil className="h-3.5 w-3.5" /> Edit planned
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onRemove} className="gap-2 text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          onClick={onRemove}
+          className="gap-2 text-destructive focus:text-destructive"
+        >
           <Trash2 className="h-3.5 w-3.5" /> Remove
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -6,3 +6,6 @@ pnpm-lock.yaml
 package-lock.json
 bun.lock
 routeTree.gen.ts
+.cursor
+.claude
+.impeccable

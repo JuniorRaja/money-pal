@@ -178,10 +178,7 @@ export async function updateTransaction(
 // DELETE TRANSACTION (soft-delete)
 // =============================================================================
 
-export async function deleteTransaction(
-  id: string,
-  transactionId?: string,
-): Promise<boolean> {
+export async function deleteTransaction(id: string, transactionId?: string): Promise<boolean> {
   const serverInput: DeleteTransactionInput = {
     id,
     transaction_id: transactionId,
@@ -483,7 +480,9 @@ export interface NewBudgetInput {
   planned: Paise;
 }
 
-export async function createBudget(input: NewBudgetInput): Promise<BudgetPeriod & { wasUpdate: boolean }> {
+export async function createBudget(
+  input: NewBudgetInput,
+): Promise<BudgetPeriod & { wasUpdate: boolean }> {
   const serverInput: CreateBudgetInput = {
     period: input.period,
     category_id: input.category_id,

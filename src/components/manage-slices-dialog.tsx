@@ -99,7 +99,8 @@ export function ManageSlicesDialog({
         name: trimmed,
         kind: editKind,
         opening_amount: openingPaise,
-        target_amount: editKind === "earmark" && editTarget ? Math.round(Number(editTarget) * 100) : null,
+        target_amount:
+          editKind === "earmark" && editTarget ? Math.round(Number(editTarget) * 100) : null,
         target_date: null,
       });
       toast.success(`${trimmed} updated`);
@@ -157,7 +158,10 @@ export function ManageSlicesDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : (reset(), onOpenChange(false)))}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => (next ? onOpenChange(true) : (reset(), onOpenChange(false)))}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Slices — {account.name}</DialogTitle>

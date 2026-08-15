@@ -56,8 +56,8 @@ export function DeleteAccountDialog({
             Archive Account
           </DialogTitle>
           <DialogDescription>
-            Are you sure you want to archive <strong>{account.name}</strong>? The account
-            and its slices will be hidden from view. This can be undone later.
+            Are you sure you want to archive <strong>{account.name}</strong>? The account and its
+            slices will be hidden from view. This can be undone later.
           </DialogDescription>
         </DialogHeader>
 

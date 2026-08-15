@@ -11,11 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  applyBudgetTemplate,
-  archiveBudgetLine,
-  updateBudgetLine,
-} from "@/data/mutations";
+import { applyBudgetTemplate, archiveBudgetLine, updateBudgetLine } from "@/data/mutations";
 import type { BudgetPeriod } from "@/data/schema";
 import { formatPeriodLabel } from "@/lib/period";
 
@@ -214,7 +210,10 @@ export function ApplyBudgetTemplateDialog({
     }
     setSaving(true);
     try {
-      const result = await applyBudgetTemplate({ period, monthly_income: Math.round(amount * 100) });
+      const result = await applyBudgetTemplate({
+        period,
+        monthly_income: Math.round(amount * 100),
+      });
       if (result.linesAdded === 0) {
         toast("Template applied", {
           description: "All categories already have a budget. No changes made.",

@@ -51,10 +51,7 @@ export function StatCard({
 }) {
   return (
     <div
-      className={cn(
-        "card-lift rise grain rounded-2xl border border-border bg-card p-5",
-        className,
-      )}
+      className={cn("card-lift rise grain rounded-2xl border border-border bg-card p-5", className)}
     >
       <div className="flex items-start justify-between">
         <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
@@ -67,7 +64,9 @@ export function StatCard({
       <p className="numeric mt-3 text-[28px] leading-none text-foreground">{value}</p>
       <div className="mt-3 flex items-center gap-2 text-xs">
         {typeof delta === "number" && (
-          <span className={delta >= 0 ? "text-success" : "text-destructive"}>{formatPct(delta)}</span>
+          <span className={delta >= 0 ? "text-success" : "text-destructive"}>
+            {formatPct(delta)}
+          </span>
         )}
         {hint && <span className="text-muted-foreground">{hint}</span>}
       </div>
@@ -121,7 +120,10 @@ export function Sparkline({
         strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ strokeDasharray: 1200, animation: "draw-line 1.4s cubic-bezier(.22,1,.36,1) forwards" }}
+        style={{
+          strokeDasharray: 1200,
+          animation: "draw-line 1.4s cubic-bezier(.22,1,.36,1) forwards",
+        }}
       />
     </svg>
   );
@@ -148,7 +150,14 @@ export function Ring({
         : "var(--color-primary)";
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-border)" strokeWidth="4" />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="var(--color-border)"
+        strokeWidth="4"
+      />
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -279,7 +288,12 @@ export function SliceBar({
                 {sliceKindLabel[s.kind] ?? s.kind}
               </span>
             </span>
-            <span className={cn("numeric shrink-0", s.amount < 0 ? "text-destructive" : "text-foreground")}>
+            <span
+              className={cn(
+                "numeric shrink-0",
+                s.amount < 0 ? "text-destructive" : "text-foreground",
+              )}
+            >
               {format(s.amount)}
             </span>
           </li>

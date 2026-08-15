@@ -133,7 +133,9 @@ export function EditGoalDialog({
         <form onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>Edit goal</DialogTitle>
-            <DialogDescription>Saved amount is changed by contributing, not here.</DialogDescription>
+            <DialogDescription>
+              Saved amount is changed by contributing, not here.
+            </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-3">
             <label className="block space-y-1.5">
@@ -146,7 +148,11 @@ export function EditGoalDialog({
               <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                 Blurb
               </span>
-              <input className={fieldBase} value={blurb} onChange={(e) => setBlurb(e.target.value)} />
+              <input
+                className={fieldBase}
+                value={blurb}
+                onChange={(e) => setBlurb(e.target.value)}
+              />
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block space-y-1.5">
@@ -428,11 +434,7 @@ export function ContributeGoalDialog({
               <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                 Link transaction (optional)
               </span>
-              <select
-                className={fieldBase}
-                value={txnId}
-                onChange={(e) => pickTxn(e.target.value)}
-              >
+              <select className={fieldBase} value={txnId} onChange={(e) => pickTxn(e.target.value)}>
                 <option value="">None — manual</option>
                 {options.map((t) => (
                   <option key={t.transaction_id} value={t.transaction_id}>
@@ -579,7 +581,9 @@ export function GoalHistoryDialog({
             </div>
           </div>
         ) : rows.length === 0 ? (
-          <p className="mt-4 py-8 text-center text-sm text-muted-foreground">No contributions yet.</p>
+          <p className="mt-4 py-8 text-center text-sm text-muted-foreground">
+            No contributions yet.
+          </p>
         ) : (
           <ul className="mt-4 max-h-[24rem] space-y-3 overflow-y-auto">
             {rows.map((row) => (

@@ -43,7 +43,11 @@ export async function clickTransactionRow(page: Page, merchant: string): Promise
 /**
  * Helper: verify the detail panel shows a specific field value.
  */
-export async function assertDetailField(page: Page, label: string, expected: string): Promise<void> {
+export async function assertDetailField(
+  page: Page,
+  label: string,
+  expected: string,
+): Promise<void> {
   const field = page.locator("aside").locator(`text=${label}`).locator("..").locator("dd");
   await expect(field).toContainText(expected);
 }

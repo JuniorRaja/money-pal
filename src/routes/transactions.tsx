@@ -40,11 +40,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   CURRENT_PERIOD,
   TODAY,
@@ -147,7 +143,8 @@ function TransactionsPage() {
   const accountLabel = (t: Transaction) => {
     if (t.type !== "transfer" || !t.counterparty_account_id) return accountName(t.account_id);
     // Always render From → To regardless of which leg we display.
-    if (t.amount < 0) return `${accountName(t.account_id)} → ${accountName(t.counterparty_account_id)}`;
+    if (t.amount < 0)
+      return `${accountName(t.account_id)} → ${accountName(t.counterparty_account_id)}`;
     return `${accountName(t.counterparty_account_id)} → ${accountName(t.account_id)}`;
   };
 
@@ -177,24 +174,29 @@ function TransactionsPage() {
           <Select
             value={filter.account_id ?? ""}
             onChange={(v) => setFilter({ ...filter, account_id: v || undefined })}
-            options={[{ value: "", label: "Account: All" }, ...accounts.map((a) => ({ value: a.id, label: a.name }))]}
+            options={[
+              { value: "", label: "Account: All" },
+              ...accounts.map((a) => ({ value: a.id, label: a.name })),
+            ]}
           />
           <Select
             value={filter.category_id ?? ""}
             onChange={(v) => setFilter({ ...filter, category_id: v || undefined })}
-            options={[{ value: "", label: "Category: All" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+            options={[
+              { value: "", label: "Category: All" },
+              ...categories.map((c) => ({ value: c.id, label: c.name })),
+            ]}
           />
           <Select
             value={sliceNameFilter}
             onChange={(v) => setSliceNameFilter(v)}
-            options={[
-              { value: "", label: "Slice: All" },
-              ...sliceOptions,
-            ]}
+            options={[{ value: "", label: "Slice: All" }, ...sliceOptions]}
           />
           <Select
             value={filter.type ?? ""}
-            onChange={(v) => setFilter({ ...filter, type: (v || undefined) as TransactionFilter["type"] })}
+            onChange={(v) =>
+              setFilter({ ...filter, type: (v || undefined) as TransactionFilter["type"] })
+            }
             options={[
               { value: "", label: "Type: All" },
               { value: "income", label: "Income" },
@@ -211,10 +213,18 @@ function TransactionsPage() {
             <div className="flex items-center divide-x divide-border">
               <Stat label="Total Transactions" value={String(summary.count)} hint="This month" />
               <Stat label="Total Income" value={formatMoney(summary.income)} tone="success" />
-              <Stat label="Total Expenses" value={formatMoney(summary.expense)} tone="destructive" />
+              <Stat
+                label="Total Expenses"
+                value={formatMoney(summary.expense)}
+                tone="destructive"
+              />
               <Stat label="Net Cash Flow" value={formatMoney(summary.net)} tone="success" />
               <div className="flex-1 px-6 py-4">
-                <Sparkline points={[12, 18, 14, 22, 19, 26, 21, 28, 24, 30, 27, 33]} width={200} height={44} />
+                <Sparkline
+                  points={[12, 18, 14, 22, 19, 26, 21, 28, 24, 30, 27, 33]}
+                  width={200}
+                  height={44}
+                />
               </div>
             </div>
           </Panel>
@@ -236,8 +246,12 @@ function TransactionsPage() {
                   <Fragment key={day}>
                     <tr className="bg-muted/50">
                       <td colSpan={6} className="px-5 py-2 text-xs">
-                        <span className="font-medium text-foreground">{relativeDayLabel(day, TODAY)},</span>{" "}
-                        <span className="text-muted-foreground">{formatDay(`${day}T00:00:00`)}</span>
+                        <span className="font-medium text-foreground">
+                          {relativeDayLabel(day, TODAY)},
+                        </span>{" "}
+                        <span className="text-muted-foreground">
+                          {formatDay(`${day}T00:00:00`)}
+                        </span>
                       </td>
                     </tr>
                     {items.map((t) => {
@@ -247,16 +261,21 @@ function TransactionsPage() {
                         <tr
                           key={t.transaction_id}
                           onClick={() => setSelectedId(t.transaction_id)}
-                          className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/40 ${selectedId === t.transaction_id ? "bg-accent/50" : ""
-                            }`}
+                          className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/40 ${
+                            selectedId === t.transaction_id ? "bg-accent/50" : ""
+                          }`}
                         >
-                          <td className="numeric px-5 py-3 text-xs text-muted-foreground">{formatTime(t.occurred_at)}</td>
+                          <td className="numeric px-5 py-3 text-xs text-muted-foreground">
+                            {formatTime(t.occurred_at)}
+                          </td>
                           <td className="px-2 py-3">
                             <p className="font-medium text-foreground">{t.merchant}</p>
                             <p className="text-xs text-muted-foreground">{t.descriptor}</p>
                           </td>
                           <td className="px-2 py-3 text-xs text-muted-foreground">{cat?.name}</td>
-                          <td className="px-2 py-3 text-xs text-muted-foreground">{accountLabel(t)}</td>
+                          <td className="px-2 py-3 text-xs text-muted-foreground">
+                            {accountLabel(t)}
+                          </td>
                           <td className="px-2 py-3 text-xs text-muted-foreground">
                             {lbl && (
                               <span className="inline-flex items-center gap-1.5">
@@ -264,7 +283,9 @@ function TransactionsPage() {
                               </span>
                             )}
                           </td>
-                          <td className={`numeric px-5 py-3 text-right ${t.amount > 0 ? "text-success" : "text-destructive"}`}>
+                          <td
+                            className={`numeric px-5 py-3 text-right ${t.amount > 0 ? "text-success" : "text-destructive"}`}
+                          >
                             {formatMoney(t.amount, { sign: true })}
                           </td>
                         </tr>
@@ -274,7 +295,10 @@ function TransactionsPage() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-16 text-center text-sm text-muted-foreground">
+                    <td
+                      colSpan={6}
+                      className="px-5 py-16 text-center text-sm text-muted-foreground"
+                    >
                       Nothing matches those filters yet.
                     </td>
                   </tr>
@@ -344,7 +368,9 @@ function DetailPanel({
 
   // Sync note when the transaction data refreshes (after router.invalidate)
   // The key={selected.id} handles transaction *switching*, this handles *same* transaction data update
-  useMemo(() => { setNoteValue(transaction.note ?? ""); }, [transaction.note]);
+  useMemo(() => {
+    setNoteValue(transaction.note ?? "");
+  }, [transaction.note]);
 
   // Filter labels to only those belonging to the same account (slices)
   const accountLabels = useMemo(
@@ -420,13 +446,18 @@ function DetailPanel({
               <p className="text-xs text-muted-foreground">{category}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-muted-foreground transition-colors hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Amount */}
-        <p className={`numeric mt-5 text-3xl ${transaction.amount > 0 ? "text-success" : "text-destructive"}`}>
+        <p
+          className={`numeric mt-5 text-3xl ${transaction.amount > 0 ? "text-success" : "text-destructive"}`}
+        >
           {formatMoney(transaction.amount, { sign: true })}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -464,7 +495,11 @@ function DetailPanel({
         <div className="mt-6">
           <p className="text-xs font-medium text-muted-foreground">Actions</p>
           <div className="mt-2 flex items-center gap-2">
-            <ActionButton icon={<Edit className="h-4 w-4" />} label="Edit" onClick={() => setEditOpen(true)} />
+            <ActionButton
+              icon={<Edit className="h-4 w-4" />}
+              label="Edit"
+              onClick={() => setEditOpen(true)}
+            />
             <Popover open={labelOpen} onOpenChange={setLabelOpen}>
               <PopoverTrigger asChild>
                 <button className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
@@ -484,15 +519,20 @@ function DetailPanel({
                   <button
                     key={l.id}
                     onClick={() => handleLabelChange(l.id)}
-                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${l.id === transaction.label_id ? "bg-accent/60 font-medium" : ""
-                      }`}
+                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                      l.id === transaction.label_id ? "bg-accent/60 font-medium" : ""
+                    }`}
                   >
                     <Dot token={l.color_token} /> {l.name}
                   </button>
                 ))}
               </PopoverContent>
             </Popover>
-            <ActionButton icon={<StickyNote className="h-4 w-4" />} label="Add Note" onClick={focusNotes} />
+            <ActionButton
+              icon={<StickyNote className="h-4 w-4" />}
+              label="Add Note"
+              onClick={focusNotes}
+            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
@@ -501,7 +541,10 @@ function DetailPanel({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  onClick={() => setDeleteOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
                   <Trash2 className="mr-2 h-4 w-4" /> Delete Transaction
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -530,11 +573,13 @@ function DetailPanel({
         )}
 
         {tab === "details" && (
-          <button onClick={focusNotes} className="mt-3 w-full text-left text-xs text-primary hover:underline">
+          <button
+            onClick={focusNotes}
+            className="mt-3 w-full text-left text-xs text-primary hover:underline"
+          >
             {transaction.note ? "View note \u2192" : "Add a note \u2192"}
           </button>
         )}
-
       </aside>
 
       {/* Edit Transaction Dialog */}
@@ -641,7 +686,8 @@ function EditTransactionDialog({
     e.preventDefault();
     if (!merchant.trim()) return setError("Merchant is required");
     const parsedAmount = parseFloat(amount);
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return setError("Enter a valid amount");
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0)
+      return setError("Enter a valid amount");
     if (type === "transfer") {
       if (!toAccountId) return setError("Pick a destination account");
       if (toAccountId === accountId) return setError("Transfer accounts must differ");
@@ -687,16 +733,30 @@ function EditTransactionDialog({
         <form onSubmit={submit} className="mt-2 space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Merchant</label>
-            <input className={fieldBase} value={merchant} onChange={(e) => setMerchant(e.target.value)} autoFocus />
+            <input
+              className={fieldBase}
+              value={merchant}
+              onChange={(e) => setMerchant(e.target.value)}
+              autoFocus
+            />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Description</label>
-            <input className={fieldBase} value={descriptor} onChange={(e) => setDescriptor(e.target.value)} />
+            <input
+              className={fieldBase}
+              value={descriptor}
+              onChange={(e) => setDescriptor(e.target.value)}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Amount</label>
-              <input className={fieldBase} value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
+              <input
+                className={fieldBase}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                inputMode="decimal"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Type</label>
@@ -761,7 +821,11 @@ function EditTransactionDialog({
           )}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Category</label>
-            <select className={fieldBase} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <select
+              className={fieldBase}
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -773,7 +837,11 @@ function EditTransactionDialog({
             <label className="text-xs font-medium text-muted-foreground">
               {type === "transfer" ? "From slice" : "Slice"}
             </label>
-            <select className={fieldBase} value={labelId} onChange={(e) => setLabelId(e.target.value)}>
+            <select
+              className={fieldBase}
+              value={labelId}
+              onChange={(e) => setLabelId(e.target.value)}
+            >
               <option value="">Unallocated</option>
               {accountLabelsForEdit.map((l) => (
                 <option key={l.id} value={l.id}>
@@ -785,7 +853,11 @@ function EditTransactionDialog({
           {type === "transfer" && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">To slice</label>
-              <select className={fieldBase} value={toLabelId} onChange={(e) => setToLabelId(e.target.value)}>
+              <select
+                className={fieldBase}
+                value={toLabelId}
+                onChange={(e) => setToLabelId(e.target.value)}
+              >
                 <option value="">Unallocated</option>
                 {toAccountLabelsForEdit.map((l) => (
                   <option key={l.id} value={l.id}>
@@ -797,7 +869,11 @@ function EditTransactionDialog({
           )}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Payment Method</label>
-            <input className={fieldBase} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} />
+            <input
+              className={fieldBase}
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+            />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <DialogFooter className="pt-2">
@@ -826,7 +902,15 @@ function EditTransactionDialog({
 // HELPER COMPONENTS
 // =============================================================================
 
-function DetailRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+function DetailRow({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between py-1">
       <dt className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -837,7 +921,15 @@ function DetailRow({ icon, label, children }: { icon: React.ReactNode; label: st
   );
 }
 
-function ActionButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function ActionButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
@@ -849,7 +941,17 @@ function ActionButton({ icon, label, onClick }: { icon: React.ReactNode; label: 
   );
 }
 
-function Stat({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: string }) {
+function Stat({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: string;
+}) {
   return (
     <div className="px-6 py-4">
       <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>

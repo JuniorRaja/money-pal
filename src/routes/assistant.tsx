@@ -17,7 +17,10 @@ export const Route = createFileRoute("/assistant")({
         content: "Ask Money Pal about spending, budgets and goals — answered from your own ledger.",
       },
       { property: "og:title", content: "AI Assistant — Money Pal" },
-      { property: "og:description", content: "Ask anything about your money. Answers come from your ledger." },
+      {
+        property: "og:description",
+        content: "Ask anything about your money. Answers come from your ledger.",
+      },
     ],
   }),
   component: AssistantPage,

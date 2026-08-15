@@ -25,10 +25,14 @@ export const Route = createFileRoute("/reports")({
       { title: "Reports — Money Pal Financial OS" },
       {
         name: "description",
-        content: "Income versus expense trends, savings rate and category breakdowns you can export.",
+        content:
+          "Income versus expense trends, savings rate and category breakdowns you can export.",
       },
       { property: "og:title", content: "Reports — Money Pal" },
-      { property: "og:description", content: "The long view: trends, ratios and exportable summaries." },
+      {
+        property: "og:description",
+        content: "The long view: trends, ratios and exportable summaries.",
+      },
     ],
   }),
   loader: async () => ({
@@ -86,10 +90,24 @@ function ReportsPage() {
       }
     >
       <div className="grid grid-cols-4 gap-5">
-        <StatCard label="Income (6 mo)" value={formatMoney(income, { whole: true })} delta={6.1} hint="vs prior period" />
-        <StatCard label="Expenses (6 mo)" value={formatMoney(expense, { whole: true })} delta={-3.4} hint="vs prior period" />
+        <StatCard
+          label="Income (6 mo)"
+          value={formatMoney(income, { whole: true })}
+          delta={6.1}
+          hint="vs prior period"
+        />
+        <StatCard
+          label="Expenses (6 mo)"
+          value={formatMoney(expense, { whole: true })}
+          delta={-3.4}
+          hint="vs prior period"
+        />
         <StatCard label="Savings rate" value={`${rate}%`} delta={4.2} hint="six month average" />
-        <StatCard label="Largest category" value={top?.name ?? "—"} hint={top ? formatMoney(top.value) : ""} />
+        <StatCard
+          label="Largest category"
+          value={top?.name ?? "—"}
+          hint={top ? formatMoney(top.value) : ""}
+        />
       </div>
 
       <div className="mt-5 grid grid-cols-12 gap-5">
@@ -98,8 +116,20 @@ function ReportsPage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={months} margin={{ left: -16, top: 8 }}>
                 <CartesianGrid stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} />
+                <XAxis
+                  dataKey="month"
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
+                />
                 <Tooltip
                   cursor={{ fill: "var(--color-accent)", opacity: 0.4 }}
                   contentStyle={{
@@ -123,8 +153,20 @@ function ReportsPage() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={months} margin={{ left: -20, top: 8 }}>
                 <CartesianGrid stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} unit="%" />
+                <XAxis
+                  dataKey="month"
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  unit="%"
+                />
                 <Tooltip
                   contentStyle={{
                     background: "var(--color-card)",
@@ -133,7 +175,13 @@ function ReportsPage() {
                     fontSize: 12,
                   }}
                 />
-                <Line type="monotone" dataKey="savings" stroke="var(--color-primary)" strokeWidth={2.4} dot={{ r: 3 }} />
+                <Line
+                  type="monotone"
+                  dataKey="savings"
+                  stroke="var(--color-primary)"
+                  strokeWidth={2.4}
+                  dot={{ r: 3 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -152,17 +200,27 @@ function ReportsPage() {
               {byCategory.map((r) => {
                 const share = (r.value / byCategory.reduce((s, x) => s + x.value, 0)) * 100;
                 return (
-                  <tr key={r.name} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
+                  <tr
+                    key={r.name}
+                    className="border-b border-border/60 last:border-0 hover:bg-accent/40"
+                  >
                     <td className="px-5 py-3 text-foreground">{r.name}</td>
                     <td className="px-2 py-3">
                       <div className="flex items-center gap-3">
                         <div className="h-1.5 w-64 overflow-hidden rounded-full bg-muted">
-                          <div className="h-full rounded-full bg-primary transition-[width] duration-700" style={{ width: `${share}%` }} />
+                          <div
+                            className="h-full rounded-full bg-primary transition-[width] duration-700"
+                            style={{ width: `${share}%` }}
+                          />
                         </div>
-                        <span className="numeric text-xs text-muted-foreground">{share.toFixed(1)}%</span>
+                        <span className="numeric text-xs text-muted-foreground">
+                          {share.toFixed(1)}%
+                        </span>
                       </div>
                     </td>
-                    <td className="numeric px-5 py-3 text-right text-foreground">{formatMoney(r.value)}</td>
+                    <td className="numeric px-5 py-3 text-right text-foreground">
+                      {formatMoney(r.value)}
+                    </td>
                   </tr>
                 );
               })}

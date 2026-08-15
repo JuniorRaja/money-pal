@@ -6,7 +6,14 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
-import type { AccountKind, BankPreset, HoldingClass, ImportMapping, SliceKind, TransactionType } from "@/data/schema";
+import type {
+  AccountKind,
+  BankPreset,
+  HoldingClass,
+  ImportMapping,
+  SliceKind,
+  TransactionType,
+} from "@/data/schema";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { shiftPeriod } from "@/lib/period";
@@ -130,7 +137,8 @@ export const updateTransactionFn = createServerFn({ method: "POST" })
   .validator((input: UpdateTransactionInput) => {
     if (!input.id && !input.transaction_id) throw new Error("id is required");
     if (input.amount !== undefined && input.amount <= 0) throw new Error("amount must be positive");
-    if (input.merchant !== undefined && !input.merchant.trim()) throw new Error("merchant cannot be empty");
+    if (input.merchant !== undefined && !input.merchant.trim())
+      throw new Error("merchant cannot be empty");
     if (input.type === "transfer" && input.to_account_id === null) {
       throw new Error("to_account_id is required for transfers");
     }
@@ -576,7 +584,11 @@ export const updateSliceFn = createServerFn({ method: "POST" })
       patch["target_date"] = null;
     }
 
-    const { error } = await supabase.from("labels").update(patch).eq("id", data.id).is("deleted_at", null);
+    const { error } = await supabase
+      .from("labels")
+      .update(patch)
+      .eq("id", data.id)
+      .is("deleted_at", null);
     if (error) throw error;
 
     return { id: data.id };

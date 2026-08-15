@@ -6,26 +6,38 @@ test.describe("Transactions — CRUD Operations", () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   test.describe("Create Transaction", () => {
-    test("Add Transaction dialog opens from the page action button", async ({ transactionsPage: page }) => {
+    test("Add Transaction dialog opens from the page action button", async ({
+      transactionsPage: page,
+    }) => {
       // Click the "Add Transaction" button (or "+" fab)
       const addBtn = page.locator("button", { hasText: "Add Transaction" });
       if (await addBtn.isVisible()) {
         await addBtn.click();
       } else {
         // Fallback: look for a Plus button in the header area
-        await page.locator("button").filter({ has: page.locator("svg.lucide-plus") }).first().click();
+        await page
+          .locator("button")
+          .filter({ has: page.locator("svg.lucide-plus") })
+          .first()
+          .click();
       }
 
       // Dialog should appear
       await expect(page.locator("[role=dialog], dialog")).toBeVisible({ timeout: 5000 });
     });
 
-    test("Create dialog has all required transaction fields", async ({ transactionsPage: page }) => {
+    test("Create dialog has all required transaction fields", async ({
+      transactionsPage: page,
+    }) => {
       const addBtn = page.locator("button", { hasText: "Add Transaction" });
       if (await addBtn.isVisible()) {
         await addBtn.click();
       } else {
-        await page.locator("button").filter({ has: page.locator("svg.lucide-plus") }).first().click();
+        await page
+          .locator("button")
+          .filter({ has: page.locator("svg.lucide-plus") })
+          .first()
+          .click();
       }
 
       const dialog = page.locator("[role=dialog], dialog");
@@ -45,12 +57,18 @@ test.describe("Transactions — CRUD Operations", () => {
       }
     });
 
-    test("submitting with empty fields shows validation errors", async ({ transactionsPage: page }) => {
+    test("submitting with empty fields shows validation errors", async ({
+      transactionsPage: page,
+    }) => {
       const addBtn = page.locator("button", { hasText: "Add Transaction" });
       if (await addBtn.isVisible()) {
         await addBtn.click();
       } else {
-        await page.locator("button").filter({ has: page.locator("svg.lucide-plus") }).first().click();
+        await page
+          .locator("button")
+          .filter({ has: page.locator("svg.lucide-plus") })
+          .first()
+          .click();
       }
 
       const dialog = page.locator("[role=dialog], dialog");
@@ -63,14 +81,20 @@ test.describe("Transactions — CRUD Operations", () => {
       }
 
       // Click save/submit button
-      const submitBtn = dialog.locator("button[type=submit], button:has-text('Save'), button:has-text('Add'), button:has-text('Create')").last();
+      const submitBtn = dialog
+        .locator(
+          "button[type=submit], button:has-text('Save'), button:has-text('Add'), button:has-text('Create')",
+        )
+        .last();
       await submitBtn.click();
 
       // Should show at least one validation error
       await expect(dialog.locator("text=/required|enter|pick/i")).toBeVisible({ timeout: 3000 });
     });
 
-    test("successfully creating a transaction adds it to the table", async ({ transactionsPage: page }) => {
+    test("successfully creating a transaction adds it to the table", async ({
+      transactionsPage: page,
+    }) => {
       // Get initial row count
       const initialCount = await page.locator("table tbody tr:not(.bg-muted\\/50)").count();
 
@@ -79,7 +103,11 @@ test.describe("Transactions — CRUD Operations", () => {
       if (await addBtn.isVisible()) {
         await addBtn.click();
       } else {
-        await page.locator("button").filter({ has: page.locator("svg.lucide-plus") }).first().click();
+        await page
+          .locator("button")
+          .filter({ has: page.locator("svg.lucide-plus") })
+          .first()
+          .click();
       }
 
       const dialog = page.locator("[role=dialog], dialog");
@@ -91,7 +119,9 @@ test.describe("Transactions — CRUD Operations", () => {
       // Fill merchant
       const merchantField = dialog.locator("input").nth(0);
       // Find the actual merchant input — look for label or placeholder
-      const merchantInput = dialog.locator("label:has-text('Merchant') input, input[placeholder*='merchant' i]").first();
+      const merchantInput = dialog
+        .locator("label:has-text('Merchant') input, input[placeholder*='merchant' i]")
+        .first();
       if (await merchantInput.isVisible().catch(() => false)) {
         await merchantInput.fill(uniqueMerchant);
       } else {
@@ -108,13 +138,15 @@ test.describe("Transactions — CRUD Operations", () => {
       }
 
       // Fill amount
-      const amountInput = dialog.locator("label:has-text('Amount') input, input[placeholder*='amount' i]").first();
+      const amountInput = dialog
+        .locator("label:has-text('Amount') input, input[placeholder*='amount' i]")
+        .first();
       if (await amountInput.isVisible().catch(() => false)) {
         await amountInput.fill("500");
       } else {
         // Fallback: find numeric input
         const numInputs = dialog.locator("input[type=number], input[inputmode=numeric]");
-        if (await numInputs.count() > 0) {
+        if ((await numInputs.count()) > 0) {
           await numInputs.first().fill("500");
         }
       }
@@ -140,7 +172,11 @@ test.describe("Transactions — CRUD Operations", () => {
       }
 
       // Submit
-      const submitBtn = dialog.locator("button[type=submit], button:has-text('Save'), button:has-text('Add'), button:has-text('Create')").last();
+      const submitBtn = dialog
+        .locator(
+          "button[type=submit], button:has-text('Save'), button:has-text('Add'), button:has-text('Create')",
+        )
+        .last();
       await submitBtn.click();
 
       // Wait for dialog to close or for new row to appear
@@ -172,7 +208,9 @@ test.describe("Transactions — CRUD Operations", () => {
       await expect(aside).toBeVisible();
 
       // Look for Edit button/action in the panel
-      const editBtn = aside.locator("button:has-text('Edit'), button[aria-label='Edit'], [title='Edit']");
+      const editBtn = aside.locator(
+        "button:has-text('Edit'), button[aria-label='Edit'], [title='Edit']",
+      );
       const editExists = await editBtn.count();
 
       // If Edit button exists, it should be clickable
@@ -184,13 +222,17 @@ test.describe("Transactions — CRUD Operations", () => {
         if (await moreBtn.isVisible().catch(() => false)) {
           await moreBtn.click();
           // Look for Edit in dropdown
-          const editMenuItem = page.locator("[role=menuitem]:has-text('Edit'), [role=menu] button:has-text('Edit')");
+          const editMenuItem = page.locator(
+            "[role=menuitem]:has-text('Edit'), [role=menu] button:has-text('Edit')",
+          );
           await expect(editMenuItem).toBeVisible({ timeout: 3000 });
         }
       }
     });
 
-    test("Edit form pre-fills with current transaction values", async ({ transactionsPage: page }) => {
+    test("Edit form pre-fills with current transaction values", async ({
+      transactionsPage: page,
+    }) => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
@@ -217,7 +259,9 @@ test.describe("Transactions — CRUD Operations", () => {
       }
     });
 
-    test("updating merchant name reflects in the table after save", async ({ transactionsPage: page }) => {
+    test("updating merchant name reflects in the table after save", async ({
+      transactionsPage: page,
+    }) => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
@@ -237,12 +281,17 @@ test.describe("Transactions — CRUD Operations", () => {
           await merchantInput.fill(updatedName);
 
           // Save
-          const saveBtn = dialog.locator("button[type=submit], button:has-text('Save'), button:has-text('Update')").last();
+          const saveBtn = dialog
+            .locator("button[type=submit], button:has-text('Save'), button:has-text('Update')")
+            .last();
           await saveBtn.click();
           await page.waitForTimeout(1500);
 
           // Check if the updated name appears in the table or detail panel
-          const updatedVisible = await page.locator(`text=${updatedName}`).isVisible().catch(() => false);
+          const updatedVisible = await page
+            .locator(`text=${updatedName}`)
+            .isVisible()
+            .catch(() => false);
           // At minimum, no error should have occurred
           expect(true).toBe(true); // Test passes if no crash
         }
@@ -255,7 +304,9 @@ test.describe("Transactions — CRUD Operations", () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   test.describe("Delete Transaction", () => {
-    test("Delete action is accessible from the detail panel", async ({ transactionsPage: page }) => {
+    test("Delete action is accessible from the detail panel", async ({
+      transactionsPage: page,
+    }) => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
@@ -274,7 +325,9 @@ test.describe("Transactions — CRUD Operations", () => {
       } else if (moreVisible) {
         await moreBtn.click();
         await page.waitForTimeout(300);
-        const deleteMenuItem = page.locator("[role=menuitem]:has-text('Delete'), [role=menu] button:has-text('Delete'), [data-radix-menu-content] *:has-text('Delete')");
+        const deleteMenuItem = page.locator(
+          "[role=menuitem]:has-text('Delete'), [role=menu] button:has-text('Delete'), [data-radix-menu-content] *:has-text('Delete')",
+        );
         const menuItemVisible = await deleteMenuItem.isVisible().catch(() => false);
         // Delete option should exist in the more menu
         expect(menuItemVisible || deleteVisible).toBe(true);
@@ -297,7 +350,9 @@ test.describe("Transactions — CRUD Operations", () => {
       } else if (await moreBtn.isVisible().catch(() => false)) {
         await moreBtn.click();
         await page.waitForTimeout(300);
-        const deleteMenuItem = page.locator("[role=menuitem]:has-text('Delete'), *:has-text('Delete')").last();
+        const deleteMenuItem = page
+          .locator("[role=menuitem]:has-text('Delete'), *:has-text('Delete')")
+          .last();
         if (await deleteMenuItem.isVisible().catch(() => false)) {
           await deleteMenuItem.click();
         }
@@ -305,7 +360,9 @@ test.describe("Transactions — CRUD Operations", () => {
 
       // Should show a confirmation dialog or alert
       await page.waitForTimeout(500);
-      const confirmDialog = page.locator("[role=alertdialog], [role=dialog]:has-text('confirm'), [role=dialog]:has-text('delete'), [role=dialog]:has-text('sure')");
+      const confirmDialog = page.locator(
+        "[role=alertdialog], [role=dialog]:has-text('confirm'), [role=dialog]:has-text('delete'), [role=dialog]:has-text('sure')",
+      );
       const confirmVisible = await confirmDialog.isVisible().catch(() => false);
 
       // Either a confirmation dialog appears or the action is handled inline
@@ -349,7 +406,11 @@ test.describe("Transactions — CRUD Operations", () => {
       if (deleteTriggered) {
         // Confirm if needed
         await page.waitForTimeout(500);
-        const confirmBtn = page.locator("button:has-text('Confirm'), button:has-text('Yes'), button:has-text('Delete'):visible").last();
+        const confirmBtn = page
+          .locator(
+            "button:has-text('Confirm'), button:has-text('Yes'), button:has-text('Delete'):visible",
+          )
+          .last();
         if (await confirmBtn.isVisible().catch(() => false)) {
           await confirmBtn.click();
         }
@@ -364,9 +425,12 @@ test.describe("Transactions — CRUD Operations", () => {
 
     test("after deletion, summary stats recalculate", async ({ transactionsPage: page }) => {
       // Get initial stats
-      const countBefore = (
-        await page.locator("text=Total Transactions").locator("..").locator("p.numeric").textContent()
-      ) ?? "0";
+      const countBefore =
+        (await page
+          .locator("text=Total Transactions")
+          .locator("..")
+          .locator("p.numeric")
+          .textContent()) ?? "0";
       const countNum = parseInt(countBefore.trim(), 10);
 
       // The count stat should always match the visible row count
@@ -380,7 +444,9 @@ test.describe("Transactions — CRUD Operations", () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   test.describe("Change Slice", () => {
-    test("Change Slice action is accessible from detail panel", async ({ transactionsPage: page }) => {
+    test("Change Slice action is accessible from detail panel", async ({
+      transactionsPage: page,
+    }) => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
@@ -388,7 +454,9 @@ test.describe("Transactions — CRUD Operations", () => {
       await expect(aside).toBeVisible();
 
       // Look for Change Slice button
-      const changeSliceBtn = aside.locator("button:has-text('Change Slice'), button:has-text('Slice'), [title*='Slice']");
+      const changeSliceBtn = aside.locator(
+        "button:has-text('Change Slice'), button:has-text('Slice'), [title*='Slice']",
+      );
       const exists = await changeSliceBtn.count();
 
       // Either a direct button or inside Actions section

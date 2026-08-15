@@ -6,7 +6,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi"] },
+  // `.cursor` / `.claude` / `.impeccable` are vendored agent tooling, not our
+  // source. Linting them buried the ~20 real findings under 21k of their own.
+  { ignores: ["dist", ".output", ".vinxi", ".cursor", ".claude", ".impeccable"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -35,6 +37,12 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
     },
+  },
+  // Playwright fixtures take a callback parameter named `use`; react-hooks reads
+  // every call to it as the React `use` hook. There are no React hooks in e2e.
+  {
+    files: ["e2e/**/*.ts"],
+    rules: { "react-hooks/rules-of-hooks": "off" },
   },
   eslintPluginPrettier,
 );

@@ -273,8 +273,16 @@
 
 @utility ledger-pattern {
   background-image:
-    linear-gradient(to right, color-mix(in oklab, var(--primary) 8%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklab, var(--primary) 6%, transparent) 1px, transparent 1px);
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--primary) 8%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--primary) 6%, transparent) 1px,
+      transparent 1px
+    );
   background-size: 32px 32px;
 }
 
@@ -321,7 +329,6 @@
       transparent 1px 12px
     );
 }
-
 
 @keyframes rise-in {
   from {

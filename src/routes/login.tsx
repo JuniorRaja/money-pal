@@ -183,7 +183,11 @@ function LoginPage() {
               disabled={loading}
               className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground transition-transform duration-200 hover:brightness-105 active:scale-[0.99] disabled:opacity-60"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="h-4 w-4" />
+              )}
               Sign in
             </button>
 
@@ -253,7 +257,11 @@ function LoginPage() {
               disabled={loading}
               className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground transition-transform duration-200 hover:brightness-105 active:scale-[0.99] disabled:opacity-60"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="h-4 w-4" />
+              )}
               Create account
             </button>
 

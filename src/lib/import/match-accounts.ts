@@ -47,17 +47,24 @@ export function suggestImportAccounts(
 ): Account[] {
   const pool = importableAccounts(accounts);
   const needles = [
-    ...new Set([...needlesFromPreset(input.detectedPreset), ...needlesFromText(input.filename, input.headers)]),
+    ...new Set([
+      ...needlesFromPreset(input.detectedPreset),
+      ...needlesFromText(input.filename, input.headers),
+    ]),
   ];
 
   if (input.detectedPreset === "hdfc_cc") {
     const cards = pool.filter(
-      (account) => account.kind === "credit_card" && needles.some((needle) => haystack(account).includes(needle)),
+      (account) =>
+        account.kind === "credit_card" &&
+        needles.some((needle) => haystack(account).includes(needle)),
     );
     if (cards.length > 0) return cards;
   }
 
   if (needles.length === 0) return pool;
-  const matched = pool.filter((account) => needles.some((needle) => haystack(account).includes(needle)));
+  const matched = pool.filter((account) =>
+    needles.some((needle) => haystack(account).includes(needle)),
+  );
   return matched.length > 0 ? matched : pool;
 }

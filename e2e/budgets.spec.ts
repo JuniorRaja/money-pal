@@ -13,7 +13,8 @@ import { currentPeriod, formatPeriodLabel, shiftPeriod } from "../src/lib/period
  */
 
 const email = process.env.E2E_EMAIL ?? process.env.TESTING_USERID ?? process.env.TEST_EMAIL ?? "";
-const password = process.env.E2E_PASSWORD ?? process.env.TESTING_PASSWORD ?? process.env.TEST_PASSWORD ?? "";
+const password =
+  process.env.E2E_PASSWORD ?? process.env.TESTING_PASSWORD ?? process.env.TEST_PASSWORD ?? "";
 
 async function ensureSignedIn(page: Page) {
   await page.goto("/budgets");
@@ -21,7 +22,9 @@ async function ensureSignedIn(page: Page) {
   if (!page.url().includes("/login")) return;
 
   if (!email || !password) {
-    throw new Error("Budgets tests need E2E_EMAIL and E2E_PASSWORD (or TEST_EMAIL / TEST_PASSWORD).");
+    throw new Error(
+      "Budgets tests need E2E_EMAIL and E2E_PASSWORD (or TEST_EMAIL / TEST_PASSWORD).",
+    );
   }
 
   await page.getByLabel(/email/i).fill(email);
@@ -43,7 +46,9 @@ test.describe("Budgets", () => {
   test.describe.configure({ mode: "serial" });
   test("page loads with month picker and stats", async ({ budgetsPage: page }) => {
     await expect(page.getByRole("heading", { name: "Budgets" })).toBeVisible();
-    await expect(page.getByTestId("budget-month-label")).toHaveText(formatPeriodLabel(currentPeriod()));
+    await expect(page.getByTestId("budget-month-label")).toHaveText(
+      formatPeriodLabel(currentPeriod()),
+    );
     for (const label of ["Planned", "Spent so far", "Remaining", "Categories over"]) {
       await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
@@ -59,7 +64,9 @@ test.describe("Budgets", () => {
     await expect(page).toHaveURL(new RegExp(`period=${prev}`));
 
     await page.getByTestId("budget-month-next").click();
-    await expect(page.getByTestId("budget-month-label")).toHaveText(formatPeriodLabel(currentPeriod()));
+    await expect(page.getByTestId("budget-month-label")).toHaveText(
+      formatPeriodLabel(currentPeriod()),
+    );
   });
 
   test("New budget opens the add dialog with budget fields", async ({ budgetsPage: page }) => {

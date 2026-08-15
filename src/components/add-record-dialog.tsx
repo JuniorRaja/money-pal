@@ -41,7 +41,10 @@ const rupees = z
   });
 
 const text = (max = 80) => z.string().trim().min(1, "Required").max(max, `Max ${max} characters`);
-const isoDate = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date");
+const isoDate = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date");
 
 const schemas = {
   transaction: z
@@ -61,9 +64,17 @@ const schemas = {
     .superRefine((val, ctx) => {
       if (val.type === "transfer") {
         if (!val.to_account_id?.trim()) {
-          ctx.addIssue({ code: "custom", path: ["to_account_id"], message: "Pick a destination account" });
+          ctx.addIssue({
+            code: "custom",
+            path: ["to_account_id"],
+            message: "Pick a destination account",
+          });
         } else if (val.to_account_id === val.account_id) {
-          ctx.addIssue({ code: "custom", path: ["to_account_id"], message: "Accounts must differ" });
+          ctx.addIssue({
+            code: "custom",
+            path: ["to_account_id"],
+            message: "Accounts must differ",
+          });
         }
       }
     }),
@@ -80,38 +91,43 @@ const schemas = {
     tenure_months: z.string().optional(),
     lender: z.string().optional(),
   }),
-  goal: z.object({
-    name: text(60),
-    blurb: z.string().trim().max(120).optional(),
-    target: rupees,
-    saved: z.string().optional(),
-    target_date: z
-      .string()
-      .trim()
-      .refine((v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v), "Pick a valid date"),
-    account_id: z.string().optional(),
-    monthly_contribution: z
-      .string()
-      .trim()
-      .refine(
-        (v) => v === "" || (Number.isFinite(Number(v)) && Number(v) >= 0),
-        "Enter 0 or more",
-      ),
-  }).superRefine((val, ctx) => {
-    const targetAmount = Number(val.target || 0);
-    const savedAmount = Number(val.saved || 0);
-    if (savedAmount > targetAmount) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["saved"],
-        message: "Already saved cannot exceed target amount",
-      });
-    }
-  }),
+  goal: z
+    .object({
+      name: text(60),
+      blurb: z.string().trim().max(120).optional(),
+      target: rupees,
+      saved: z.string().optional(),
+      target_date: z
+        .string()
+        .trim()
+        .refine((v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v), "Pick a valid date"),
+      account_id: z.string().optional(),
+      monthly_contribution: z
+        .string()
+        .trim()
+        .refine(
+          (v) => v === "" || (Number.isFinite(Number(v)) && Number(v) >= 0),
+          "Enter 0 or more",
+        ),
+    })
+    .superRefine((val, ctx) => {
+      const targetAmount = Number(val.target || 0);
+      const savedAmount = Number(val.saved || 0);
+      if (savedAmount > targetAmount) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["saved"],
+          message: "Already saved cannot exceed target amount",
+        });
+      }
+    }),
   budget: z.object({
     category_id: text(40),
     planned: rupees,
-    period: z.string().trim().regex(/^\d{4}-\d{2}$/, "Use YYYY-MM"),
+    period: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}$/, "Use YYYY-MM"),
   }),
   investment: z.object({
     name: text(60),
@@ -265,7 +281,9 @@ export function AddRecordDialog({
   const fromAccount = accounts.find((a) => a.id === values["account_id"]);
   const toAccount = accounts.find((a) => a.id === values["to_account_id"]);
   const fromSliceable = fromAccount
-    ? fromAccount.kind === "bank" || fromAccount.kind === "cash" || fromAccount.kind === "investment"
+    ? fromAccount.kind === "bank" ||
+      fromAccount.kind === "cash" ||
+      fromAccount.kind === "investment"
     : false;
   const toSliceable = toAccount
     ? toAccount.kind === "bank" || toAccount.kind === "cash" || toAccount.kind === "investment"
@@ -311,41 +329,41 @@ export function AddRecordDialog({
         });
       } else if (kind === "account") {
         await createAccount({
-          name: v['name']!,
-          institution: v['institution']!,
-          kind: v['kind'] as Account["kind"],
-          balance: paise(v['balance']),
+          name: v["name"]!,
+          institution: v["institution"]!,
+          kind: v["kind"] as Account["kind"],
+          balance: paise(v["balance"]),
           credit_limit:
-            v['kind'] === "credit_card" && v['credit_limit'] ? paise(v['credit_limit']) : null,
+            v["kind"] === "credit_card" && v["credit_limit"] ? paise(v["credit_limit"]) : null,
           bill_generation_day:
-            v['kind'] === "credit_card" && v['bill_generation_day']
-              ? Number(v['bill_generation_day'])
+            v["kind"] === "credit_card" && v["bill_generation_day"]
+              ? Number(v["bill_generation_day"])
               : null,
-          due_day: v['kind'] === "credit_card" && v['due_day'] ? Number(v['due_day']) : null,
+          due_day: v["kind"] === "credit_card" && v["due_day"] ? Number(v["due_day"]) : null,
           interest_rate_bps:
-            v['kind'] === "loan" && v['interest_rate_pct']
-              ? Math.round(Number(v['interest_rate_pct']) * 100)
+            v["kind"] === "loan" && v["interest_rate_pct"]
+              ? Math.round(Number(v["interest_rate_pct"]) * 100)
               : null,
-          emi_amount: v['kind'] === "loan" && v['emi_amount'] ? paise(v['emi_amount']) : null,
+          emi_amount: v["kind"] === "loan" && v["emi_amount"] ? paise(v["emi_amount"]) : null,
           tenure_months:
-            v['kind'] === "loan" && v['tenure_months'] ? Number(v['tenure_months']) : null,
-          lender: v['kind'] === "loan" ? (v['lender']?.trim() || null) : null,
+            v["kind"] === "loan" && v["tenure_months"] ? Number(v["tenure_months"]) : null,
+          lender: v["kind"] === "loan" ? v["lender"]?.trim() || null : null,
         });
       } else if (kind === "goal") {
         await createGoal({
-          name: v['name']!,
-          blurb: v['blurb'] || "Saving towards this goal.",
-          target: paise(v['target']),
-          saved: paise(v['saved']),
-          target_date: v['target_date'] || "",
-          account_id: v['account_id'] || "",
-          monthly_contribution: paise(v['monthly_contribution']),
+          name: v["name"]!,
+          blurb: v["blurb"] || "Saving towards this goal.",
+          target: paise(v["target"]),
+          saved: paise(v["saved"]),
+          target_date: v["target_date"] || "",
+          account_id: v["account_id"] || "",
+          monthly_contribution: paise(v["monthly_contribution"]),
         });
       } else if (kind === "budget") {
         const result = await createBudget({
-          period: v['period']!,
-          category_id: v['category_id']!,
-          planned: paise(v['planned']),
+          period: v["period"]!,
+          category_id: v["category_id"]!,
+          planned: paise(v["planned"]),
         });
         const verb = result.wasUpdate ? "updated" : "added";
         toast.success(`Budget ${verb}`, { description: "Your ledger has been updated." });
@@ -354,21 +372,19 @@ export function AddRecordDialog({
         return;
       } else {
         await createHolding({
-          name: v['name']!,
-          asset_class: v['asset_class'] as
-            | "equity"
-            | "mutual_fund"
-            | "gold"
-            | "fixed_income"
-            | "crypto",
-          units: Number(v['units']),
-          invested: paise(v['invested']),
-          current_value: paise(v['current_value']),
-          account_id: v['account_id']!,
+          name: v["name"]!,
+          asset_class: v["asset_class"] as
+            "equity" | "mutual_fund" | "gold" | "fixed_income" | "crypto",
+          units: Number(v["units"]),
+          invested: paise(v["invested"]),
+          current_value: paise(v["current_value"]),
+          account_id: v["account_id"]!,
         });
       }
 
-      toast.success(`${recordLabels[kind]} added`, { description: "Your ledger has been updated." });
+      toast.success(`${recordLabels[kind]} added`, {
+        description: "Your ledger has been updated.",
+      });
       onOpenChange(false);
       void router.invalidate();
     } catch (error) {
@@ -391,18 +407,18 @@ export function AddRecordDialog({
           {kind === "transaction" && (
             <>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Date" error={errors['occurred_at']}>
+                <Field label="Date" error={errors["occurred_at"]}>
                   <input
                     type="date"
                     className={fieldBase}
-                    value={values['occurred_at'] ?? ""}
+                    value={values["occurred_at"] ?? ""}
                     onChange={(e) => set("occurred_at", e.target.value)}
                   />
                 </Field>
-                <Field label="Direction" error={errors['type']}>
+                <Field label="Direction" error={errors["type"]}>
                   <select
                     className={fieldBase}
-                    value={values['type'] ?? "expense"}
+                    value={values["type"] ?? "expense"}
                     onChange={(e) => set("type", e.target.value)}
                   >
                     <option value="expense">Money out</option>
@@ -412,20 +428,20 @@ export function AddRecordDialog({
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Merchant" error={errors['merchant']}>
+                <Field label="Merchant" error={errors["merchant"]}>
                   <input
                     className={fieldBase}
                     placeholder="Blue Tokai"
-                    value={values['merchant'] ?? ""}
+                    value={values["merchant"] ?? ""}
                     onChange={(e) => set("merchant", e.target.value)}
                   />
                 </Field>
-                <Field label="Amount (₹)" error={errors['amount']}>
+                <Field label="Amount (₹)" error={errors["amount"]}>
                   <input
                     inputMode="decimal"
                     className={fieldBase}
                     placeholder="1250"
-                    value={values['amount'] ?? ""}
+                    value={values["amount"] ?? ""}
                     onChange={(e) => set("amount", e.target.value)}
                   />
                 </Field>
@@ -573,28 +589,28 @@ export function AddRecordDialog({
           {kind === "account" && (
             <>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Account name" error={errors['name']}>
+                <Field label="Account name" error={errors["name"]}>
                   <input
                     className={fieldBase}
                     placeholder="HDFC Savings"
-                    value={values['name'] ?? ""}
+                    value={values["name"] ?? ""}
                     onChange={(e) => set("name", e.target.value)}
                   />
                 </Field>
-                <Field label="Institution" error={errors['institution']}>
+                <Field label="Institution" error={errors["institution"]}>
                   <input
                     className={fieldBase}
                     placeholder="HDFC Bank"
-                    value={values['institution'] ?? ""}
+                    value={values["institution"] ?? ""}
                     onChange={(e) => set("institution", e.target.value)}
                   />
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Kind" error={errors['kind']}>
+                <Field label="Kind" error={errors["kind"]}>
                   <select
                     className={fieldBase}
-                    value={values['kind'] ?? "bank"}
+                    value={values["kind"] ?? "bank"}
                     onChange={(e) => set("kind", e.target.value)}
                   >
                     <option value="bank">Bank</option>
@@ -604,86 +620,86 @@ export function AddRecordDialog({
                     <option value="loan">Loan</option>
                   </select>
                 </Field>
-                <Field label="Opening balance (₹)" error={errors['balance']}>
+                <Field label="Opening balance (₹)" error={errors["balance"]}>
                   <input
                     inputMode="decimal"
                     className={fieldBase}
                     placeholder="48520"
-                    value={values['balance'] ?? ""}
+                    value={values["balance"] ?? ""}
                     onChange={(e) => set("balance", e.target.value)}
                   />
                 </Field>
               </div>
-              {values['kind'] === "credit_card" && (
+              {values["kind"] === "credit_card" && (
                 <>
-                  <Field label="Credit limit (₹)" error={errors['credit_limit']}>
+                  <Field label="Credit limit (₹)" error={errors["credit_limit"]}>
                     <input
                       inputMode="decimal"
                       className={fieldBase}
                       placeholder="250000"
-                      value={values['credit_limit'] ?? ""}
+                      value={values["credit_limit"] ?? ""}
                       onChange={(e) => set("credit_limit", e.target.value)}
                     />
                   </Field>
                   <div className="grid grid-cols-2 gap-4">
-                    <Field label="Bill generation day" error={errors['bill_generation_day']}>
+                    <Field label="Bill generation day" error={errors["bill_generation_day"]}>
                       <input
                         inputMode="numeric"
                         className={fieldBase}
                         placeholder="1–31"
-                        value={values['bill_generation_day'] ?? ""}
+                        value={values["bill_generation_day"] ?? ""}
                         onChange={(e) => set("bill_generation_day", e.target.value)}
                       />
                     </Field>
-                    <Field label="Due day" error={errors['due_day']}>
+                    <Field label="Due day" error={errors["due_day"]}>
                       <input
                         inputMode="numeric"
                         className={fieldBase}
                         placeholder="1–31"
-                        value={values['due_day'] ?? ""}
+                        value={values["due_day"] ?? ""}
                         onChange={(e) => set("due_day", e.target.value)}
                       />
                     </Field>
                   </div>
                 </>
               )}
-              {values['kind'] === "loan" && (
+              {values["kind"] === "loan" && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
-                    <Field label="Interest rate (% p.a.)" error={errors['interest_rate_pct']}>
+                    <Field label="Interest rate (% p.a.)" error={errors["interest_rate_pct"]}>
                       <input
                         inputMode="decimal"
                         className={fieldBase}
                         placeholder="8.5"
-                        value={values['interest_rate_pct'] ?? ""}
+                        value={values["interest_rate_pct"] ?? ""}
                         onChange={(e) => set("interest_rate_pct", e.target.value)}
                       />
                     </Field>
-                    <Field label="EMI (₹)" error={errors['emi_amount']}>
+                    <Field label="EMI (₹)" error={errors["emi_amount"]}>
                       <input
                         inputMode="decimal"
                         className={fieldBase}
                         placeholder="25000"
-                        value={values['emi_amount'] ?? ""}
+                        value={values["emi_amount"] ?? ""}
                         onChange={(e) => set("emi_amount", e.target.value)}
                       />
                     </Field>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <Field label="Tenure (months)" error={errors['tenure_months']}>
+                    <Field label="Tenure (months)" error={errors["tenure_months"]}>
                       <input
                         inputMode="numeric"
                         className={fieldBase}
                         placeholder="36"
-                        value={values['tenure_months'] ?? ""}
+                        value={values["tenure_months"] ?? ""}
                         onChange={(e) => set("tenure_months", e.target.value)}
                       />
                     </Field>
-                    <Field label="Lender" error={errors['lender']}>
+                    <Field label="Lender" error={errors["lender"]}>
                       <input
                         className={fieldBase}
                         placeholder="HDFC Bank"
-                        value={values['lender'] ?? ""}
+                        value={values["lender"] ?? ""}
                         onChange={(e) => set("lender", e.target.value)}
                       />
                     </Field>
@@ -696,37 +712,37 @@ export function AddRecordDialog({
           {kind === "goal" && (
             <>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Goal name" error={errors['name']}>
+                <Field label="Goal name" error={errors["name"]}>
                   <input
                     className={fieldBase}
                     placeholder="Japan in Spring"
-                    value={values['name'] ?? ""}
+                    value={values["name"] ?? ""}
                     onChange={(e) => set("name", e.target.value)}
                   />
                 </Field>
-                <Field label="Target date" error={errors['target_date']}>
+                <Field label="Target date" error={errors["target_date"]}>
                   <input
                     type="date"
                     className={fieldBase}
-                    value={values['target_date'] ?? ""}
+                    value={values["target_date"] ?? ""}
                     onChange={(e) => set("target_date", e.target.value)}
                   />
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Target amount (₹)" error={errors['target']}>
+                <Field label="Target amount (₹)" error={errors["target"]}>
                   <input
                     inputMode="decimal"
                     className={fieldBase}
-                    value={values['target'] ?? ""}
+                    value={values["target"] ?? ""}
                     onChange={(e) => set("target", e.target.value)}
                   />
                 </Field>
-                <Field label="Already saved (₹)" error={errors['saved']}>
+                <Field label="Already saved (₹)" error={errors["saved"]}>
                   <input
                     inputMode="decimal"
                     className={fieldBase}
-                    value={values['saved'] ?? ""}
+                    value={values["saved"] ?? ""}
                     onChange={(e) => set("saved", e.target.value)}
                   />
                 </Field>
@@ -735,7 +751,7 @@ export function AddRecordDialog({
                 <Field label="Linked account">
                   <select
                     className={fieldBase}
-                    value={values['account_id'] ?? ""}
+                    value={values["account_id"] ?? ""}
                     onChange={(e) => set("account_id", e.target.value)}
                   >
                     <option value="">None</option>
@@ -746,20 +762,20 @@ export function AddRecordDialog({
                     ))}
                   </select>
                 </Field>
-                <Field label="Monthly plan (₹)" error={errors['monthly_contribution']}>
+                <Field label="Monthly plan (₹)" error={errors["monthly_contribution"]}>
                   <input
                     inputMode="decimal"
                     className={fieldBase}
-                    value={values['monthly_contribution'] ?? ""}
+                    value={values["monthly_contribution"] ?? ""}
                     onChange={(e) => set("monthly_contribution", e.target.value)}
                   />
                 </Field>
               </div>
-              <Field label="Blurb (optional)" error={errors['blurb']}>
+              <Field label="Blurb (optional)" error={errors["blurb"]}>
                 <input
                   className={fieldBase}
                   placeholder="Two weeks, cherry blossom season."
-                  value={values['blurb'] ?? ""}
+                  value={values["blurb"] ?? ""}
                   onChange={(e) => set("blurb", e.target.value)}
                 />
               </Field>
@@ -768,10 +784,10 @@ export function AddRecordDialog({
 
           {kind === "budget" && (
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Category" error={errors['category_id']}>
+              <Field label="Category" error={errors["category_id"]}>
                 <select
                   className={fieldBase}
-                  value={values['category_id'] ?? ""}
+                  value={values["category_id"] ?? ""}
                   onChange={(e) => set("category_id", e.target.value)}
                 >
                   <option value="">Select category</option>
@@ -782,19 +798,19 @@ export function AddRecordDialog({
                   ))}
                 </select>
               </Field>
-              <Field label="Planned (₹)" error={errors['planned']}>
+              <Field label="Planned (₹)" error={errors["planned"]}>
                 <input
                   inputMode="decimal"
                   className={fieldBase}
-                  value={values['planned'] ?? ""}
+                  value={values["planned"] ?? ""}
                   onChange={(e) => set("planned", e.target.value)}
                 />
               </Field>
-              <Field label="Period" error={errors['period']} className="col-span-2">
+              <Field label="Period" error={errors["period"]} className="col-span-2">
                 <input
                   className={fieldBase}
                   placeholder="2026-08"
-                  value={values['period'] ?? ""}
+                  value={values["period"] ?? ""}
                   onChange={(e) => set("period", e.target.value)}
                 />
               </Field>
@@ -804,18 +820,18 @@ export function AddRecordDialog({
           {kind === "investment" && (
             <>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Holding" error={errors['name']}>
+                <Field label="Holding" error={errors["name"]}>
                   <input
                     className={fieldBase}
                     placeholder="Nifty 50 Index Fund"
-                    value={values['name'] ?? ""}
+                    value={values["name"] ?? ""}
                     onChange={(e) => set("name", e.target.value)}
                   />
                 </Field>
-                <Field label="Asset class" error={errors['asset_class']}>
+                <Field label="Asset class" error={errors["asset_class"]}>
                   <select
                     className={fieldBase}
-                    value={values['asset_class'] ?? "equity"}
+                    value={values["asset_class"] ?? "equity"}
                     onChange={(e) => set("asset_class", e.target.value)}
                   >
                     <option value="equity">Equity</option>
@@ -827,35 +843,35 @@ export function AddRecordDialog({
                 </Field>
               </div>
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Units" error={errors['units']}>
+                <Field label="Units" error={errors["units"]}>
                   <input
                     inputMode="decimal"
                     className={fieldBase}
-                    value={values['units'] ?? ""}
+                    value={values["units"] ?? ""}
                     onChange={(e) => set("units", e.target.value)}
                   />
                 </Field>
-                <Field label="Invested (₹)" error={errors['invested']}>
+                <Field label="Invested (₹)" error={errors["invested"]}>
                   <input
                     inputMode="decimal"
                     className={fieldBase}
-                    value={values['invested'] ?? ""}
+                    value={values["invested"] ?? ""}
                     onChange={(e) => set("invested", e.target.value)}
                   />
                 </Field>
-                <Field label="Current value (₹)" error={errors['current_value']}>
+                <Field label="Current value (₹)" error={errors["current_value"]}>
                   <input
                     inputMode="decimal"
                     className={fieldBase}
-                    value={values['current_value'] ?? ""}
+                    value={values["current_value"] ?? ""}
                     onChange={(e) => set("current_value", e.target.value)}
                   />
                 </Field>
               </div>
-              <Field label="Investment account" error={errors['account_id']}>
+              <Field label="Investment account" error={errors["account_id"]}>
                 <select
                   className={fieldBase}
-                  value={values['account_id'] ?? ""}
+                  value={values["account_id"] ?? ""}
                   onChange={(e) => set("account_id", e.target.value)}
                 >
                   <option value="">Select account</option>

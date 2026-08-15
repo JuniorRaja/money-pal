@@ -65,15 +65,17 @@ export const Route = createFileRoute("/")({
     ],
   }),
   loader: async () => {
-    const [accounts, transactions, rollups, budgets, goals, events, categories] = await Promise.all([
-      getAccounts(),
-      listTransactions({ period: CURRENT_PERIOD }),
-      getMonthlyRollups(),
-      getBudgets(),
-      getGoals(),
-      getTimelineEvents(),
-      getCategories(),
-    ]);
+    const [accounts, transactions, rollups, budgets, goals, events, categories] = await Promise.all(
+      [
+        getAccounts(),
+        listTransactions({ period: CURRENT_PERIOD }),
+        getMonthlyRollups(),
+        getBudgets(),
+        getGoals(),
+        getTimelineEvents(),
+        getCategories(),
+      ],
+    );
     const slices = await getSlices();
     return { accounts, transactions, rollups, budgets, goals, events, categories, slices };
   },
@@ -81,16 +83,17 @@ export const Route = createFileRoute("/")({
 });
 
 function OverviewPage() {
-  const { accounts, transactions, rollups, budgets, goals, events, categories, slices } = Route.useLoaderData() as {
-    accounts: Account[];
-    transactions: Transaction[];
-    rollups: MonthlyRollup[];
-    budgets: BudgetPeriod[];
-    goals: Goal[];
-    events: TimelineEvent[];
-    categories: Category[];
-    slices: Slice[];
-  };
+  const { accounts, transactions, rollups, budgets, goals, events, categories, slices } =
+    Route.useLoaderData() as {
+      accounts: Account[];
+      transactions: Transaction[];
+      rollups: MonthlyRollup[];
+      budgets: BudgetPeriod[];
+      goals: Goal[];
+      events: TimelineEvent[];
+      categories: Category[];
+      slices: Slice[];
+    };
   const nw = summariseNetWorth(accounts);
   const ownership = summariseOwnership(
     accounts,
@@ -119,22 +122,32 @@ function OverviewPage() {
       signature="overview"
     >
       <div className="grid grid-cols-12 gap-5">
-        <Panel className="col-span-8" title="Net worth" action={<span className="numeric text-xs text-success">{formatPct(9.4)} this quarter</span>}>
+        <Panel
+          className="col-span-8"
+          title="Net worth"
+          action={
+            <span className="numeric text-xs text-success">{formatPct(9.4)} this quarter</span>
+          }
+        >
           <div className="flex items-end justify-between">
             <div>
               <p className="numeric text-[46px] leading-none text-foreground">
                 {formatMoney(ownership.owned, { whole: true })}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Cash {formatCompact(nw.cash)} · Investments {formatCompact(nw.investments)} · Liabilities{" "}
-                {formatCompact(nw.liabilities)}
+                Cash {formatCompact(nw.cash)} · Investments {formatCompact(nw.investments)} ·
+                Liabilities {formatCompact(nw.liabilities)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Truly yours. {formatCompact(ownership.custodial)} held for others is out of this
                 figure; {formatCompact(ownership.earmarked)} is earmarked.
               </p>
             </div>
-            <Sparkline points={[62, 64, 63, 68, 70, 69, 74, 77, 79, 82, 84, 88]} width={220} height={56} />
+            <Sparkline
+              points={[62, 64, 63, 68, 70, 69, 74, 77, 79, 82, 84, 88]}
+              width={220}
+              height={56}
+            />
           </div>
           <div className="mt-6 h-[210px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -150,8 +163,20 @@ function OverviewPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`} />
+                <XAxis
+                  dataKey="month"
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
+                />
                 <Tooltip
                   contentStyle={{
                     background: "var(--color-card)",
@@ -161,17 +186,50 @@ function OverviewPage() {
                   }}
                   formatter={(v: number | string) => `\u20B9${Number(v).toLocaleString("en-IN")}`}
                 />
-                <Area type="monotone" dataKey="income" stroke="var(--color-success)" fill="url(#inc)" strokeWidth={2} />
-                <Area type="monotone" dataKey="expense" stroke="var(--color-primary)" fill="url(#exp)" strokeWidth={2} />
+                <Area
+                  type="monotone"
+                  dataKey="income"
+                  stroke="var(--color-success)"
+                  fill="url(#inc)"
+                  strokeWidth={2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="expense"
+                  stroke="var(--color-primary)"
+                  fill="url(#exp)"
+                  strokeWidth={2}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </Panel>
 
         <div className="col-span-4 grid gap-5">
-          <StatCard label="Available cash" value={formatMoney(nw.cash, { whole: true })} delta={12.4} hint="vs last month" icon={<Wallet className="h-4 w-4" />} className="pattern-arcs" />
-          <StatCard label="Investments" value={formatMoney(nw.investments, { whole: true })} delta={14.7} hint="vs last month" icon={<TrendingUp className="h-4 w-4" />} className="pattern-hatch" />
-          <StatCard label="Liabilities" value={formatMoney(nw.liabilities, { whole: true })} delta={-6.2} hint="paid down" icon={<Landmark className="h-4 w-4" />} className="pattern-steps" />
+          <StatCard
+            label="Available cash"
+            value={formatMoney(nw.cash, { whole: true })}
+            delta={12.4}
+            hint="vs last month"
+            icon={<Wallet className="h-4 w-4" />}
+            className="pattern-arcs"
+          />
+          <StatCard
+            label="Investments"
+            value={formatMoney(nw.investments, { whole: true })}
+            delta={14.7}
+            hint="vs last month"
+            icon={<TrendingUp className="h-4 w-4" />}
+            className="pattern-hatch"
+          />
+          <StatCard
+            label="Liabilities"
+            value={formatMoney(nw.liabilities, { whole: true })}
+            delta={-6.2}
+            hint="paid down"
+            icon={<Landmark className="h-4 w-4" />}
+            className="pattern-steps"
+          />
         </div>
 
         <Panel className="col-span-4" title="This month">
@@ -182,14 +240,24 @@ function OverviewPage() {
             <div className="pt-2">
               <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                 <span>Budget used</span>
-                <span className="numeric">{planned === 0 ? "—" : `${Math.round((spent / planned) * 100)}%`}</span>
+                <span className="numeric">
+                  {planned === 0 ? "—" : `${Math.round((spent / planned) * 100)}%`}
+                </span>
               </div>
               <Bar value={planned === 0 ? 0 : (spent / planned) * 100} tone="primary" />
             </div>
           </div>
         </Panel>
 
-        <Panel className="col-span-4" title="Goals in motion" action={<Link to="/goals" className="text-xs text-primary">View all</Link>}>
+        <Panel
+          className="col-span-4"
+          title="Goals in motion"
+          action={
+            <Link to="/goals" className="text-xs text-primary">
+              View all
+            </Link>
+          }
+        >
           <ul className="space-y-4">
             {goals.slice(0, 3).map((g) => {
               const pct = g.target === 0 ? 0 : (g.saved / g.target) * 100;
@@ -215,8 +283,8 @@ function OverviewPage() {
               <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div>
                 <p className="text-sm leading-relaxed text-foreground">
-                  You are spending 9% less than your normal pace, mainly because Dining and Transport are
-                  lower than usual.
+                  You are spending 9% less than your normal pace, mainly because Dining and
+                  Transport are lower than usual.
                 </p>
                 <Link
                   to="/assistant"
@@ -245,14 +313,23 @@ function OverviewPage() {
         <Panel
           className="col-span-8"
           title="Recent activity"
-          action={<Link to="/transactions" className="text-xs text-primary">All transactions</Link>}
+          action={
+            <Link to="/transactions" className="text-xs text-primary">
+              All transactions
+            </Link>
+          }
           bodyClassName="p-0"
         >
           <table className="w-full text-sm">
             <tbody>
               {transactions.slice(0, 7).map((t) => (
-                <tr key={t.id} className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40">
-                  <td className="px-5 py-3 text-xs text-muted-foreground">{formatDay(t.occurred_at)}</td>
+                <tr
+                  key={t.id}
+                  className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40"
+                >
+                  <td className="px-5 py-3 text-xs text-muted-foreground">
+                    {formatDay(t.occurred_at)}
+                  </td>
                   <td className="px-2 py-3">
                     <p className="text-foreground">{t.merchant}</p>
                     <p className="text-xs text-muted-foreground">{t.descriptor}</p>
@@ -260,7 +337,9 @@ function OverviewPage() {
                   <td className="px-2 py-3 text-xs text-muted-foreground">
                     {categories.find((c) => c.id === t.category_id)?.name}
                   </td>
-                  <td className={`numeric px-5 py-3 text-right ${t.amount > 0 ? "text-success" : "text-destructive"}`}>
+                  <td
+                    className={`numeric px-5 py-3 text-right ${t.amount > 0 ? "text-success" : "text-destructive"}`}
+                  >
                     {formatMoney(t.amount, { sign: true })}
                   </td>
                 </tr>
@@ -269,7 +348,15 @@ function OverviewPage() {
           </table>
         </Panel>
 
-        <Panel className="col-span-4" title="Latest signals" action={<Link to="/timeline" className="text-xs text-primary">Timeline</Link>}>
+        <Panel
+          className="col-span-4"
+          title="Latest signals"
+          action={
+            <Link to="/timeline" className="text-xs text-primary">
+              Timeline
+            </Link>
+          }
+        >
           <ul className="space-y-4">
             {events.slice(0, 5).map((e) => (
               <li key={e.id} className="flex gap-3">

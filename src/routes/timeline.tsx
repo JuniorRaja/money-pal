@@ -84,7 +84,9 @@ export function TimelinePage() {
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-foreground">{e.title}</p>
-                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{e.detail}</p>
+                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                {e.detail}
+                              </p>
                             </div>
                             {e.amount !== null && (
                               <span
@@ -110,20 +112,28 @@ export function TimelinePage() {
           ))}
         </div>
 
-
         <div className="space-y-5">
           <Panel title="This week">
             <ul className="space-y-3 text-sm">
               <Line label="Events logged" value={String(events.length)} />
-              <Line label="AI insights" value={String(events.filter((e) => e.kind === "ai_insight").length)} />
-              <Line label="Goal milestones" value={String(events.filter((e) => e.kind === "goal").length)} />
-              <Line label="Bills tracked" value={String(events.filter((e) => e.kind === "bill").length)} />
+              <Line
+                label="AI insights"
+                value={String(events.filter((e) => e.kind === "ai_insight").length)}
+              />
+              <Line
+                label="Goal milestones"
+                value={String(events.filter((e) => e.kind === "goal").length)}
+              />
+              <Line
+                label="Bills tracked"
+                value={String(events.filter((e) => e.kind === "bill").length)}
+              />
             </ul>
           </Panel>
           <Panel title="Quiet hours">
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Money Pal holds non-urgent notices between 10 PM and 8 AM, then delivers them in one calm
-              digest.
+              Money Pal holds non-urgent notices between 10 PM and 8 AM, then delivers them in one
+              calm digest.
             </p>
           </Panel>
         </div>

@@ -41,7 +41,9 @@ export function ImportFlowDialog({
   onClose: () => void;
   onFinished: () => void;
 }) {
-  const [phase, setPhase] = useState<"import" | "review">(flow?.kind === "review" ? "review" : "import");
+  const [phase, setPhase] = useState<"import" | "review">(
+    flow?.kind === "review" ? "review" : "import",
+  );
   const [jobId, setJobId] = useState(flow?.kind === "review" ? flow.jobId : "");
   const [focusId, setFocusId] = useState(flow?.kind === "review" ? flow.focusId : undefined);
   const [boot, setBoot] = useState<{

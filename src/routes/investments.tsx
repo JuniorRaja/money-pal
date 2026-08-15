@@ -47,7 +47,8 @@ function InvestmentsPage() {
   const dayChange = holdings.reduce((s, h) => s + (h.current_value * h.day_change_pct) / 100, 0);
 
   const byClass = new Map<HoldingClass, number>();
-  for (const h of holdings) byClass.set(h.asset_class, (byClass.get(h.asset_class) ?? 0) + h.current_value);
+  for (const h of holdings)
+    byClass.set(h.asset_class, (byClass.get(h.asset_class) ?? 0) + h.current_value);
   const pie = [...byClass.entries()].map(([k, v]) => ({ name: classLabel[k], value: v / 100 }));
 
   return (
@@ -57,15 +58,28 @@ function InvestmentsPage() {
       signature="investments"
     >
       <div className="grid grid-cols-4 gap-5">
-        <StatCard label="Current value" value={formatMoney(current, { whole: true })} delta={14.7} hint="since inception" />
-        <StatCard label="Invested" value={formatMoney(invested, { whole: true })} hint="total cost" />
+        <StatCard
+          label="Current value"
+          value={formatMoney(current, { whole: true })}
+          delta={14.7}
+          hint="since inception"
+        />
+        <StatCard
+          label="Invested"
+          value={formatMoney(invested, { whole: true })}
+          hint="total cost"
+        />
         <StatCard
           label="Unrealised gain"
           value={formatMoney(gain, { whole: true })}
           delta={(gain / invested) * 100}
           hint="absolute return"
         />
-        <StatCard label="Today" value={formatMoney(Math.round(dayChange), { sign: true })} hint="market movement" />
+        <StatCard
+          label="Today"
+          value={formatMoney(Math.round(dayChange), { sign: true })}
+          hint="market movement"
+        />
       </div>
 
       <div className="mt-5 grid grid-cols-12 gap-5">
@@ -83,13 +97,24 @@ function InvestmentsPage() {
             </thead>
             <tbody>
               {holdings.map((h) => (
-                <tr key={h.id} className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40">
+                <tr
+                  key={h.id}
+                  className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40"
+                >
                   <td className="px-5 py-3 text-foreground">{h.name}</td>
-                  <td className="px-2 py-3 text-xs text-muted-foreground">{classLabel[h.asset_class]}</td>
+                  <td className="px-2 py-3 text-xs text-muted-foreground">
+                    {classLabel[h.asset_class]}
+                  </td>
                   <td className="numeric px-2 py-3 text-right text-muted-foreground">{h.units}</td>
-                  <td className="numeric px-2 py-3 text-right text-muted-foreground">{formatMoney(h.invested, { whole: true })}</td>
-                  <td className="numeric px-2 py-3 text-right text-foreground">{formatMoney(h.current_value, { whole: true })}</td>
-                  <td className={`numeric px-5 py-3 text-right ${h.day_change_pct >= 0 ? "text-success" : "text-destructive"}`}>
+                  <td className="numeric px-2 py-3 text-right text-muted-foreground">
+                    {formatMoney(h.invested, { whole: true })}
+                  </td>
+                  <td className="numeric px-2 py-3 text-right text-foreground">
+                    {formatMoney(h.current_value, { whole: true })}
+                  </td>
+                  <td
+                    className={`numeric px-5 py-3 text-right ${h.day_change_pct >= 0 ? "text-success" : "text-destructive"}`}
+                  >
                     {formatPct(h.day_change_pct)}
                   </td>
                 </tr>
@@ -103,7 +128,14 @@ function InvestmentsPage() {
             <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={pie} dataKey="value" innerRadius={54} outerRadius={88} paddingAngle={2} stroke="none">
+                  <Pie
+                    data={pie}
+                    dataKey="value"
+                    innerRadius={54}
+                    outerRadius={88}
+                    paddingAngle={2}
+                    stroke="none"
+                  >
                     {pie.map((_, i) => (
                       <Cell key={i} fill={slices[i % slices.length]} />
                     ))}
@@ -124,7 +156,10 @@ function InvestmentsPage() {
               {pie.map((p, i) => (
                 <li key={p.name} className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-muted-foreground">
-                    <span className="h-2 w-2 rounded-full" style={{ background: slices[i % slices.length] }} />
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ background: slices[i % slices.length] }}
+                    />
                     {p.name}
                   </span>
                   <span className="numeric text-foreground">
@@ -135,7 +170,12 @@ function InvestmentsPage() {
             </ul>
           </Panel>
           <Panel title="Portfolio trend">
-            <Sparkline points={[58, 61, 60, 65, 68, 66, 72, 75, 78, 81, 84, 89]} width={280} height={72} tone="success" />
+            <Sparkline
+              points={[58, 61, 60, 65, 68, 66, 72, 75, 78, 81, 84, 89]}
+              width={280}
+              height={72}
+              tone="success"
+            />
             <p className="mt-3 text-xs text-muted-foreground">
               Twelve-month value trend, rebased. Steady since the March correction.
             </p>

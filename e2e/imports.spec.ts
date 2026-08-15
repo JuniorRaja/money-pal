@@ -38,7 +38,9 @@ async function ensureSignedIn(page: Page) {
   if (!page.url().includes("/login")) return;
 
   if (!email || !password) {
-    throw new Error("Import tests need E2E_EMAIL and E2E_PASSWORD (or TEST_EMAIL / TEST_PASSWORD).");
+    throw new Error(
+      "Import tests need E2E_EMAIL and E2E_PASSWORD (or TEST_EMAIL / TEST_PASSWORD).",
+    );
   }
 
   await page.getByLabel(/email/i).fill(email);

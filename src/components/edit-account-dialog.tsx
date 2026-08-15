@@ -56,9 +56,7 @@ export function EditAccountDialog({
       setCreditLimit(account.credit_limit !== null ? String(account.credit_limit / 100) : "");
       setBillDay(account.bill_generation_day !== null ? String(account.bill_generation_day) : "");
       setDueDay(account.due_day !== null ? String(account.due_day) : "");
-      setRatePct(
-        account.interest_rate_bps !== null ? String(account.interest_rate_bps / 100) : "",
-      );
+      setRatePct(account.interest_rate_bps !== null ? String(account.interest_rate_bps / 100) : "");
       setEmi(account.emi_amount !== null ? String(account.emi_amount / 100) : "");
       setTenure(account.tenure_months !== null ? String(account.tenure_months) : "");
       setLender(account.lender ?? "");
@@ -77,11 +75,13 @@ export function EditAccountDialog({
     if (!trimmedInstitution) return setError("Institution is required");
 
     const parsedLimit =
-      kind === "credit_card" && creditLimit.trim()
-        ? Math.round(Number(creditLimit) * 100)
-        : null;
+      kind === "credit_card" && creditLimit.trim() ? Math.round(Number(creditLimit) * 100) : null;
 
-    if (kind === "credit_card" && creditLimit.trim() && (!Number.isFinite(parsedLimit) || parsedLimit! <= 0)) {
+    if (
+      kind === "credit_card" &&
+      creditLimit.trim() &&
+      (!Number.isFinite(parsedLimit) || parsedLimit! <= 0)
+    ) {
       return setError("Enter a valid credit limit");
     }
 
@@ -93,8 +93,7 @@ export function EditAccountDialog({
         institution: trimmedInstitution,
         kind,
         credit_limit: parsedLimit,
-        bill_generation_day:
-          kind === "credit_card" && billDay.trim() ? Number(billDay) : null,
+        bill_generation_day: kind === "credit_card" && billDay.trim() ? Number(billDay) : null,
         due_day: kind === "credit_card" && dueDay.trim() ? Number(dueDay) : null,
         interest_rate_bps:
           kind === "loan" && ratePct.trim() ? Math.round(Number(ratePct) * 100) : null,
@@ -140,7 +139,10 @@ export function EditAccountDialog({
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="edit-acc-institution" className="text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor="edit-acc-institution"
+              className="text-xs font-medium text-muted-foreground"
+            >
               Institution
             </label>
             <input
@@ -179,7 +181,10 @@ export function EditAccountDialog({
           {kind === "credit_card" && (
             <>
               <div className="space-y-1.5">
-                <label htmlFor="edit-acc-limit" className="text-xs font-medium text-muted-foreground">
+                <label
+                  htmlFor="edit-acc-limit"
+                  className="text-xs font-medium text-muted-foreground"
+                >
                   Credit Limit
                 </label>
                 <input
@@ -196,7 +201,10 @@ export function EditAccountDialog({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label htmlFor="edit-bill-day" className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="edit-bill-day"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     Bill day
                   </label>
                   <input
@@ -209,7 +217,10 @@ export function EditAccountDialog({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label htmlFor="edit-due-day" className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="edit-due-day"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     Due day
                   </label>
                   <input
@@ -257,7 +268,10 @@ export function EditAccountDialog({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label htmlFor="edit-tenure" className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="edit-tenure"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     Tenure (months)
                   </label>
                   <input
@@ -270,7 +284,10 @@ export function EditAccountDialog({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label htmlFor="edit-lender" className="text-xs font-medium text-muted-foreground">
+                  <label
+                    htmlFor="edit-lender"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
                     Lender
                   </label>
                   <input

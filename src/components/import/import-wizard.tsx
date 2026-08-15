@@ -166,11 +166,7 @@ export function ImportWizard({
     }
   }
 
-  async function confirmStage(
-    nextAccountId: string,
-    current = parsed,
-    currentMapping = mapping,
-  ) {
+  async function confirmStage(nextAccountId: string, current = parsed, currentMapping = mapping) {
     if (!current || !currentMapping || !nextAccountId) return;
     if (validateMapping(currentMapping, current.headers).length > 0) return;
     if (current.rows.length === 0) {
@@ -293,7 +289,11 @@ export function ImportWizard({
             )}
             {behind > 0 && (
               <p className="text-xs text-muted-foreground">
-                {id === "file" ? file?.name ?? "Drop a statement" : id === "map" ? "Column map" : "Pick account"}
+                {id === "file"
+                  ? (file?.name ?? "Drop a statement")
+                  : id === "map"
+                    ? "Column map"
+                    : "Pick account"}
               </p>
             )}
           </PipelineCard>
@@ -353,7 +353,11 @@ function AccountStep({
   onContinue: () => void;
 }) {
   if (accounts.length === 0) {
-    return <p className="text-sm text-muted-foreground">No bank, cash, or card account to import into.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        No bank, cash, or card account to import into.
+      </p>
+    );
   }
 
   return (

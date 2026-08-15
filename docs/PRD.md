@@ -38,16 +38,16 @@ reports — this is double-entry for correctness, not for accountants.
 
 ## 4. Stack
 
-| Layer | Choice |
-|---|---|
-| App | Next.js 15, App Router, TypeScript strict |
-| API | Route handlers. **No separate backend service.** |
-| DB | Neon Postgres (hosted) · `postgres:17` (self-host) |
-| ORM | Drizzle |
-| Auth | Neon Managed Better Auth (beta) → self-hosted later |
+| Layer  | Choice                                               |
+| ------ | ---------------------------------------------------- |
+| App    | Next.js 15, App Router, TypeScript strict            |
+| API    | Route handlers. **No separate backend service.**     |
+| DB     | Neon Postgres (hosted) · `postgres:17` (self-host)   |
+| ORM    | Drizzle                                              |
+| Auth   | Neon Managed Better Auth (beta) → self-hosted later  |
 | Driver | `postgres.js`. **Never** `@neondatabase/serverless`. |
-| UI | Tailwind, TanStack Query, RHF + Zod, Recharts |
-| Deploy | Vercel → `app.prasannar.com` |
+| UI     | Tailwind, TanStack Query, RHF + Zod, Recharts        |
+| Deploy | Vercel → `app.prasannar.com`                         |
 
 `backend/` is deleted. The Next.js frontend is kept and extended.
 
@@ -83,18 +83,18 @@ leaving the system.
 
 Rent ₹28,000, split between own funds and a trip fund:
 
-| account | category | label | amount |
-|---|---|---|---|
-| HDFC | — | Mine | −18,000 |
-| HDFC | — | Trip | −10,000 |
-| — | Rent | — | +28,000 |
+| account | category | label | amount  |
+| ------- | -------- | ----- | ------- |
+| HDFC    | —        | Mine  | −18,000 |
+| HDFC    | —        | Trip  | −10,000 |
+| —       | Rent     | —     | +28,000 |
 
 Transfer HDFC → ICICI:
 
-| account | category | label | amount |
-|---|---|---|---|
-| HDFC | — | Mine | −50,000 |
-| ICICI | — | Mine | +50,000 |
+| account | category | label | amount  |
+| ------- | -------- | ----- | ------- |
+| HDFC    | —        | Mine  | −50,000 |
+| ICICI   | —        | Mine  | +50,000 |
 
 Transfers need no special type and no pairing table. They are two
 account-side entries.
@@ -115,11 +115,11 @@ deliberately assigned lands there. It is never deleted or renamed.
 
 ### 5.4 Label kinds
 
-| kind | meaning | in net worth |
-|---|---|---|
-| `OWNED` | mine, spendable | yes |
-| `EARMARK` | mine, reserved (emergency, goal, trip) | yes |
-| `CUSTODIAL` | held for someone else | **no** — reported as owed |
+| kind        | meaning                                | in net worth              |
+| ----------- | -------------------------------------- | ------------------------- |
+| `OWNED`     | mine, spendable                        | yes                       |
+| `EARMARK`   | mine, reserved (emergency, goal, trip) | yes                       |
+| `CUSTODIAL` | held for someone else                  | **no** — reported as owed |
 
 This field is the reason net worth is correct. It did not exist in v1.0.
 
@@ -173,6 +173,7 @@ hardest and least visible phase. Everything downstream assumes it is
 correct.
 
 **Action items**
+
 - Delete `backend/`, `.kiro/`, `docs/phases/`, the two dead
   `CLAUDE.md — *.md` files. Move `frontend/*` to root.
 - `/design-import` the Claude Design bundle. Tokens land in
@@ -189,6 +190,7 @@ correct.
   without a click.
 
 **Success criteria**
+
 - `/invariant` passes: 200 random transactions, labels still sum to
   account balances
 - Unbalanced entry set is rejected by the database, not the app
@@ -204,6 +206,7 @@ correct.
 most.
 
 **Action items**
+
 - Transaction form: date, description, amount, category, account
 - Label split UI — 1 to ~5 labels, remainder auto-lands in `Unassigned`
 - Transfers between accounts, including to a `RECEIVABLE` account
@@ -212,6 +215,7 @@ most.
 - Reversal flow — never an edit of `amount_minor`
 
 **Success criteria**
+
 - The July walkthrough reproduces exactly: salary → Mum's 20K → EB from
   Mum's → fuel from Mine → loan repaid into Excess. Balances match by
   hand.
@@ -228,6 +232,7 @@ most.
 in one look.
 
 **Action items**
+
 - Net worth: `OWNED + EARMARK` only, with owed-to-others stated
   separately and never silently folded in
 - Label overview across accounts, grouped by `counterparty`
@@ -236,6 +241,7 @@ in one look.
 - Recent activity
 
 **Success criteria**
+
 - Mum's ₹50K is visibly excluded from net worth, and the exclusion is
   explained on screen
 - Every figure traces to a `SUM(entries)` — nothing cached, nothing
@@ -249,6 +255,7 @@ in one look.
 **Scope.** The end of manual entry. HDFC and DBS first.
 
 **Action items**
+
 - Client-side parse. Raw file never leaves the browser.
 - Column mapping UI, persisted per account as `import_profiles` rows
 - `import_hash` idempotency including row index
@@ -258,6 +265,7 @@ in one look.
 - Commit assigns `Unassigned` unless a rule says otherwise
 
 **Success criteria**
+
 - A real HDFC statement imports with correct balances
 - The same file imported twice changes nothing
 - Two genuine same-day same-amount charges both survive
@@ -271,12 +279,14 @@ in one look.
 **Scope.** Category budgets. Read-only over the ledger.
 
 **Action items**
+
 - Monthly budget per category
 - Progress = `SUM(entries WHERE category_id AND month)` versus target
 - Over-budget state, visible before month end
 - Rollover behaviour decided and documented in `DECISIONS.md`
 
 **Success criteria**
+
 - No budget has a stored balance anywhere
 - Deleting a transaction updates budget progress with no reconciliation
   step
@@ -289,11 +299,13 @@ in one look.
 **Scope.** Targets funded by `EARMARK` labels.
 
 **Action items**
+
 - Goal: name, target amount, optional deadline
 - Link a goal to an `EARMARK` label — progress is that label's balance
 - Contribution flow = move money between labels, not a new concept
 
 **Success criteria**
+
 - Goal progress equals its label balance, always, with no sync step
 - Goals hold no money of their own
 - Deleting a goal leaves its label and its money untouched
@@ -311,6 +323,7 @@ in one look.
 covers the same banks.
 
 **Action items**
+
 - Google OAuth, `gmail.readonly`. **Start app verification early** — it
   takes weeks and caps at 100 users until granted.
 - Bank detection, then one isolated parser per bank per alert type
@@ -319,6 +332,7 @@ covers the same banks.
 - HDFC, DBS, IndusInd, Axis first
 
 **Success criteria**
+
 - An alert email and its CSV row deduplicate to one transaction
 - A new bank is one parser file and nothing else
 - Alerts never overwrite a CSV-imported balance — they are an event
@@ -331,12 +345,14 @@ covers the same banks.
 **Scope.** Statement parsing. Last because it is hardest.
 
 **Action items**
+
 - Password-protected PDF handling
 - One bank end to end before generalising
 - Scanned statements: detect and decline clearly rather than guess
 - Same review path
 
 **Success criteria**
+
 - One real password-protected statement imports with correct balances
 - A layout change fails loudly and imports nothing, rather than
   importing wrong numbers
@@ -349,11 +365,11 @@ covers the same banks.
 Own accounts: HDFC, DBS. Credit cards: HDFC, IndusInd, Axis.
 Obtainable: IndusInd, Axis, IOB, SBI, IDFC.
 
-| format | per-bank cost | why |
-|---|---|---|
-| CSV / Excel | **none** | the mapping UI covers every bank, no code |
-| Gmail | small | alert emails are short and templated |
-| PDF | large | password-locked, layout drift, some scanned |
+| format      | per-bank cost | why                                         |
+| ----------- | ------------- | ------------------------------------------- |
+| CSV / Excel | **none**      | the mapping UI covers every bank, no code   |
+| Gmail       | small         | alert emails are short and templated        |
+| PDF         | large         | password-locked, layout drift, some scanned |
 
 **Out of scope until the MVP line is crossed:** Timeline, AI chat,
 Reports, investments, crypto, credit-card cycle tracking, debt payoff,

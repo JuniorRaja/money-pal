@@ -13,7 +13,8 @@ export const Route = createFileRoute("/settings")({
       { title: "Settings — Money Pal Financial OS" },
       {
         name: "description",
-        content: "Profile, appearance, number formatting, assistant behaviour and privacy controls.",
+        content:
+          "Profile, appearance, number formatting, assistant behaviour and privacy controls.",
       },
       { property: "og:title", content: "Settings — Money Pal" },
       { property: "og:description", content: "Make Money Pal feel like yours." },
@@ -48,7 +49,9 @@ function SettingsPage() {
               key={t}
               onClick={() => setTab(t)}
               className={`w-full rounded-lg px-3 py-1.5 text-left text-[13px] transition-colors ${
-                tab === t ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-accent/60"
+                tab === t
+                  ? "bg-accent font-medium text-foreground"
+                  : "text-muted-foreground hover:bg-accent/60"
               }`}
             >
               {t}
@@ -57,7 +60,6 @@ function SettingsPage() {
         </nav>
 
         <div className="space-y-4">
-
           {tab === "Profile" && (
             <Panel title="Profile">
               <div className="grid grid-cols-2 gap-4">
@@ -78,12 +80,16 @@ function SettingsPage() {
                       key={mode}
                       onClick={() => setPrefs({ theme: mode })}
                       className={`rounded-2xl border p-4 text-left transition-colors ${
-                        prefs.theme === mode ? "border-primary bg-accent/50" : "border-border hover:bg-accent/40"
+                        prefs.theme === mode
+                          ? "border-primary bg-accent/50"
+                          : "border-border hover:bg-accent/40"
                       }`}
                     >
                       <div
                         className={`mb-3 h-14 rounded-xl border border-border ${
-                          mode === "light" ? "bg-[oklch(0.98_0.008_84)]" : "bg-[oklch(0.22_0.012_84)]"
+                          mode === "light"
+                            ? "bg-[oklch(0.98_0.008_84)]"
+                            : "bg-[oklch(0.22_0.012_84)]"
                         }`}
                       />
                       <p className="text-sm capitalize text-foreground">{mode} mode</p>
@@ -101,7 +107,9 @@ function SettingsPage() {
                       key={a.name}
                       onClick={() => setPrefs({ accent: a.name })}
                       className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors ${
-                        prefs.accent === a.name ? "border-primary text-foreground" : "border-border text-muted-foreground"
+                        prefs.accent === a.name
+                          ? "border-primary text-foreground"
+                          : "border-border text-muted-foreground"
                       }`}
                     >
                       <span className="h-4 w-4 rounded-full" style={{ background: a.token }} />
@@ -170,8 +178,9 @@ function SettingsPage() {
           {tab === "Privacy" && (
             <Panel title="Privacy & data">
               <p className="text-sm leading-relaxed text-muted-foreground">
-                This build runs on a local demo ledger pinned to 07 Aug 2026. Nothing leaves the browser except
-                the compact summary sent with assistant questions, and only while that setting is on.
+                This build runs on a local demo ledger pinned to 07 Aug 2026. Nothing leaves the
+                browser except the compact summary sent with assistant questions, and only while
+                that setting is on.
               </p>
               <button className="mt-4 rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10">
                 Reset local session
@@ -249,7 +258,9 @@ function Choice({
             key={o}
             onClick={() => onChange(o)}
             className={`rounded-md px-3 py-1 text-xs capitalize transition-colors ${
-              value === o ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              value === o
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {o}

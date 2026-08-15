@@ -29,7 +29,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
-import { getAccounts, getArchivedGoals, getGoalContributions, getGoals, listTransactions } from "@/data/repository";
+import {
+  getAccounts,
+  getArchivedGoals,
+  getGoalContributions,
+  getGoals,
+  listTransactions,
+} from "@/data/repository";
 import type { Account, Goal, GoalContribution, Transaction } from "@/data/schema";
 import { formatCompact, formatMoney } from "@/lib/money";
 import { monthsUntil } from "@/lib/period";
@@ -43,7 +49,10 @@ export const Route = createFileRoute("/goals")({
         content: "Track savings goals, monthly contributions and projected finish dates.",
       },
       { property: "og:title", content: "Goals — Money Pal" },
-      { property: "og:description", content: "Name what you're saving for, then watch it get closer." },
+      {
+        property: "og:description",
+        content: "Name what you're saving for, then watch it get closer.",
+      },
     ],
   }),
   loader: async () => {
@@ -62,7 +71,8 @@ export const Route = createFileRoute("/goals")({
 function goalPace(g: Goal) {
   const done = g.target > 0 && g.saved >= g.target;
   const remaining = Math.max(0, g.target - g.saved);
-  const behindMonth = !done && g.monthly_contribution > 0 && g.saved_this_month < g.monthly_contribution;
+  const behindMonth =
+    !done && g.monthly_contribution > 0 && g.saved_this_month < g.monthly_contribution;
   let projectedMonths: number | null = null;
   let late = false;
   if (!done && g.monthly_contribution > 0) {
@@ -111,9 +121,7 @@ function GoalsPage() {
   const late = goals.filter((g) => goalPace(g).late);
   const suggestion = late[0] ?? behind[0] ?? null;
 
-  const historyRows = historyFor
-    ? contributions.filter((c) => c.goal_id === historyFor.id)
-    : [];
+  const historyRows = historyFor ? contributions.filter((c) => c.goal_id === historyFor.id) : [];
 
   return (
     <AppShell
@@ -187,7 +195,9 @@ function GoalsPage() {
         >
           <p className="text-sm text-foreground">No goals to show.</p>
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            {showArchived ? "No archived goals found." : "Create your first savings goal to get started."}
+            {showArchived
+              ? "No archived goals found."
+              : "Create your first savings goal to get started."}
           </p>
         </div>
       ) : (
@@ -214,7 +224,9 @@ function GoalsPage() {
                       )}
                     </div>
                     {g.blurb ? (
-                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{g.blurb}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {g.blurb}
+                      </p>
                     ) : null}
                   </div>
                   <div className="flex shrink-0 items-start gap-1">
@@ -236,7 +248,9 @@ function GoalsPage() {
                 <div className="mt-4">
                   <Bar
                     value={pct}
-                    tone={pace.done ? "success" : pace.late || pace.behindMonth ? "warning" : "primary"}
+                    tone={
+                      pace.done ? "success" : pace.late || pace.behindMonth ? "warning" : "primary"
+                    }
                   />
                 </div>
                 <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
@@ -368,7 +382,10 @@ function GoalMenu({
         <DropdownMenuItem onClick={onEdit} className="gap-2">
           <Pencil className="h-3.5 w-3.5" /> Edit
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onArchive} className="gap-2 text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          onClick={onArchive}
+          className="gap-2 text-destructive focus:text-destructive"
+        >
           <Trash2 className="h-3.5 w-3.5" /> Archive
         </DropdownMenuItem>
       </DropdownMenuContent>

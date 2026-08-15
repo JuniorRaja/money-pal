@@ -27,13 +27,13 @@ npm run dev            # http://localhost:3000
 
 ### Environment
 
-| Variable | Used by | Notes |
-| --- | --- | --- |
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | browser | Vite inlines these at build time |
-| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | SSR / server functions | same values, read at runtime |
-| `SUPABASE_SERVICE_ROLE_KEY` | admin-only server paths | never expose to the client |
-| `ANTHROPIC_API_KEY` | AI assistant | direct Claude API; takes precedence |
-| `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | AI assistant | fallback provider if no Anthropic key |
+| Variable                                             | Used by                 | Notes                                 |
+| ---------------------------------------------------- | ----------------------- | ------------------------------------- |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | browser                 | Vite inlines these at build time      |
+| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`           | SSR / server functions  | same values, read at runtime          |
+| `SUPABASE_SERVICE_ROLE_KEY`                          | admin-only server paths | never expose to the client            |
+| `ANTHROPIC_API_KEY`                                  | AI assistant            | direct Claude API; takes precedence   |
+| `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`             | AI assistant            | fallback provider if no Anthropic key |
 
 The assistant picks its provider from whichever key is present, and is only ever given computed
 aggregates — never raw transaction rows.

@@ -10,21 +10,27 @@ test.describe("Transactions Page — UI Functionality", () => {
     await expect(page.locator("text=Every financial event, organized and clear.")).toBeVisible();
   });
 
-  test("summary stats panel is visible with all four metrics", async ({ transactionsPage: page }) => {
+  test("summary stats panel is visible with all four metrics", async ({
+    transactionsPage: page,
+  }) => {
     const stats = ["Total Transactions", "Total Income", "Total Expenses", "Net Cash Flow"];
     for (const label of stats) {
       await expect(page.locator(`text=${label}`)).toBeVisible();
     }
   });
 
-  test("transactions table renders with correct column headers", async ({ transactionsPage: page }) => {
+  test("transactions table renders with correct column headers", async ({
+    transactionsPage: page,
+  }) => {
     const headers = ["Date", "Merchant", "Category", "Account", "Slice", "Amount"];
     for (const header of headers) {
       await expect(page.locator("thead").locator(`text=${header}`)).toBeVisible();
     }
   });
 
-  test("transactions are grouped by day with date header rows", async ({ transactionsPage: page }) => {
+  test("transactions are grouped by day with date header rows", async ({
+    transactionsPage: page,
+  }) => {
     // Day group rows have a specific bg class and span all columns
     const dayHeaders = page.locator("tr.bg-muted\\/50");
     const count = await dayHeaders.count();
@@ -37,7 +43,12 @@ test.describe("Transactions Page — UI Functionality", () => {
 
   test("clicking a transaction row opens the detail panel", async ({ transactionsPage: page }) => {
     // Click the first data row (not a day-header row)
-    const firstRow = page.locator("table tbody tr").filter({ hasNotText: /^(Today|Yesterday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/ }).first();
+    const firstRow = page
+      .locator("table tbody tr")
+      .filter({
+        hasNotText: /^(Today|Yesterday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/,
+      })
+      .first();
     await firstRow.click();
 
     // Detail panel (aside) should appear
@@ -67,13 +78,23 @@ test.describe("Transactions Page — UI Functionality", () => {
     await expect(aside.locator("button", { hasText: "Notes & Attachments" })).toBeVisible();
   });
 
-  test("detail panel Details tab shows transaction metadata fields", async ({ transactionsPage: page }) => {
+  test("detail panel Details tab shows transaction metadata fields", async ({
+    transactionsPage: page,
+  }) => {
     const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
     await dataRow.click();
 
     const aside = page.locator("aside");
     // Details tab should be active by default
-    const fields = ["Account", "Category", "Type", "Payment Method", "Source", "Transaction ID", "Confidence"];
+    const fields = [
+      "Account",
+      "Category",
+      "Type",
+      "Payment Method",
+      "Source",
+      "Transaction ID",
+      "Confidence",
+    ];
     for (const field of fields) {
       await expect(aside.locator(`dt:has-text("${field}")`)).toBeVisible();
     }
@@ -94,7 +115,11 @@ test.describe("Transactions Page — UI Functionality", () => {
     await expect(page.locator("aside")).toBeVisible();
 
     // Click close button (X icon)
-    await page.locator("aside button").filter({ has: page.locator("svg") }).first().click();
+    await page
+      .locator("aside button")
+      .filter({ has: page.locator("svg") })
+      .first()
+      .click();
     await expect(page.locator("aside")).not.toBeVisible();
   });
 
@@ -157,7 +182,9 @@ test.describe("Transactions Page — UI Functionality", () => {
     expect(allTimeRows).toBeGreaterThanOrEqual(initialRows);
   });
 
-  test("empty state message shows when no transactions match filters", async ({ transactionsPage: page }) => {
+  test("empty state message shows when no transactions match filters", async ({
+    transactionsPage: page,
+  }) => {
     const searchInput = page.locator("input[placeholder*='Search']");
     await searchInput.fill("xyznonexistentmerchant12345");
 
@@ -177,7 +204,9 @@ test.describe("Transactions Page — UI Functionality", () => {
     await expect(dataRow).toHaveClass(/bg-accent/);
   });
 
-  test("clicking different row changes detail panel content", async ({ transactionsPage: page }) => {
+  test("clicking different row changes detail panel content", async ({
+    transactionsPage: page,
+  }) => {
     const rows = page.locator("table tbody tr:not(.bg-muted\\/50)");
     const rowCount = await rows.count();
     if (rowCount < 2) return; // Need at least 2 rows

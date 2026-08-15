@@ -76,7 +76,10 @@ const art: Record<SignatureKey, JSX.Element> = {
   ),
   accounts: (
     <>
-      <path d="M540 260 L700 96 L800 190 L900 60 L1060 190 L1130 140 L1200 260 Z" fill="url(#mm-fill)" />
+      <path
+        d="M540 260 L700 96 L800 190 L900 60 L1060 190 L1130 140 L1200 260 Z"
+        fill="url(#mm-fill)"
+      />
       <path
         d="M700 96 L800 190 M900 60 L1060 190"
         stroke="url(#mm-fade)"
@@ -126,7 +129,12 @@ const art: Record<SignatureKey, JSX.Element> = {
   budgets: (
     <>
       <path d="M660 260 L660 200 L1200 152 L1200 260 Z" fill="url(#mm-fill)" />
-      <path d="M700 200 L1200 158 M740 226 L1200 190 M780 250 L1200 220" stroke="url(#mm-fade)" strokeWidth="1.2" fill="none" />
+      <path
+        d="M700 200 L1200 158 M740 226 L1200 190 M780 250 L1200 220"
+        stroke="url(#mm-fade)"
+        strokeWidth="1.2"
+        fill="none"
+      />
       <circle cx="820" cy="80" r="46" fill="url(#mm-fill)" />
       {contour("M0 196 C240 168 440 210 680 182 C900 156 1030 190 1200 164")}
       {dots([
@@ -138,7 +146,12 @@ const art: Record<SignatureKey, JSX.Element> = {
   goals: (
     <>
       <path d="M700 260 L940 70 L1200 260 Z" fill="url(#mm-fill)" />
-      <path d="M940 70 L940 24 L1024 42 L940 60" fill="url(#mm-fill)" stroke="url(#mm-fade)" strokeWidth="1.2" />
+      <path
+        d="M940 70 L940 24 L1024 42 L940 60"
+        fill="url(#mm-fill)"
+        stroke="url(#mm-fade)"
+        strokeWidth="1.2"
+      />
       {contour("M0 204 C260 178 420 224 660 196 C880 170 1020 200 1200 178")}
       {contour("M0 232 C280 214 460 250 700 226 C920 204 1050 226 1200 210", 0.15)}
       {dots([
@@ -150,7 +163,12 @@ const art: Record<SignatureKey, JSX.Element> = {
   investments: (
     <>
       <path d="M560 260 L720 200 L840 150 L980 96 L1200 34 L1200 260 Z" fill="url(#mm-fill)" />
-      <path d="M560 232 L740 186 L880 138 L1040 84 L1200 46" fill="none" stroke="url(#mm-fade)" strokeWidth="1.6" />
+      <path
+        d="M560 232 L740 186 L880 138 L1040 84 L1200 46"
+        fill="none"
+        stroke="url(#mm-fade)"
+        strokeWidth="1.6"
+      />
       {contour("M0 220 C240 200 420 236 660 212 C880 190 1020 208 1200 194", 0.16)}
       {dots([
         [740, 186],
@@ -209,8 +227,24 @@ const art: Record<SignatureKey, JSX.Element> = {
     <>
       <circle cx="960" cy="130" r="40" fill="url(#mm-fill)" />
       <circle cx="960" cy="130" r="72" fill="none" stroke="url(#mm-fade)" strokeWidth="1.2" />
-      <circle cx="960" cy="130" r="106" fill="none" stroke="url(#mm-fade)" strokeWidth="1.2" opacity="0.7" />
-      <circle cx="960" cy="130" r="142" fill="none" stroke="url(#mm-fade)" strokeWidth="1.2" opacity="0.45" />
+      <circle
+        cx="960"
+        cy="130"
+        r="106"
+        fill="none"
+        stroke="url(#mm-fade)"
+        strokeWidth="1.2"
+        opacity="0.7"
+      />
+      <circle
+        cx="960"
+        cy="130"
+        r="142"
+        fill="none"
+        stroke="url(#mm-fade)"
+        strokeWidth="1.2"
+        opacity="0.45"
+      />
       {contour("M0 212 C260 190 440 226 680 202 C900 180 1040 206 1200 188", 0.14)}
       {dots([
         [960, 24],

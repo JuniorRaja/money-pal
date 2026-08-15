@@ -24,7 +24,10 @@ export function mutationErrorMessage(error: unknown, fallback: string): string {
 }
 
 function friendlyImportMessage(message: string): string {
-  if (/import_job_rows|import_profiles|import_rules/i.test(message) && /schema cache|does not exist/i.test(message)) {
+  if (
+    /import_job_rows|import_profiles|import_rules/i.test(message) &&
+    /schema cache|does not exist/i.test(message)
+  ) {
     return "Import tables are missing. Apply migration 20260814080138_csv_import_center.sql, then try again.";
   }
   return message;

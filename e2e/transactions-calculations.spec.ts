@@ -5,7 +5,9 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
   // SUMMARY STATS CORRECTNESS
   // ─────────────────────────────────────────────────────────────────────────
 
-  test("Total Transactions count matches the number of table rows", async ({ transactionsPage: page }) => {
+  test("Total Transactions count matches the number of table rows", async ({
+    transactionsPage: page,
+  }) => {
     // Get the displayed count from the stat
     const statEl = page.locator("text=Total Transactions").locator("..").locator("p.numeric");
     const countText = await statEl.textContent();
@@ -18,7 +20,9 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
     expect(displayedCount).toBe(actualCount);
   });
 
-  test("Total Income equals sum of all positive amounts in the table", async ({ transactionsPage: page }) => {
+  test("Total Income equals sum of all positive amounts in the table", async ({
+    transactionsPage: page,
+  }) => {
     // Get all amount cells (last column)
     const amountCells = page.locator("table tbody tr:not(.bg-muted\\/50) td:last-child");
     const count = await amountCells.count();
@@ -27,9 +31,9 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
     for (let i = 0; i < count; i++) {
       const text = (await amountCells.nth(i).textContent()) ?? "";
       // Positive amounts have text-success class or start with +
-      const hasSuccess = await amountCells.nth(i).evaluate((el) =>
-        el.classList.contains("text-success"),
-      );
+      const hasSuccess = await amountCells
+        .nth(i)
+        .evaluate((el) => el.classList.contains("text-success"));
       if (hasSuccess) {
         incomeSum += parseMoney(text);
       }
@@ -43,16 +47,18 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
     expect(displayedIncome).toBe(incomeSum);
   });
 
-  test("Total Expenses equals sum of all negative amounts in the table (absolute)", async ({ transactionsPage: page }) => {
+  test("Total Expenses equals sum of all negative amounts in the table (absolute)", async ({
+    transactionsPage: page,
+  }) => {
     const amountCells = page.locator("table tbody tr:not(.bg-muted\\/50) td:last-child");
     const count = await amountCells.count();
 
     let expenseSum = 0;
     for (let i = 0; i < count; i++) {
       const text = (await amountCells.nth(i).textContent()) ?? "";
-      const hasDestructive = await amountCells.nth(i).evaluate((el) =>
-        el.classList.contains("text-destructive"),
-      );
+      const hasDestructive = await amountCells
+        .nth(i)
+        .evaluate((el) => el.classList.contains("text-destructive"));
       if (hasDestructive) {
         // parseMoney returns negative for expenses, we accumulate absolute
         expenseSum += Math.abs(parseMoney(text));
@@ -92,7 +98,9 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
   // AMOUNT FORMATTING & SIGN DISPLAY
   // ─────────────────────────────────────────────────────────────────────────
 
-  test("income amounts are displayed in green (text-success)", async ({ transactionsPage: page }) => {
+  test("income amounts are displayed in green (text-success)", async ({
+    transactionsPage: page,
+  }) => {
     const amountCells = page.locator("table tbody tr:not(.bg-muted\\/50) td:last-child");
     const count = await amountCells.count();
 
@@ -100,15 +108,17 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
       const text = (await amountCells.nth(i).textContent()) ?? "";
       const hasPlus = text.includes("+");
       if (hasPlus) {
-        const hasSuccess = await amountCells.nth(i).evaluate((el) =>
-          el.classList.contains("text-success"),
-        );
+        const hasSuccess = await amountCells
+          .nth(i)
+          .evaluate((el) => el.classList.contains("text-success"));
         expect(hasSuccess).toBe(true);
       }
     }
   });
 
-  test("expense amounts are displayed in red (text-destructive)", async ({ transactionsPage: page }) => {
+  test("expense amounts are displayed in red (text-destructive)", async ({
+    transactionsPage: page,
+  }) => {
     const amountCells = page.locator("table tbody tr:not(.bg-muted\\/50) td:last-child");
     const count = await amountCells.count();
 
@@ -117,9 +127,9 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
       // Expenses have minus sign (− or -)
       const hasMinus = text.includes("−") || (text.includes("-") && !text.includes("+"));
       if (hasMinus) {
-        const hasDestructive = await amountCells.nth(i).evaluate((el) =>
-          el.classList.contains("text-destructive"),
-        );
+        const hasDestructive = await amountCells
+          .nth(i)
+          .evaluate((el) => el.classList.contains("text-destructive"));
         expect(hasDestructive).toBe(true);
       }
     }
@@ -158,7 +168,9 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
   // CONFIDENCE DISPLAY
   // ─────────────────────────────────────────────────────────────────────────
 
-  test("confidence is displayed as percentage in detail panel", async ({ transactionsPage: page }) => {
+  test("confidence is displayed as percentage in detail panel", async ({
+    transactionsPage: page,
+  }) => {
     const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
     await dataRow.click();
 
@@ -176,9 +188,9 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
 
   test("stats update when type filter is applied", async ({ transactionsPage: page }) => {
     // Get initial stats
-    const netBefore = (
-      await page.locator("text=Net Cash Flow").locator("..").locator("p.numeric").textContent()
-    ) ?? "";
+    const netBefore =
+      (await page.locator("text=Net Cash Flow").locator("..").locator("p.numeric").textContent()) ??
+      "";
 
     // Filter to income only
     const typeSelect = page.locator("select").last();
@@ -186,9 +198,12 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
     await page.waitForTimeout(300);
 
     // After filtering to income, Total Expenses should be zero or the stat reflects only income
-    const countAfter = (
-      await page.locator("text=Total Transactions").locator("..").locator("p.numeric").textContent()
-    ) ?? "";
+    const countAfter =
+      (await page
+        .locator("text=Total Transactions")
+        .locator("..")
+        .locator("p.numeric")
+        .textContent()) ?? "";
     const rowsAfter = await page.locator("table tbody tr:not(.bg-muted\\/50)").count();
 
     // The count stat should match visible rows
@@ -200,9 +215,12 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
     await searchInput.fill("a"); // broad filter to still get results
     await page.waitForTimeout(300);
 
-    const countStat = (
-      await page.locator("text=Total Transactions").locator("..").locator("p.numeric").textContent()
-    ) ?? "";
+    const countStat =
+      (await page
+        .locator("text=Total Transactions")
+        .locator("..")
+        .locator("p.numeric")
+        .textContent()) ?? "";
     const displayedCount = parseInt(countStat.trim(), 10);
     const rowCount = await page.locator("table tbody tr:not(.bg-muted\\/50)").count();
 
@@ -213,7 +231,9 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
   // DATE SORTING
   // ─────────────────────────────────────────────────────────────────────────
 
-  test("transactions are sorted newest-first (descending date)", async ({ transactionsPage: page }) => {
+  test("transactions are sorted newest-first (descending date)", async ({
+    transactionsPage: page,
+  }) => {
     // Collect day group headers and verify they appear in descending order
     const dayHeaders = page.locator("tr.bg-muted\\/50 td");
     const count = await dayHeaders.count();
