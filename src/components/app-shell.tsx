@@ -26,6 +26,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 
 import { AddRecordDialog, type RecordKind } from "@/components/add-record-dialog";
+import { CommandPalette } from "@/components/command-palette";
 import { Signature, type SignatureKey } from "@/components/signature";
 import { useSession } from "@/components/session";
 import {
@@ -65,6 +66,10 @@ const groups = [
     ],
   },
 ] as const;
+
+export type NavItem = (typeof groups)[number]["items"][number];
+
+const navItems = groups.flatMap((group): readonly NavItem[] => group.items);
 
 function Monogram() {
   return (
@@ -221,20 +226,27 @@ function Sidebar({
   );
 }
 
-function TopBar({ searchPlaceholder }: { searchPlaceholder: string }) {
+function TopBar({
+  searchPlaceholder,
+  onOpenPalette,
+}: {
+  searchPlaceholder: string;
+  onOpenPalette: () => void;
+}) {
   const { prefs, setPrefs } = useSession();
   return (
     <div className="flex items-center gap-3">
       {/* Search, the assistant label, and notifications are the first things to
           go on a phone — the theme toggle is the only one worth its width. */}
-      <label className="hidden h-10 w-[320px] items-center gap-2 rounded-full border border-border bg-card/80 px-4 text-sm text-muted-foreground shadow-sm backdrop-blur transition-colors focus-within:border-primary/50 xl:flex">
+      <button
+        type="button"
+        onClick={onOpenPalette}
+        className="hidden h-10 w-[320px] items-center gap-2 rounded-full border border-border bg-card/80 px-4 text-sm text-muted-foreground shadow-sm backdrop-blur transition-colors hover:border-primary/50 xl:flex"
+      >
         <Search className="h-4 w-4" />
-        <input
-          className="w-full bg-transparent outline-none placeholder:text-muted-foreground"
-          placeholder={searchPlaceholder}
-        />
+        <span className="flex-1 text-left">{searchPlaceholder}</span>
         <kbd className="rounded border border-border px-1.5 py-0.5 text-[10px]">⌘K</kbd>
-      </label>
+      </button>
       <Link
         to="/assistant"
         className="flex h-10 items-center gap-2 rounded-full border border-primary/30 bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:border-primary/60 hover:bg-accent sm:px-4"
@@ -278,14 +290,27 @@ export function AppShell({
   const navigate = useNavigate();
   const [addKind, setAddKind] = useState<RecordKind | null>(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) navigate({ to: "/login" });
   }, [isAuthenticated, hydrated, navigate]);
 
+  // preventDefault or the browser hands Ctrl+K to the address bar instead.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "k" || !(event.metaKey || event.ctrlKey)) return;
+      event.preventDefault();
+      setPaletteOpen((open) => !open);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <AddRecordDialog kind={addKind} onOpenChange={(open) => !open && setAddKind(null)} />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} nav={navItems} />
       <Sidebar onAdd={setAddKind} className="hidden lg:flex" />
 
       {/* Below lg the sidebar would eat the whole viewport, so it becomes a drawer. */}
@@ -321,7 +346,10 @@ export function AppShell({
                 <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
               </div>
             </div>
-            <TopBar searchPlaceholder={searchPlaceholder} />
+            <TopBar
+              searchPlaceholder={searchPlaceholder}
+              onOpenPalette={() => setPaletteOpen(true)}
+            />
           </div>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 sm:px-10">

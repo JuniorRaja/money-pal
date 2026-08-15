@@ -48,6 +48,8 @@ export type MappedImportRow = {
   occurred_at: ISODateTime;
   merchant: string;
   descriptor: string;
+  /** Trailing free text you typed at payment time, when the narration has one. */
+  note: string | null;
   /** Signed paise: negative = money out (matches `Transaction.amount`). */
   amount_paise: Paise;
   type: Exclude<TransactionType, "transfer">;
@@ -78,6 +80,7 @@ export type ParseImportOptions = {
 
 export type HeuristicSuggestion = {
   merchant: string;
+  note: string | null;
   suggested_category_name: string | null;
   confidence: number;
 };

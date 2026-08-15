@@ -533,6 +533,7 @@ function mapJobRow(row: {
   occurred_at: string;
   merchant: string | null;
   descriptor: string | null;
+  note: string | null;
   amount_paise: number;
   type: string;
   raw_line: unknown;
@@ -550,6 +551,7 @@ function mapJobRow(row: {
     occurred_at: row.occurred_at,
     merchant: row.merchant ?? "",
     descriptor: row.descriptor ?? "",
+    note: row.note,
     amount_paise: Number(row.amount_paise ?? 0),
     type,
     raw_line: asMapping(row.raw_line),
@@ -721,7 +723,7 @@ export const liveImportJobs = (includeDismissed = false): Promise<ImportJob[]> =
   }, []);
 
 const JOB_ROW_COLUMNS =
-  "id, job_id, account_id, occurred_at, merchant, descriptor, amount_paise, type, raw_line, import_hash, status, suggested_category_id, transaction_id, confidence";
+  "id, job_id, account_id, occurred_at, merchant, descriptor, note, amount_paise, type, raw_line, import_hash, status, suggested_category_id, transaction_id, confidence";
 
 export const liveImportJobRows = (
   jobId: string,
@@ -777,14 +779,16 @@ export const liveImportRules = (): Promise<ImportRule[]> =>
   live<ImportRule[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("import_rules")
-      .select("id, match, category_id, account_id")
+      .select("id, match, category_id, account_id, is_active")
       .is("deleted_at", null)
       .order("match");
     if (error) throw error;
+    // Paused rules come back too — Settings lists them; `applyImportRules` skips them.
     return (data ?? []).map((row): ImportRule => ({
       id: row.id,
       match: row.match,
       category_id: row.category_id,
       account_id: row.account_id,
+      is_active: row.is_active,
     }));
   }, []);

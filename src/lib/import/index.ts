@@ -41,7 +41,7 @@ export {
   sha256Hex,
 } from "./hash";
 
-export { applyHeuristics, extractMerchant } from "./heuristics";
+export { applyHeuristics, extractMerchant, extractNote } from "./heuristics";
 
 export {
   cellToString,
@@ -59,6 +59,7 @@ export {
   asColumnMapping,
   bankPresetLabel,
   categoryIdByName,
+  findImportRule,
   resolveSuggestedCategoryId,
   toStageDrafts,
 } from "./stage";

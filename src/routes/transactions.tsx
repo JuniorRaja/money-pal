@@ -57,7 +57,14 @@ import { deleteTransaction, updateTransaction } from "@/data/mutations";
 import type { Account, Category, Label, Transaction, TransactionType } from "@/data/schema";
 import { dayKey, formatDay, formatMoney, formatTime, relativeDayLabel } from "@/lib/money";
 
+type TransactionsSearch = { q?: string };
+
 export const Route = createFileRoute("/transactions")({
+  // `q` is how the command palette hands free text to this page's search box.
+  validateSearch: (search: Record<string, unknown>): TransactionsSearch => {
+    const q = typeof search["q"] === "string" ? search["q"].trim() : "";
+    return q ? { q } : {};
+  },
   head: () => ({
     meta: [
       { title: "Transactions — Money Pal Financial OS" },
@@ -90,9 +97,15 @@ function TransactionsPage() {
     categories: Category[];
     labels: Label[];
   };
+  const { q } = Route.useSearch();
   const [filter, setFilter] = useState<TransactionFilter>({ period: CURRENT_PERIOD });
   const [sliceNameFilter, setSliceNameFilter] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Arriving with ?q= searches all time — a month window would hide most hits.
+  useEffect(() => {
+    if (q) setFilter({ search: q });
+  }, [q]);
 
   // Slice options: if account is selected, show only that account's slices
   // Otherwise show all slices with "Account - Name" format

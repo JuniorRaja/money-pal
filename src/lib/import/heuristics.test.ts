@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { applyHeuristics, extractMerchant } from "./heuristics.ts";
+import { applyHeuristics, extractMerchant, extractNote } from "./heuristics.ts";
 
 describe("merchant extraction", () => {
   it("keeps the whole name out of a hyphenated UPI narration", () => {
@@ -40,5 +40,58 @@ describe("merchant extraction", () => {
     });
     assert.equal(result.suggested_category_name, "Dining");
     assert.equal(result.merchant, "Swiggy");
+  });
+});
+
+describe("payment note extraction", () => {
+  it("reads the note you typed off the end of the narration", () => {
+    const cases: ReadonlyArray<readonly [string, string]> = [
+      ["IMPS-615466074286-BALASUBRAMANIAM-TMBL-XXXXXXXXXXX0859-CONSTRUCTION", "CONSTRUCTION"],
+      ["IMPS-616232121393-KRISHNA KUMAR-SBIN-XXXXXXX1893-RENT MAY", "RENT MAY"],
+      ["UPI-M O COOL BAR-Q693365448@YBL-YESB0YBLUPI-192342317477-TEA", "TEA"],
+      [
+        "UPI-KAVITHA P-YESPAY.SFLSTERM.FB1J2OGR@YESBANKLTD-YESB0YESUPI-728746666638-CAFETERIA",
+        "CAFETERIA",
+      ],
+      ["UPI-APURVASIGAMANI-Q441555410@YBL-YESB0YBLUPI-861873771914-FAGS", "FAGS"],
+      ["UPI-J AMALIYA COOL BAR-Q356602405@YBL-YESB0YBLUPI-551426053310-FAGS", "FAGS"],
+    ];
+    for (const [narration, note] of cases) {
+      assert.equal(extractNote(narration), note, narration);
+    }
+  });
+
+  it("returns nothing when the narration just ends with its own structure", () => {
+    // No note typed: the tail is the reference number, the masked account, the
+    // IFSC or the VPA — none of which belong in a note field.
+    const cases: readonly string[] = [
+      "UPI-M O COOL BAR-Q693365448@YBL-YESB0YBLUPI-192342317477",
+      "IMPS-615466074286-BALASUBRAMANIAM-TMBL-XXXXXXXXXXX0859",
+      "UPI-APURVASIGAMANI-Q441555410@YBL-192342317477-YESB0YBLUPI",
+      "UPI-SWIGGY-SWIGGY@YBL-HDFC0001234-swiggy@ybl",
+      "UPI-SWIGGY",
+      "IMPS P2P 622157719873#09",
+      "",
+    ];
+    for (const narration of cases) {
+      assert.equal(extractNote(narration), null, narration);
+    }
+  });
+
+  it("keeps a note that merely contains digits", () => {
+    // Only long digit runs are reference numbers; "RENT 2024" is a real note.
+    assert.equal(
+      extractNote("IMPS-616232121393-KRISHNA KUMAR-SBIN-XXXXXXX1893-RENT 2024"),
+      "RENT 2024",
+    );
+  });
+
+  it("rides along on applyHeuristics without disturbing the merchant", () => {
+    const result = applyHeuristics({
+      narration: "UPI-M O COOL BAR-Q693365448@YBL-YESB0YBLUPI-192342317477-TEA",
+      type: "expense",
+    });
+    assert.equal(result.note, "TEA");
+    assert.equal(result.merchant, "M O Cool Bar");
   });
 });

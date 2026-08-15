@@ -82,6 +82,10 @@ Staged and committed rows use midnight Asia/Kolkata (`midnightIst`). Postgres re
 
 Light merchant heuristics plus review. Accepting a correction writes an `import_rules` row (normalized merchant contains → category; optional account, else global). Staged rows may carry `suggested_category_id`. On commit, the account’s `is_default` label (PRD “Unassigned”) is applied as the slice.
 
+## Import — a learned rule is visible and declinable
+
+Writing the rule stays the default, but it is no longer an invisible side effect: correcting a category shows a checked "Also remember this for X" box on the review card, and clearing it accepts the row without teaching anything. A row that was categorised by a rule says so ("From your rule"). Rules are listed and edited in **Settings → Import rules**, grouped account-scoped first then global — the order `applyImportRules` resolves them in. A rule is paused with `is_active` (kept, stops applying) or removed with `deleted_at`; nothing is hard-deleted. Correcting a merchant an account-scoped rule already covers updates **that** rule rather than adding a narrower one that could never win against it; a broader global rule is left alone and an account-scoped rule is added instead, so fixing one account never silently re-teaches the others. Re-teaching a merchant reactivates its paused rule — `ux_import_rule_match` allows no second row, so leaving it paused would silently do nothing.
+
 ## Import — a job can be dismissed
 
 Every staged job used to be permanent: the only way to clear a panel was to resolve every row.

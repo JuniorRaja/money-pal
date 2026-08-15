@@ -769,6 +769,7 @@ export type Database = {
           merchant: string | null;
           modified_at: string;
           modified_by: string | null;
+          note: string | null;
           occurred_at: string;
           raw_line: Json;
           status: Database["public"]["Enums"]["import_row_status"];
@@ -792,6 +793,7 @@ export type Database = {
           merchant?: string | null;
           modified_at?: string;
           modified_by?: string | null;
+          note?: string | null;
           occurred_at: string;
           raw_line?: Json;
           status?: Database["public"]["Enums"]["import_row_status"];
@@ -815,6 +817,7 @@ export type Database = {
           merchant?: string | null;
           modified_at?: string;
           modified_by?: string | null;
+          note?: string | null;
           occurred_at?: string;
           raw_line?: Json;
           status?: Database["public"]["Enums"]["import_row_status"];

@@ -268,6 +268,8 @@ export interface ImportJobRow {
   occurred_at: ISODateTime;
   merchant: string;
   descriptor: string;
+  /** Trailing free text from the narration — what you typed at payment time. */
+  note: string | null;
   amount_paise: Paise;
   type: "income" | "expense";
   raw_line: ImportMapping;
@@ -284,6 +286,8 @@ export interface ImportRule {
   match: string;
   category_id: string;
   account_id: string | null;
+  /** Paused rules stay listed in Settings but stop categorising — see `applyImportRules`. */
+  is_active: boolean;
 }
 
 /** Hub “Needs your eye”: pending/held staging rows (and low-confidence pending). */

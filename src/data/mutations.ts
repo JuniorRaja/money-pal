@@ -36,6 +36,7 @@ import {
   reopenImportRowFn,
   holdImportRowFn,
   upsertImportRuleFn,
+  updateImportRuleFn,
   renameImportSourceFn,
   setImportSourcePausedFn,
   disconnectImportSourceFn,
@@ -71,6 +72,7 @@ import {
   type ReopenImportRowInput,
   type HoldImportRowInput,
   type UpsertImportRuleInput,
+  type UpdateImportRuleInput,
   type RenameImportSourceInput,
   type SetImportSourcePausedInput,
   type DisconnectImportSourceInput,
@@ -578,6 +580,7 @@ export type {
   SkipImportRowInput,
   HoldImportRowInput,
   UpsertImportRuleInput,
+  UpdateImportRuleInput,
   RenameImportSourceInput,
   SetImportSourcePausedInput,
   DisconnectImportSourceInput,
@@ -614,6 +617,14 @@ export async function holdImportRow(rowId: string) {
 
 export async function upsertImportRule(input: UpsertImportRuleInput) {
   return upsertImportRuleFn({ data: input });
+}
+
+export async function updateImportRule(input: UpdateImportRuleInput) {
+  try {
+    return await updateImportRuleFn({ data: input });
+  } catch (error) {
+    throw new Error(mutationErrorMessage(error, "Could not update this rule"));
+  }
 }
 
 export async function renameImportSource(id: string, name: string) {

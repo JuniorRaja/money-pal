@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import type { Category, ImportJobRow, ImportRule } from "@/data/schema";
 import { IMPORT_LOW_CONFIDENCE_MAX } from "@/data/schema";
 import { commitImportRow, holdImportRow, reopenImportRow, skipImportRow } from "@/data/mutations";
-import { midnightIst, resolveSuggestedCategoryId } from "@/lib/import";
+import { findImportRule, midnightIst, resolveSuggestedCategoryId } from "@/lib/import";
 import { dayKey, formatDay, formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +54,7 @@ type EditState = {
   occurred_on: string;
   merchant: string;
   descriptor: string;
+  note: string;
   amount: string;
   type: "income" | "expense";
   category_id: string;
@@ -123,6 +124,23 @@ export function ReviewDeck({
     : null;
 
   const [edit, setEdit] = useState<EditState | null>(null);
+  // Creating a rule used to be an invisible side effect of correcting a category.
+  // It stays the default, but it is now shown and can be declined per row.
+  const [remember, setRemember] = useState(true);
+
+  // The rule that categorised this row, if any — the "from your rule" marker.
+  const matchedRule = current ? findImportRule(current.merchant, rules, current.account_id) : null;
+
+  const merchantText = edit?.merchant.trim() ?? "";
+  const nextCategory = edit?.category_id || null;
+  const categoryChanged = Boolean(nextCategory) && nextCategory !== suggestedId;
+  const merchantRule =
+    current && merchantText ? findImportRule(merchantText, rules, current.account_id) : null;
+  // An account-scoped rule already covering this merchant is corrected in place —
+  // the unique index allows no second row for it. A broader global rule is left
+  // alone: fixing one account must not silently re-teach the others.
+  const ruleTarget = merchantRule?.account_id === current?.account_id ? merchantRule : null;
+  const showRemember = categoryChanged && Boolean(merchantText);
 
   useEffect(() => {
     if (!current) {
@@ -141,11 +159,13 @@ export function ReviewDeck({
       occurred_on: dayKey(current.occurred_at),
       merchant: current.merchant,
       descriptor: current.descriptor,
+      note: current.note ?? "",
       amount: paiseToRupees(current.amount_paise),
       type: current.type,
       category_id: id ?? "",
     });
     setEditing(false);
+    setRemember(true);
     setDragX(0);
   }, [categories, current, rules]);
 
@@ -176,9 +196,6 @@ export function ReviewDeck({
       toast.error("Enter an amount greater than 0");
       return;
     }
-    const originalCategory = suggestedId;
-    const nextCategory = edit.category_id || null;
-    const categoryChanged = nextCategory !== originalCategory && Boolean(nextCategory);
     setBusy(true);
     try {
       await stampThen("accepted", async () => {
@@ -188,14 +205,18 @@ export function ReviewDeck({
             occurred_at: midnightIst(edit.occurred_on),
             merchant: edit.merchant.trim() || null,
             descriptor: edit.descriptor.trim() || null,
+            note: edit.note.trim() || null,
             amount_paise: amount,
             type: edit.type,
             suggested_category_id: nextCategory,
           },
-          ...(categoryChanged && edit.merchant.trim() && nextCategory
+          ...(showRemember && remember && nextCategory
             ? {
                 rule: {
-                  match: edit.merchant.trim(),
+                  // Correcting a rule targets the existing row, so the upsert
+                  // updates it instead of adding a narrower rule that would
+                  // never win against it.
+                  match: ruleTarget?.match ?? merchantText,
                   category_id: nextCategory,
                   account_id: current.account_id,
                 },
@@ -209,7 +230,18 @@ export function ReviewDeck({
     } finally {
       setBusy(false);
     }
-  }, [busy, current, edit, remove, stampThen, suggestedId]);
+  }, [
+    busy,
+    current,
+    edit,
+    merchantText,
+    nextCategory,
+    remember,
+    remove,
+    ruleTarget,
+    showRemember,
+    stampThen,
+  ]);
 
   const skip = useCallback(async () => {
     if (!current || busy) return;
@@ -442,6 +474,22 @@ export function ReviewDeck({
             <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] text-foreground">
               {categoryName(categories, suggestedId)}
             </span>
+            {matchedRule && (
+              <span
+                title={`Your rule: “${matchedRule.match}”`}
+                className="rounded-full border border-primary/40 px-2.5 py-1 text-[11px] text-primary"
+              >
+                From your rule
+              </span>
+            )}
+            {current.note && (
+              <span
+                title="What you typed when you paid — saved as the transaction note"
+                className="max-w-[16rem] truncate rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground"
+              >
+                📝 {current.note}
+              </span>
+            )}
             {current.status === "held" && (
               <span className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground">
                 Held
@@ -510,6 +558,17 @@ export function ReviewDeck({
                   onChange={(event) => setEdit({ ...edit, merchant: event.target.value })}
                 />
               </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Note
+                </span>
+                <input
+                  className={fieldBase}
+                  value={edit.note}
+                  placeholder="What this payment was for"
+                  onChange={(event) => setEdit({ ...edit, note: event.target.value })}
+                />
+              </label>
               <label className="block">
                 <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                   Type
@@ -543,6 +602,44 @@ export function ReviewDeck({
                       </option>
                     ))}
                 </select>
+              </label>
+            </div>
+          )}
+
+          {showRemember && (
+            // stopPropagation: the card itself is a swipe target, and ticking a
+            // box should never read as a drag towards accept/skip.
+            <div
+              className="mt-4 rounded-xl border border-border bg-accent/40 p-3"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <label className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-primary"
+                  checked={remember}
+                  onChange={(event) => setRemember(event.target.checked)}
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm text-foreground">
+                    {ruleTarget ? (
+                      <>
+                        Update your rule for <strong>{ruleTarget.match}</strong>
+                      </>
+                    ) : (
+                      <>
+                        Also remember this for <strong>{merchantText}</strong>
+                      </>
+                    )}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                    {ruleTarget
+                      ? `Was ${categoryName(categories, ruleTarget.category_id)}. Every future row matching “${ruleTarget.match}” on this account follows the new category.`
+                      : merchantRule
+                        ? `Applies to this account only — your shared rule for “${merchantRule.match}” is left as it is.`
+                        : `Future imports of “${merchantText}” on this account are categorised for you.`}
+                  </span>
+                </span>
               </label>
             </div>
           )}

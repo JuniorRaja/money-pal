@@ -208,6 +208,36 @@ export function extractMerchant(narration: string): string {
   return titleCase(cleanMerchantToken(raw).slice(0, 48));
 }
 
+/**
+ * Structured tails that end a narration when you typed no note: a reference
+ * number, a masked account, a VPA, an IFSC.
+ */
+const NOT_A_NOTE: readonly RegExp[] = [
+  /\d{6,}/, // reference numbers run 10-12 digits
+  /@/, // VPA
+  /^[A-Z]{4}0[A-Z0-9]{6}$/i, // IFSC, e.g. YESB0YBLUPI
+  /^X+\d*$/i, // masked account, e.g. XXXXXXX1893
+];
+
+/**
+ * Indian bank narration ends with the note typed at payment time — when one was
+ * typed: `UPI-M O COOL BAR-Q693365448@YBL-YESB0YBLUPI-192342317477-TEA` → "TEA".
+ * It is often absent, so the trailing segment counts as a note only when it
+ * doesn't look like one of the structured fields that otherwise ends the string.
+ * Returned verbatim: it is your text, and banks upper-case everything anyway.
+ */
+export function extractNote(narration: string): string | null {
+  const parts = narration.trim().split("-");
+  // Under 5 fields the tail is still structure (merchant, VPA), not your text.
+  if (parts.length < 5) return null;
+
+  const last = (parts.at(-1) ?? "").trim();
+  if (last.length < 2 || last.length > 60) return null;
+  if (!/[A-Za-z]/.test(last)) return null;
+  if (NOT_A_NOTE.some((pattern) => pattern.test(last))) return null;
+  return last;
+}
+
 function titleCase(value: string): string {
   const s = value.replace(/\s+/g, " ").trim();
   if (!s) return s;
@@ -241,11 +271,13 @@ export function applyHeuristics(input: {
 }): HeuristicSuggestion {
   const haystack = normalizeNarration(input.narration);
   const merchant = extractMerchant(input.narration);
+  const note = extractNote(input.narration);
   const hit = matchRule(haystack, input.type);
 
   if (hit) {
     return {
       merchant: merchant || hit.category,
+      note,
       suggested_category_name: hit.category,
       confidence: hit.confidence,
     };
@@ -254,6 +286,7 @@ export function applyHeuristics(input: {
   if (merchant && merchant.length >= 3) {
     return {
       merchant,
+      note,
       suggested_category_name: null,
       confidence: 0.4,
     };
@@ -261,6 +294,7 @@ export function applyHeuristics(input: {
 
   return {
     merchant: merchant || input.narration.trim().slice(0, 48),
+    note,
     suggested_category_name: null,
     confidence: 0.2,
   };

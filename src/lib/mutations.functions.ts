@@ -1222,6 +1222,7 @@ type ImportRowDraft = {
   occurred_at: string;
   merchant?: string | null;
   descriptor?: string | null;
+  note?: string | null;
   amount_paise: number;
   type: "income" | "expense";
   raw_line?: ImportMapping;
@@ -1273,10 +1274,13 @@ async function upsertImportRuleRow(
   if (lookupError) throw lookupError;
 
   if (existing) {
+    // Re-teaching a merchant revives a paused rule: the unique index means there
+    // can be no second row, so leaving it inactive would silently do nothing.
     const { error } = await supabase
       .from("import_rules")
       .update({
         category_id: input.category_id,
+        is_active: true,
         modified_at: new Date().toISOString(),
       })
       .eq("id", existing.id);
@@ -1502,6 +1506,7 @@ export const stageImportFn = createServerFn({ method: "POST" })
       occurred_at: row.occurred_at,
       merchant: row.merchant?.trim() || null,
       descriptor: row.descriptor?.trim() || null,
+      note: row.note?.trim() || null,
       amount_paise: row.amount_paise,
       type: row.type,
       raw_line: asJson(row.raw_line ?? {}),
@@ -1535,6 +1540,7 @@ export interface CommitImportRowInput {
     occurred_at?: string;
     merchant?: string | null;
     descriptor?: string | null;
+    note?: string | null;
     amount_paise?: number;
     type?: "income" | "expense";
     suggested_category_id?: string | null;
@@ -1571,6 +1577,7 @@ export const commitImportRowFn = createServerFn({ method: "POST" })
       if (patch.occurred_at !== undefined) update.occurred_at = patch.occurred_at;
       if (patch.merchant !== undefined) update.merchant = patch.merchant?.trim() || null;
       if (patch.descriptor !== undefined) update.descriptor = patch.descriptor?.trim() || null;
+      if (patch.note !== undefined) update.note = patch.note?.trim() || null;
       if (patch.amount_paise !== undefined) update.amount_paise = patch.amount_paise;
       if (patch.type !== undefined) update.type = patch.type;
       if (patch.suggested_category_id !== undefined) {
@@ -1661,6 +1668,50 @@ export const upsertImportRuleFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     return upsertImportRuleRow(supabase, userId, data);
+  });
+
+export interface UpdateImportRuleInput {
+  id: string;
+  category_id?: string;
+  is_active?: boolean;
+  /** Soft-delete. `match` is unique per user, so a hard delete is never needed. */
+  deleted?: boolean;
+}
+
+/**
+ * Edit a learned rule from Settings. Keyed by id rather than by match, so it can
+ * never insert a row that collides with `ux_import_rule_match`.
+ */
+export const updateImportRuleFn = createServerFn({ method: "POST" })
+  .validator((input: UpdateImportRuleInput) => {
+    if (!input.id) throw new Error("id is required");
+    if (input.category_id !== undefined && !input.category_id) {
+      throw new Error("category_id is required");
+    }
+    if (input.category_id === undefined && input.is_active === undefined && !input.deleted) {
+      throw new Error("nothing to update");
+    }
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const now = new Date().toISOString();
+    const update: Database["public"]["Tables"]["import_rules"]["Update"] = { modified_at: now };
+    if (data.category_id !== undefined) update.category_id = data.category_id;
+    if (data.is_active !== undefined) update.is_active = data.is_active;
+    if (data.deleted) {
+      update.deleted_at = now;
+      update.is_active = false;
+    }
+
+    const { error } = await supabase
+      .from("import_rules")
+      .update(update)
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return { id: data.id };
   });
 
 export interface RenameImportSourceInput {

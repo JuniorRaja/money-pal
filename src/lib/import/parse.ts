@@ -113,6 +113,7 @@ function buildMappedRows(
       occurred_at: midnightIst(row.date),
       merchant: heuristic.merchant,
       descriptor: row.narration,
+      note: heuristic.note,
       amount_paise: row.amount_paise,
       type: row.type,
       import_hash: "",

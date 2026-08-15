@@ -1,11 +1,25 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { Panel } from "@/components/mm-ui";
 import { useSession, type AppPrefs } from "@/components/session";
-import { getSettings } from "@/data/repository";
-import type { UserSettings } from "@/data/schema";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
+import { updateImportRule, type UpdateImportRuleInput } from "@/data/mutations";
+import { getAccounts, getCategories, getImportRules, getSettings } from "@/data/repository";
+import type { Account, Category, ImportRule } from "@/data/schema";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -20,11 +34,26 @@ export const Route = createFileRoute("/settings")({
       { property: "og:description", content: "Make Money Pal feel like yours." },
     ],
   }),
-  loader: async () => ({ settings: await getSettings() }),
+  loader: async () => {
+    const [settings, rules, categories, accounts] = await Promise.all([
+      getSettings(),
+      getImportRules(),
+      getCategories(),
+      getAccounts(),
+    ]);
+    return { settings, rules, categories, accounts };
+  },
   component: SettingsPage,
 });
 
-const tabs = ["Profile", "Appearance", "Formatting", "Assistant", "Privacy"] as const;
+const tabs = [
+  "Profile",
+  "Appearance",
+  "Formatting",
+  "Assistant",
+  "Import rules",
+  "Privacy",
+] as const;
 type Tab = (typeof tabs)[number];
 
 const accents = [
@@ -36,7 +65,7 @@ const accents = [
 ];
 
 function SettingsPage() {
-  const { settings } = Route.useLoaderData() as { settings: UserSettings };
+  const { settings, rules, categories, accounts } = Route.useLoaderData();
   const { prefs, setPrefs } = useSession();
   const [tab, setTab] = useState<Tab>("Appearance");
 
@@ -175,6 +204,10 @@ function SettingsPage() {
             </Panel>
           )}
 
+          {tab === "Import rules" && (
+            <ImportRulesTab rules={rules} categories={categories} accounts={accounts} />
+          )}
+
           {tab === "Privacy" && (
             <Panel title="Privacy & data">
               <p className="text-sm leading-relaxed text-muted-foreground">
@@ -190,6 +223,169 @@ function SettingsPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+/**
+ * Every merchant → category rule the import review has learned. Grouped
+ * account-scoped first, then global, so the list reads in the same order
+ * `applyImportRules` resolves them. Removing is a soft delete — a rule is never
+ * dropped from the table, it just stops being listed.
+ */
+function ImportRulesTab({
+  rules,
+  categories,
+  accounts,
+}: {
+  rules: ImportRule[];
+  categories: Category[];
+  accounts: Account[];
+}) {
+  const router = useRouter();
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<ImportRule | null>(null);
+
+  const groups = useMemo(() => {
+    const accountName = (id: string) =>
+      accounts.find((account) => account.id === id)?.name ?? "Archived account";
+    const scopedIds = [
+      ...new Set(rules.flatMap((rule) => (rule.account_id ? [rule.account_id] : []))),
+    ];
+    const scoped = scopedIds
+      .map((id) => ({
+        id,
+        title: accountName(id),
+        rules: rules.filter((rule) => rule.account_id === id),
+      }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+    const global = rules.filter((rule) => rule.account_id === null);
+    return global.length > 0
+      ? [...scoped, { id: "global", title: "All accounts", rules: global }]
+      : scoped;
+  }, [accounts, rules]);
+
+  const options = useMemo(
+    () => categories.filter((category) => category.group !== "transfer"),
+    [categories],
+  );
+
+  async function apply(input: UpdateImportRuleInput) {
+    setBusyId(input.id);
+    try {
+      await updateImportRule(input);
+      await router.invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update this rule");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <>
+      <Panel
+        title="Import rules"
+        action={
+          rules.length > 0 ? (
+            <span className="numeric text-xs text-muted-foreground">{rules.length} rules</span>
+          ) : undefined
+        }
+        bodyClassName={rules.length > 0 ? "p-0" : "p-5"}
+      >
+        {rules.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Nothing learned yet. Correct a category while reviewing an import and tick “remember
+            this” — the rule shows up here.
+          </p>
+        ) : (
+          <div className="divide-y divide-border/60">
+            {groups.map((group) => (
+              <div key={group.id}>
+                <p className="bg-accent/40 px-5 py-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                  {group.title}
+                </p>
+                <ul className="divide-y divide-border/60">
+                  {group.rules.map((rule) => (
+                    <li
+                      key={rule.id}
+                      className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-foreground">{rule.match}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {rule.is_active
+                            ? "Applied to matching merchants"
+                            : "Paused — imports ignore it"}
+                        </p>
+                      </div>
+                      <select
+                        aria-label={`Category for ${rule.match}`}
+                        value={rule.category_id}
+                        disabled={busyId === rule.id}
+                        onChange={(event) =>
+                          void apply({ id: rule.id, category_id: event.target.value })
+                        }
+                        className="h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-primary/60 disabled:opacity-50 sm:w-44"
+                      >
+                        {options.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                      <Switch
+                        checked={rule.is_active}
+                        disabled={busyId === rule.id}
+                        aria-label={`Apply the rule for ${rule.match}`}
+                        onCheckedChange={(next) => void apply({ id: rule.id, is_active: next })}
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Remove the rule for ${rule.match}`}
+                        onClick={() => setConfirmRemove(rule)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      <AlertDialog
+        open={Boolean(confirmRemove)}
+        onOpenChange={(open) => !open && setConfirmRemove(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove the rule for “{confirmRemove?.match}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Future imports stop categorising it for you. Transactions already imported keep the
+              category they were given. To keep the rule but stop it applying, use the toggle
+              instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!confirmRemove) return;
+                const id = confirmRemove.id;
+                setConfirmRemove(null);
+                void apply({ id, deleted: true });
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

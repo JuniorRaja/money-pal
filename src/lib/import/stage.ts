@@ -58,20 +58,33 @@ export function categoryIdByName(
   return categories.find((category) => category.name.toLowerCase() === needle)?.id ?? null;
 }
 
-/** Account-scoped rules win over global. Match is a lowercase substring of the merchant. */
+/**
+ * Account-scoped rules win over global. Match is a lowercase substring of the
+ * merchant. Paused rules (`is_active` off in Settings) are skipped here — the
+ * one place every caller routes through.
+ */
+export function findImportRule(
+  merchant: string,
+  rules: ImportRule[],
+  accountId: string,
+): ImportRule | null {
+  const haystack = merchant.trim().toLowerCase();
+  if (!haystack) return null;
+  const active = rules.filter((rule) => rule.is_active);
+  const scoped = active.filter((rule) => rule.account_id === accountId);
+  const global = active.filter((rule) => rule.account_id == null);
+  for (const rule of [...scoped, ...global]) {
+    if (haystack.includes(rule.match.toLowerCase())) return rule;
+  }
+  return null;
+}
+
 export function applyImportRules(
   merchant: string,
   rules: ImportRule[],
   accountId: string,
 ): string | null {
-  const haystack = merchant.trim().toLowerCase();
-  if (!haystack) return null;
-  const scoped = rules.filter((rule) => rule.account_id === accountId);
-  const global = rules.filter((rule) => rule.account_id == null);
-  for (const rule of [...scoped, ...global]) {
-    if (haystack.includes(rule.match.toLowerCase())) return rule.category_id;
-  }
-  return null;
+  return findImportRule(merchant, rules, accountId)?.category_id ?? null;
 }
 
 export function resolveSuggestedCategoryId(input: {
@@ -98,6 +111,7 @@ export function toStageDrafts(
   occurred_at: string;
   merchant: string;
   descriptor: string;
+  note: string | null;
   amount_paise: number;
   type: "income" | "expense";
   raw_line: ImportMapping;
@@ -114,6 +128,7 @@ export function toStageDrafts(
         occurred_at: row.occurred_at,
         merchant: row.merchant,
         descriptor: row.descriptor,
+        note: row.note,
         amount_paise: Math.abs(row.amount_paise),
         type: row.type,
         raw_line: {},
