@@ -27,6 +27,7 @@ export {
   parseImportBuffer,
   parseImportText,
   isSpreadsheetFilename,
+  isPdfFilename,
 } from "./parse";
 
 export { mapRawRecord, recordFromRow, resolveDirectedAmount, validateMapping } from "./map";

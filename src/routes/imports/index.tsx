@@ -160,13 +160,22 @@ function ImportsHub() {
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MethodCard icon={Mail} title="Gmail" detail="Bank alerts by mail — later." soon />
-        <MethodCard icon={FileText} title="PDF statement" detail="Password PDFs — later." soon />
-        <CsvMethodCard
+        <FileMethodCard
+          icon={FileSpreadsheet}
+          label="CSV / Excel"
+          extensions={[".csv", ".xlsx", ".xls"]}
           detail={
             latestCsv
               ? `Mapping saved · ${latestCsv.name}`
               : "Drop a statement. We detect the bank."
           }
+          onOpen={(file) => setFlow({ kind: "import", file: file ?? null })}
+        />
+        <FileMethodCard
+          icon={FileText}
+          label="PDF statement"
+          extensions={[".pdf"]}
+          detail="Password-protected PDFs are supported."
           onOpen={(file) => setFlow({ kind: "import", file: file ?? null })}
         />
         <button
@@ -470,7 +479,19 @@ function MethodCard({
   );
 }
 
-function CsvMethodCard({ detail, onOpen }: { detail: string; onOpen: (file?: File) => void }) {
+function FileMethodCard({
+  icon: Icon,
+  label,
+  extensions,
+  detail,
+  onOpen,
+}: {
+  icon: typeof Mail;
+  label: string;
+  extensions: string[];
+  detail: string;
+  onOpen: (file?: File) => void;
+}) {
   const [over, setOver] = useState(false);
   return (
     <button
@@ -486,9 +507,7 @@ function CsvMethodCard({ detail, onOpen }: { detail: string; onOpen: (file?: Fil
         setOver(false);
         const file = event.dataTransfer.files[0];
         const name = file?.name.toLowerCase() ?? "";
-        if (file && (name.endsWith(".csv") || name.endsWith(".xlsx") || name.endsWith(".xls"))) {
-          onOpen(file);
-        }
+        if (file && extensions.some((ext) => name.endsWith(ext))) onOpen(file);
       }}
       className={cn(
         "flex h-[88px] items-center gap-3 rounded-2xl border bg-card px-4 text-left transition-colors hover:border-primary/40",
@@ -496,10 +515,10 @@ function CsvMethodCard({ detail, onOpen }: { detail: string; onOpen: (file?: Fil
       )}
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
-        <FileSpreadsheet className="h-4 w-4" />
+        <Icon className="h-4 w-4" />
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-foreground">CSV / Excel</span>
+        <span className="block text-sm font-medium text-foreground">{label}</span>
         <span className="mt-0.5 block truncate text-xs text-muted-foreground">{detail}</span>
       </span>
     </button>

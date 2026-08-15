@@ -17,6 +17,10 @@ export function isSpreadsheetFilename(filename: string): boolean {
   return /\.xlsx?$/i.test(filename);
 }
 
+export function isPdfFilename(filename: string): boolean {
+  return /\.pdf$/i.test(filename);
+}
+
 function gridFromCsv(text: string): string[][] {
   const parsed = Papa.parse<string[]>(text, {
     delimiter: "",
@@ -49,7 +53,20 @@ function decodeText(bytes: ArrayBuffer): string {
   return utf8;
 }
 
-export function parseFileToGrid(bytes: ArrayBuffer, filename: string): string[][] {
+/**
+ * Decode a statement file into a raw `string[][]` grid. PDF text extraction is
+ * dynamically imported so pdfjs-dist (worker + all) only loads for users who
+ * actually open a PDF, and never enters the SSR module graph.
+ */
+export async function parseFileToGrid(
+  bytes: ArrayBuffer,
+  filename: string,
+  password?: string,
+): Promise<string[][]> {
+  if (isPdfFilename(filename)) {
+    const { pdfToGrid } = await import("./pdf");
+    return pdfToGrid(bytes, password);
+  }
   if (isSpreadsheetFilename(filename)) return gridFromWorkbook(bytes);
   return gridFromCsv(decodeText(bytes));
 }
@@ -199,7 +216,8 @@ export async function parseImportBuffer(
   bytes: ArrayBuffer | Uint8Array,
   options: ParseImportOptions,
 ): Promise<StatementParseResult> {
-  return parseImportGrid(parseFileToGrid(toArrayBuffer(bytes), options.filename), options);
+  const grid = await parseFileToGrid(toArrayBuffer(bytes), options.filename);
+  return parseImportGrid(grid, options);
 }
 
 export async function parseImportText(

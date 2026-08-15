@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test:unit": "tsx --test src/lib/import/hash.test.ts src/lib/import/heuristics.test.ts src/lib/import/near-duplicate.test.ts src/lib/import/normalize.test.ts src/lib/import/presets.test.ts",
+    "test:unit": "tsx --test src/lib/import/hash.test.ts src/lib/import/heuristics.test.ts src/lib/import/near-duplicate.test.ts src/lib/import/normalize.test.ts src/lib/import/pdf.test.ts src/lib/import/presets.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
@@ -57,6 +57,7 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.575.0",
     "papaparse": "^5.6.0",
+    "pdfjs-dist": "^6.2.108",
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.0",

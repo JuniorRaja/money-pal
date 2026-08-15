@@ -48,7 +48,7 @@ First-class presets: **HDFC savings**, **HDFC credit card**, **DBS**. Other Indi
 
 ## Import — hub, wizard, card review
 
-Keep Connected sources, activity, and Needs your eye. Review is Tinder-style cards. A job can be paused and resumed (commit part of the file, come back later). Gmail and PDF are coming-soon tiles, not live sources. No Gmail OAuth in this pass.
+Keep Connected sources, activity, and Needs your eye. Review is Tinder-style cards. A job can be paused and resumed (commit part of the file, come back later). Gmail is a coming-soon tile, not a live source. No Gmail OAuth in this pass. PDF is live (see "Import — PDF statements" below).
 
 ## Import — wizard is file-first, not account-first
 
@@ -65,6 +65,10 @@ Ambiguous numeric dates default to **DMY** (Indian statements). `MDY` is inferre
 ## Import — everything is IST
 
 Staged and committed rows use midnight Asia/Kolkata (`midnightIst`). Postgres returns that as `…T18:30:00+00:00`, so a calendar day is **always** derived with `dayKey()` from `lib/money.ts`, never by slicing the first ten characters of a timestamp. Slicing loses a day for every row.
+
+## Import — PDF statements
+
+`pdf.js` text-layer extraction feeds the same pipeline CSV/Excel uses (`parseFileToGrid` → `parseImportGrid`), so amount/date parsing and dedupe are shared and untested paths don't multiply. Parsing stays in the browser; the PDF is never uploaded. A password-protected PDF prompts for the password client-side and it is never sent anywhere. A PDF with no extractable text layer (scanned) is rejected with a clear error — no OCR. Only HDFC savings has a tuned layout so far; a new bank needs its own fixture, not a shared guess.
 
 ## Import — Excel parsing comes from the SheetJS CDN
 

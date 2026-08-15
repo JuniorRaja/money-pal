@@ -28,7 +28,11 @@ export type StageResult = {
   duplicates: number;
 };
 
-type WizardStep = "file" | "map" | "account";
+type WizardStep = "file" | "password" | "map" | "account";
+
+function isPdfPasswordError(error: unknown): error is Error & { incorrect: boolean } {
+  return error instanceof Error && error.name === "PdfPasswordError";
+}
 
 export function ImportWizard({
   accounts,
@@ -63,6 +67,7 @@ export function ImportWizard({
   const [step, setStep] = useState<WizardStep>("file");
   const [busy, setBusy] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const candidates = useMemo(() => {
     if (!parsed) return [];
@@ -87,14 +92,15 @@ export function ImportWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function ingestFile(next: File, nextMapping?: ColumnMapping | null) {
+  async function ingestFile(next: File, nextMapping?: ColumnMapping | null, password?: string) {
     setFile(next);
     setBusy(true);
     setParseError(null);
     try {
       const savedMapping = source ? asColumnMapping(profile?.mapping) : null;
       // Decode once; onMappingChange re-maps this grid instead of re-reading the file.
-      const nextGrid = parseFileToGrid(await next.arrayBuffer(), next.name);
+      const nextGrid = await parseFileToGrid(await next.arrayBuffer(), next.name, password);
+      setPasswordError(null);
       setGrid(nextGrid);
       const result = parseImportGrid(nextGrid, {
         filename: next.name,
@@ -140,6 +146,11 @@ export function ImportWizard({
       }
       setStep("account");
     } catch (error) {
+      if (isPdfPasswordError(error)) {
+        setPasswordError(error.incorrect ? "Incorrect password." : null);
+        setStep("password");
+        return;
+      }
       setParseError(mutationErrorMessage(error, "Could not parse this file"));
       setParsed(null);
       setStep("file");
@@ -218,7 +229,7 @@ export function ImportWizard({
   }
 
   const steps: WizardStep[] = ["file", "map", "account"];
-  const active = steps.indexOf(step);
+  const active = steps.indexOf(step === "password" ? "file" : step);
 
   return (
     <div className="relative min-h-[260px] pb-8">
@@ -233,7 +244,20 @@ export function ImportWizard({
             label={id === "file" ? "Statement" : id === "map" ? "Columns" : "Account"}
             active={behind === 0}
           >
-            {id === "file" && behind === 0 && (
+            {id === "file" && behind === 0 && step === "password" && file && (
+              <PasswordStep
+                filename={file.name}
+                busy={busy}
+                error={passwordError}
+                onSubmit={(password) => void ingestFile(file, undefined, password)}
+                onBack={() => {
+                  setFile(null);
+                  setPasswordError(null);
+                  setStep("file");
+                }}
+              />
+            )}
+            {id === "file" && behind === 0 && step !== "password" && (
               <div className="space-y-3">
                 <FileDrop
                   compact
@@ -403,5 +427,61 @@ function AccountStep({
         </button>
       </div>
     </div>
+  );
+}
+
+function PasswordStep({
+  filename,
+  busy,
+  error,
+  onSubmit,
+  onBack,
+}: {
+  filename: string;
+  busy: boolean;
+  error: string | null;
+  onSubmit: (password: string) => void;
+  onBack: () => void;
+}) {
+  const [password, setPassword] = useState("");
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (password) onSubmit(password);
+      }}
+    >
+      <p className="text-sm text-foreground">
+        <span className="font-medium">{filename}</span> is password protected. The password stays in
+        this browser and is never sent anywhere.
+      </p>
+      <input
+        type="password"
+        autoFocus
+        className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+        placeholder="Statement password"
+        value={password}
+        disabled={busy}
+        onChange={(event) => setPassword(event.target.value)}
+      />
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="h-9 rounded-lg border border-border px-3 text-sm"
+          onClick={onBack}
+        >
+          Back
+        </button>
+        <button
+          type="submit"
+          disabled={busy || !password}
+          className="h-9 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-50"
+        >
+          {busy ? "Unlocking…" : "Unlock"}
+        </button>
+      </div>
+    </form>
   );
 }

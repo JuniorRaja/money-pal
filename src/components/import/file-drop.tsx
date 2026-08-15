@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const ACCEPT =
-  ".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  ".csv,.xlsx,.xls,.pdf,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf";
 
 export function FileDrop({
   file,
@@ -23,7 +23,13 @@ export function FileDrop({
     (next: File | undefined) => {
       if (!next || disabled) return;
       const name = next.name.toLowerCase();
-      if (!name.endsWith(".csv") && !name.endsWith(".xlsx") && !name.endsWith(".xls")) return;
+      if (
+        !name.endsWith(".csv") &&
+        !name.endsWith(".xlsx") &&
+        !name.endsWith(".xls") &&
+        !name.endsWith(".pdf")
+      )
+        return;
       onFile(next);
     },
     [disabled, onFile],
@@ -65,12 +71,14 @@ export function FileDrop({
         <>
           <p className="mt-3 text-sm font-medium text-foreground">{file.name}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Drop a different CSV or Excel file to replace it.
+            Drop a different statement to replace it.
           </p>
         </>
       ) : (
         <>
-          <p className="mt-3 text-sm font-medium text-foreground">Drop a CSV or Excel statement</p>
+          <p className="mt-3 text-sm font-medium text-foreground">
+            Drop a CSV, Excel, or PDF statement
+          </p>
           <p className="mt-1 max-w-xs text-xs text-muted-foreground">
             Parsed in this browser. The file is never uploaded.
           </p>
