@@ -20,6 +20,8 @@ export interface AppPrefs {
   numberFormat: "indian" | "international";
   assistantTone: "concise" | "detailed";
   assistantContext: boolean;
+  /** Blurs headline figures (stat cards, balances, hero totals) for shoulder privacy. */
+  maskNumbers: boolean;
   /** ISO timestamp of the last time the notification feed was opened. "" = never. */
   timelineSeenAt: string;
 }
@@ -54,6 +56,7 @@ const defaultPrefs: AppPrefs = {
   numberFormat: "indian",
   assistantTone: "concise",
   assistantContext: true,
+  maskNumbers: false,
   timelineSeenAt: "",
 };
 
@@ -90,7 +93,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.classList.toggle("dark", prefs.theme === "dark");
     root.classList.toggle("reduce-motion", prefs.reduceMotion);
-  }, [prefs.theme, prefs.reduceMotion]);
+    root.classList.toggle("mask-numbers", prefs.maskNumbers);
+  }, [prefs.theme, prefs.reduceMotion, prefs.maskNumbers]);
 
   // Listen to Supabase auth state changes
   useEffect(() => {

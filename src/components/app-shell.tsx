@@ -8,6 +8,8 @@ import {
   CircleDollarSign,
   CreditCard,
   Download,
+  Eye,
+  EyeOff,
   Flag,
   Gauge,
   LayoutGrid,
@@ -325,6 +327,15 @@ function TopBar({
         <span className="hidden sm:inline">Ask Money Pal</span>
       </Link>
       <NotificationBell />
+      <button
+        onClick={() => setPrefs({ maskNumbers: !prefs.maskNumbers })}
+        className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+        aria-label={prefs.maskNumbers ? "Show amounts" : "Hide amounts"}
+        aria-pressed={prefs.maskNumbers}
+        title={prefs.maskNumbers ? "Show amounts" : "Hide amounts"}
+      >
+        {prefs.maskNumbers ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
       <button
         onClick={() => setPrefs({ theme: prefs.theme === "dark" ? "light" : "dark" })}
         className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"

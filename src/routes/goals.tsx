@@ -241,7 +241,7 @@ function GoalsPage() {
                     )}
                   </div>
                 </div>
-                <p className="numeric mt-5 text-2xl text-foreground">
+                <p className="numeric maskable mt-5 text-2xl text-foreground">
                   {formatMoney(g.saved, { whole: true })}
                 </p>
                 <p className="text-xs text-muted-foreground">of {formatCompact(g.target)} target</p>

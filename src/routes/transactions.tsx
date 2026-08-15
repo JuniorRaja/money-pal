@@ -469,7 +469,7 @@ function DetailPanel({
 
         {/* Amount */}
         <p
-          className={`numeric mt-5 text-3xl ${transaction.amount > 0 ? "text-success" : "text-destructive"}`}
+          className={`numeric maskable mt-5 text-3xl ${transaction.amount > 0 ? "text-success" : "text-destructive"}`}
         >
           {formatMoney(transaction.amount, { sign: true })}
         </p>
@@ -968,7 +968,9 @@ function Stat({
   return (
     <div className="px-6 py-4">
       <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
-      <p className={`numeric mt-1 text-xl ${tone ? `text-${tone}` : "text-foreground"}`}>{value}</p>
+      <p className={`numeric maskable mt-1 text-xl ${tone ? `text-${tone}` : "text-foreground"}`}>
+        {value}
+      </p>
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );

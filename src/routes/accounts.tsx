@@ -157,7 +157,7 @@ function AccountsPage() {
                 <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
               </div>
             </div>
-            <p className="numeric mt-4 text-2xl text-foreground">
+            <p className="numeric maskable mt-4 text-2xl text-foreground">
               {formatMoney(a.balance, { whole: true })}
             </p>
             <div className="mt-3 flex items-end justify-between">
@@ -216,7 +216,7 @@ function AccountsPage() {
                   <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                     Used
                   </p>
-                  <p className="numeric text-2xl text-foreground">
+                  <p className="numeric maskable text-2xl text-foreground">
                     {formatMoney(used, { whole: true })}
                   </p>
                 </div>
@@ -275,7 +275,7 @@ function AccountsPage() {
               </div>
               <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
             </div>
-            <p className="numeric mt-4 text-2xl text-foreground">
+            <p className="numeric maskable mt-4 text-2xl text-foreground">
               {formatMoney(a.balance, { whole: true })}
             </p>
             <div className="mt-3 flex items-end justify-between">
@@ -308,7 +308,7 @@ function AccountsPage() {
               </div>
               <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
             </div>
-            <p className="numeric mt-4 text-2xl text-foreground">
+            <p className="numeric maskable mt-4 text-2xl text-foreground">
               {formatMoney(Math.abs(a.balance), { whole: true })}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">

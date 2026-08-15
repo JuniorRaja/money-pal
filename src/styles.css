@@ -241,6 +241,14 @@
   font-feature-settings: "tnum";
 }
 
+/* Privacy masking: headline figures wear `maskable`, the root class does the
+   hiding. Blur is em-relative so a ₹46px net worth blurs harder than a 20px
+   card stat, and both land unreadable. */
+.mask-numbers .maskable {
+  filter: blur(0.35em);
+  user-select: none;
+}
+
 /* Fine paper grain laid over surfaces. */
 @utility grain {
   position: relative;

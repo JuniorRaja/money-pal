@@ -137,7 +137,7 @@ function OverviewPage() {
           }
         >
           <div>
-            <p className="numeric text-[46px] leading-none text-foreground">
+            <p className="numeric maskable text-[46px] leading-none text-foreground">
               {formatMoney(ownership.owned, { whole: true })}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">

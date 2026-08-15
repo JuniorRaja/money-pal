@@ -61,7 +61,7 @@ export function StatCard({
           </span>
         )}
       </div>
-      <p className="numeric mt-3 text-[28px] leading-none text-foreground">{value}</p>
+      <p className="numeric maskable mt-3 text-[28px] leading-none text-foreground">{value}</p>
       <div className="mt-3 flex items-center gap-2 text-xs">
         {typeof delta === "number" && (
           <span className={delta >= 0 ? "text-success" : "text-destructive"}>
