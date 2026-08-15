@@ -113,7 +113,6 @@ export interface AccountAllocation {
   earmarked: Paise;
 }
 
-
 export type TransactionType = "income" | "expense" | "transfer";
 
 export interface Transaction {
@@ -213,12 +212,7 @@ export interface TimelineEvent {
 
 export type ImportSourceKind = "gmail" | "pdf" | "csv" | "manual";
 export type BankPreset = "hdfc_savings" | "hdfc_cc" | "dbs" | "custom";
-export type ImportRowStatus =
-  | "pending"
-  | "imported"
-  | "skipped_duplicate"
-  | "skipped"
-  | "held";
+export type ImportRowStatus = "pending" | "imported" | "skipped_duplicate" | "skipped" | "held";
 export type ImportSourceStatus = "idle" | "paused" | string;
 
 /** Parsed-column mapping stored on `import_profiles.mapping` (parser-owned shape). */
@@ -251,6 +245,20 @@ export interface ImportJob {
   finished_at: ISODateTime | null;
   imported: number;
   duplicates: number;
+  /** Set when the job was dismissed. Only the archive reads dismissed jobs. */
+  dismissed_at: ISODateTime | null;
+}
+
+/**
+ * An already-committed transaction that looks like a staged row: same account,
+ * same signed amount, within a day. Computed on read, never stored — the match
+ * has to reflect the ledger as it is now, not as it was at stage time.
+ */
+export interface PossibleDuplicate {
+  id: string;
+  occurred_at: ISODateTime;
+  amount_paise: Paise;
+  merchant: string;
 }
 
 export interface ImportJobRow {
@@ -268,6 +276,7 @@ export interface ImportJobRow {
   suggested_category_id: string | null;
   transaction_id: string | null;
   confidence: number | null;
+  possible_duplicate: PossibleDuplicate | null;
 }
 
 export interface ImportRule {
@@ -301,6 +310,7 @@ export interface ImportReviewItem {
   occurred_at: ISODateTime;
   suggested_category_id: string | null;
   confidence: number | null;
+  possible_duplicate: PossibleDuplicate | null;
 }
 
 export interface MonthlyRollup {

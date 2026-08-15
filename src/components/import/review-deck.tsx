@@ -29,13 +29,7 @@ function Seal({ kind }: { kind: StampKind }) {
   );
 }
 
-function PeekFace({
-  row,
-  categories,
-}: {
-  row: ImportJobRow;
-  categories: Category[];
-}) {
+function PeekFace({ row, categories }: { row: ImportJobRow; categories: Category[] }) {
   return (
     <div className="flex items-start justify-between gap-3 p-4">
       <div className="min-w-0">
@@ -310,7 +304,7 @@ export function ReviewDeck({
       } else if (event.key === "e" || event.key === "E") {
         event.preventDefault();
         setEditing(true);
-      } else       if (event.key === "ArrowRight") {
+      } else if (event.key === "ArrowRight") {
         event.preventDefault();
         void accept();
       } else if (event.key === "b" || event.key === "B" || event.key === "ArrowDown") {
@@ -460,6 +454,28 @@ export function ReviewDeck({
             )}
           </div>
 
+          {current.possible_duplicate && (
+            <div
+              role="status"
+              className="mt-4 rounded-xl border border-destructive/40 bg-destructive/8 p-3"
+            >
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-destructive">
+                Looks like an existing transaction
+              </p>
+              <p className="mt-1 text-sm text-foreground">
+                {formatDay(current.possible_duplicate.occurred_at)} ·{" "}
+                {formatMoney(current.possible_duplicate.amount_paise)}
+                {current.possible_duplicate.merchant
+                  ? ` · ${current.possible_duplicate.merchant}`
+                  : ""}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Same account, same amount, within a day. Skip unless this really is a second,
+                separate charge.
+              </p>
+            </div>
+          )}
+
           {editing && edit && (
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block">
@@ -544,7 +560,13 @@ export function ReviewDeck({
         <button
           disabled={busy}
           onClick={() => void skip()}
-          className="h-9 rounded-lg border border-border px-3 text-sm text-foreground hover:bg-accent disabled:opacity-50"
+          className={cn(
+            "h-9 rounded-lg px-3 text-sm disabled:opacity-50",
+            // A suspected duplicate defaults to Skip: the safe action leads.
+            current.possible_duplicate
+              ? "bg-primary px-4 font-medium text-primary-foreground"
+              : "border border-border text-foreground hover:bg-accent",
+          )}
         >
           Skip
         </button>
@@ -565,14 +587,21 @@ export function ReviewDeck({
         <button
           disabled={busy}
           onClick={() => void accept()}
-          className="h-9 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className={cn(
+            "h-9 rounded-lg text-sm disabled:opacity-50",
+            current.possible_duplicate
+              ? "border border-border px-3 text-foreground hover:bg-accent"
+              : "bg-primary px-4 font-medium text-primary-foreground",
+          )}
         >
-          Accept
+          {/* Keeps the verb the deck (and its keyboard hint) uses everywhere else. */}
+          {current.possible_duplicate ? "Accept anyway" : "Accept"}
         </button>
       </div>
 
       <p className="mt-4 hidden text-center text-[11px] text-muted-foreground sm:block">
-        A accept · S skip · H hold · E edit · B back · Esc done. Swipe right to accept, left to skip.
+        A accept · S skip · H hold · E edit · B back · Esc done. Swipe right to accept, left to
+        skip.
       </p>
       <p className="mt-4 text-center text-[11px] text-muted-foreground sm:hidden">
         Swipe right to accept, left to skip.

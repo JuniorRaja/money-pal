@@ -82,6 +82,8 @@ export const getCreditCardCycles = (accountId?: string): Promise<CreditCardCycle
 
 export const getImportSources = (): Promise<ImportSource[]> => liveImportSources();
 export const getImportJobs = (): Promise<ImportJob[]> => liveImportJobs();
+/** Every job ever run, dismissed ones included — the `/imports/history` archive. */
+export const getImportJobHistory = (): Promise<ImportJob[]> => liveImportJobs(true);
 export const getImportReviewItems = (): Promise<ImportReviewItem[]> => liveImportReviewItems();
 export const getImportProfiles = (): Promise<ImportProfile[]> => liveImportProfiles();
 export const getImportRules = (): Promise<ImportRule[]> => liveImportRules();
@@ -110,7 +112,6 @@ export const getSettings = (): Promise<UserSettings> =>
     assistant_tone: "concise",
     assistant_context: true,
   });
-
 
 export interface TransactionFilter {
   search?: string | undefined;
@@ -249,8 +250,7 @@ export function groupTransactionsForDisplay(rows: Transaction[]): Transaction[] 
       if (seen.has(t.transaction_id)) continue;
       seen.add(t.transaction_id);
       // Prefer the outbound (negative) leg as the canonical display row.
-      const fromLeg =
-        rows.find((x) => x.transaction_id === t.transaction_id && x.amount < 0) ?? t;
+      const fromLeg = rows.find((x) => x.transaction_id === t.transaction_id && x.amount < 0) ?? t;
       out.push(fromLeg);
     } else {
       out.push(t);
@@ -303,7 +303,8 @@ export async function getAssistantContext(): Promise<string> {
   const r = (p: Paise) => Math.round(p / 100);
   const nameOf = (id: string) => cats0.find((c) => c.id === id)?.name ?? id;
   const cats = new Map<string, number>();
-  for (const t of txns) if (t.amount < 0) cats.set(t.category_id, (cats.get(t.category_id) ?? 0) - t.amount);
+  for (const t of txns)
+    if (t.amount < 0) cats.set(t.category_id, (cats.get(t.category_id) ?? 0) - t.amount);
   const catLine = [...cats.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)

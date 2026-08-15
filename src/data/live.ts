@@ -41,6 +41,13 @@ import type {
   Transaction,
 } from "@/data/schema";
 import { IMPORT_LOW_CONFIDENCE_MAX } from "@/data/schema";
+// Imported straight from the module, not the `@/lib/import` barrel — that barrel
+// pulls in the SheetJS/papaparse parser, which has no business in a read path.
+import {
+  matchNearDuplicates,
+  signedAmountPaise,
+  type MatchableTransaction,
+} from "@/lib/import/near-duplicate";
 import { dayKey } from "@/lib/money";
 
 /** Browser singleton in the browser; a fresh request-scoped client on the server. */
@@ -77,7 +84,10 @@ export function isAuthError(error: unknown): boolean {
 }
 
 /** Runs a live read. Returns empty fallback when not signed in; rethrows real query failures. */
-async function live<T>(run: (supabase: SupabaseClient<Database>) => Promise<T>, fallback: T): Promise<T> {
+async function live<T>(
+  run: (supabase: SupabaseClient<Database>) => Promise<T>,
+  fallback: T,
+): Promise<T> {
   const supabase = await getSupabase();
   if (!(await checkSession(supabase))) return fallback;
   try {
@@ -144,13 +154,17 @@ export const liveAccounts = (): Promise<Account[]> =>
         kind: row.kind as Account["kind"],
         balance,
         credit_limit: row.credit_limit === null ? null : Number(row.credit_limit),
-        bill_generation_day: row.bill_generation_day === null ? null : Number(row.bill_generation_day),
+        bill_generation_day:
+          row.bill_generation_day === null ? null : Number(row.bill_generation_day),
         due_day: row.due_day === null ? null : Number(row.due_day),
         interest_rate_bps: row.interest_rate_bps === null ? null : Number(row.interest_rate_bps),
         emi_amount: row.emi_amount === null ? null : Number(row.emi_amount),
         tenure_months: row.tenure_months === null ? null : Number(row.tenure_months),
         lender: (row.lender as string | null) ?? null,
-        used_amount: row.used_amount === null || row.used_amount === undefined ? null : Number(row.used_amount),
+        used_amount:
+          row.used_amount === null || row.used_amount === undefined
+            ? null
+            : Number(row.used_amount),
         currency: row.currency_code as Account["currency"],
         is_primary: Boolean(row.is_primary),
         last_activity_at: bucket?.last || new Date().toISOString(),
@@ -172,21 +186,19 @@ export const liveCreditCardCycles = (accountId?: string): Promise<CreditCardCycl
     if (accountId) query = query.eq("account_id", accountId);
     const { data, error } = await query;
     if (error) throw error;
-    return (data ?? []).map(
-      (row): CreditCardCycle => ({
-        id: row.id,
-        account_id: row.account_id,
-        statement_date: row.statement_date,
-        due_date: row.due_date,
-        credit_limit: Number(row.credit_limit),
-        statement_balance: Number(row.statement_balance),
-        payment_due_amount: Number(row.payment_due_amount),
-        minimum_due: Number(row.minimum_due),
-        amount_paid: Number(row.amount_paid),
-        is_current: Boolean(row.is_current),
-        notes: row.notes ?? null,
-      }),
-    );
+    return (data ?? []).map((row): CreditCardCycle => ({
+      id: row.id,
+      account_id: row.account_id,
+      statement_date: row.statement_date,
+      due_date: row.due_date,
+      credit_limit: Number(row.credit_limit),
+      statement_balance: Number(row.statement_balance),
+      payment_due_amount: Number(row.payment_due_amount),
+      minimum_due: Number(row.minimum_due),
+      amount_paid: Number(row.amount_paid),
+      is_current: Boolean(row.is_current),
+      notes: row.notes ?? null,
+    }));
   }, []);
 
 export const liveCategories = (): Promise<Category[]> =>
@@ -196,15 +208,13 @@ export const liveCategories = (): Promise<Category[]> =>
       .select("id, name, kind, icon, color_token")
       .order("sort_order");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): Category => ({
-        id: row.id,
-        name: row.name,
-        group: row.kind as Category["group"],
-        icon: row.icon ?? "circle",
-        color_token: row.color_token ?? "chart-1",
-      }),
-    );
+    return (data ?? []).map((row): Category => ({
+      id: row.id,
+      name: row.name,
+      group: row.kind as Category["group"],
+      icon: row.icon ?? "circle",
+      color_token: row.color_token ?? "chart-1",
+    }));
   }, []);
 
 export const liveLabels = (): Promise<Label[]> =>
@@ -213,16 +223,14 @@ export const liveLabels = (): Promise<Label[]> =>
       .from("labels")
       .select("id, name, color_token, account_id, kind, is_default");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): Label => ({
-        id: row.id,
-        name: row.name,
-        color_token: row.color_token ?? "chart-2",
-        account_id: row.account_id ?? null,
-        kind: (row.kind as Label["kind"]) ?? "owned",
-        is_default: Boolean(row.is_default),
-      }),
-    );
+    return (data ?? []).map((row): Label => ({
+      id: row.id,
+      name: row.name,
+      color_token: row.color_token ?? "chart-2",
+      account_id: row.account_id ?? null,
+      kind: (row.kind as Label["kind"]) ?? "owned",
+      is_default: Boolean(row.is_default),
+    }));
   }, []);
 
 /** Slices of every account, with amounts derived in SQL. */
@@ -230,20 +238,18 @@ export const liveSlices = (): Promise<Slice[]> =>
   live<Slice[]>(async (supabase) => {
     const { data, error } = await supabase.from("v_account_slices").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): Slice => ({
-        id: row.slice_id as string,
-        account_id: row.account_id as string,
-        name: row.name as string,
-        kind: row.kind as Slice["kind"],
-        color_token: (row.color_token as string | null) ?? "chart-2",
-        is_default: Boolean(row.is_default),
-        amount: Number(row.amount ?? 0),
-        opening_amount: Number(row.opening_amount ?? 0),
-        target_amount: row.target_amount === null ? null : Number(row.target_amount),
-        target_date: (row.target_date as string | null) ?? null,
-      }),
-    );
+    return (data ?? []).map((row): Slice => ({
+      id: row.slice_id as string,
+      account_id: row.account_id as string,
+      name: row.name as string,
+      kind: row.kind as Slice["kind"],
+      color_token: (row.color_token as string | null) ?? "chart-2",
+      is_default: Boolean(row.is_default),
+      amount: Number(row.amount ?? 0),
+      opening_amount: Number(row.opening_amount ?? 0),
+      target_amount: row.target_amount === null ? null : Number(row.target_amount),
+      target_date: (row.target_date as string | null) ?? null,
+    }));
   }, []);
 
 /** Allocated vs unallocated money per account. */
@@ -251,18 +257,16 @@ export const liveAllocations = (): Promise<AccountAllocation[]> =>
   live<AccountAllocation[]>(async (supabase) => {
     const { data, error } = await supabase.from("v_account_allocation").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): AccountAllocation => ({
-        account_id: row.account_id as string,
-        balance: Number(row.balance ?? 0),
-        allocated: Number(row.allocated ?? 0),
-        unallocated: Number(row.unallocated ?? 0),
-        slice_count: Number(row.slice_count ?? 0),
-        owned: Number(row.owned_amount ?? 0),
-        custodial: Number(row.custodial_amount ?? 0),
-        earmarked: Number(row.earmarked_amount ?? 0),
-      }),
-    );
+    return (data ?? []).map((row): AccountAllocation => ({
+      account_id: row.account_id as string,
+      balance: Number(row.balance ?? 0),
+      allocated: Number(row.allocated ?? 0),
+      unallocated: Number(row.unallocated ?? 0),
+      slice_count: Number(row.slice_count ?? 0),
+      owned: Number(row.owned_amount ?? 0),
+      custodial: Number(row.custodial_amount ?? 0),
+      earmarked: Number(row.earmarked_amount ?? 0),
+    }));
   }, []);
 
 export const liveTransactions = (): Promise<Transaction[]> =>
@@ -289,8 +293,8 @@ export const liveTransactions = (): Promise<Transaction[]> =>
       const siblings = byTxn.get(tid) ?? [];
       const counterparty =
         row.type === "transfer"
-          ? (siblings.find((s) => s.entry_id !== row.entry_id)?.account_id as string | undefined) ??
-          null
+          ? ((siblings.find((s) => s.entry_id !== row.entry_id)?.account_id as
+              string | undefined) ?? null)
           : null;
       return {
         id: row.entry_id as string,
@@ -321,18 +325,16 @@ export const liveTimeline = (): Promise<TimelineEvent[]> =>
       .order("occurred_at", { ascending: false })
       .limit(200);
     if (error) throw error;
-    return (data ?? []).map(
-      (row): TimelineEvent => ({
-        id: row.id,
-        occurred_at: row.occurred_at,
-        kind: row.kind as TimelineEvent["kind"],
-        title: row.title,
-        detail: row.detail ?? "",
-        amount: row.amount === null ? null : Number(row.amount),
-        account_id: row.account_id,
-        action_label: row.action_label,
-      }),
-    );
+    return (data ?? []).map((row): TimelineEvent => ({
+      id: row.id,
+      occurred_at: row.occurred_at,
+      kind: row.kind as TimelineEvent["kind"],
+      title: row.title,
+      detail: row.detail ?? "",
+      amount: row.amount === null ? null : Number(row.amount),
+      account_id: row.account_id,
+      action_label: row.action_label,
+    }));
   }, []);
 
 export const liveBudgets = (period: string): Promise<BudgetPeriod[]> =>
@@ -342,16 +344,14 @@ export const liveBudgets = (period: string): Promise<BudgetPeriod[]> =>
       .select("*")
       .eq("period_month", `${period}-01`);
     if (error) throw error;
-    return (data ?? []).map(
-      (row): BudgetPeriod => ({
-        id: row.budget_line_id as string,
-        budget_id: (row.budget_id as string) ?? "",
-        period,
-        category_id: row.category_id as string,
-        planned: Number(row.planned ?? 0),
-        spent: Number(row.spent ?? 0),
-      }),
-    );
+    return (data ?? []).map((row): BudgetPeriod => ({
+      id: row.budget_line_id as string,
+      budget_id: (row.budget_id as string) ?? "",
+      period,
+      category_id: row.category_id as string,
+      planned: Number(row.planned ?? 0),
+      spent: Number(row.spent ?? 0),
+    }));
   }, []);
 
 export const liveCategorySpend = (period: string): Promise<CategorySpend[]> =>
@@ -363,33 +363,29 @@ export const liveCategorySpend = (period: string): Promise<CategorySpend[]> =>
     if (error) throw error;
     return (data ?? [])
       .filter((row) => row.category_id)
-      .map(
-        (row): CategorySpend => ({
-          category_id: row.category_id as string,
-          spent: Number(row.spent ?? 0),
-        }),
-      );
+      .map((row): CategorySpend => ({
+        category_id: row.category_id as string,
+        spent: Number(row.spent ?? 0),
+      }));
   }, []);
 
 export const liveGoals = (): Promise<Goal[]> =>
   live<Goal[]>(async (supabase) => {
     const { data, error } = await supabase.from("v_goal_progress").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): Goal => ({
-        id: row.goal_id as string,
-        name: row.name as string,
-        blurb: (row.blurb as string | null) ?? "",
-        target: Number(row.target_amount ?? 0),
-        saved: Number(row.saved ?? 0),
-        saved_this_month: Number(row.saved_this_month ?? 0),
-        target_date: (row.target_date as string | null) ?? "",
-        account_id: (row.account_id as string | null) ?? "",
-        monthly_contribution: Number(row.monthly_contribution ?? 0),
-        icon: (row.icon as string | null) ?? "target",
-        archived: false,
-      }),
-    );
+    return (data ?? []).map((row): Goal => ({
+      id: row.goal_id as string,
+      name: row.name as string,
+      blurb: (row.blurb as string | null) ?? "",
+      target: Number(row.target_amount ?? 0),
+      saved: Number(row.saved ?? 0),
+      saved_this_month: Number(row.saved_this_month ?? 0),
+      target_date: (row.target_date as string | null) ?? "",
+      account_id: (row.account_id as string | null) ?? "",
+      monthly_contribution: Number(row.monthly_contribution ?? 0),
+      icon: (row.icon as string | null) ?? "target",
+      archived: false,
+    }));
   }, []);
 
 /** Fetches archived (soft-deleted) goals directly from the goals table. */
@@ -402,7 +398,7 @@ export const liveArchivedGoals = (): Promise<Goal[]> =>
     if (error) throw error;
 
     // For archived goals, we need to fetch their saved amounts from contributions
-    const goalIds = (data ?? []).map(g => g.id);
+    const goalIds = (data ?? []).map((g) => g.id);
     if (goalIds.length === 0) return [];
 
     const { data: contribs } = await supabase
@@ -416,21 +412,19 @@ export const liveArchivedGoals = (): Promise<Goal[]> =>
       savedByGoal.set(c.goal_id, (savedByGoal.get(c.goal_id) ?? 0) + Number(c.amount ?? 0));
     }
 
-    return (data ?? []).map(
-      (row): Goal => ({
-        id: row.id as string,
-        name: row.name as string,
-        blurb: (row.blurb as string | null) ?? "",
-        target: Number(row.target_amount ?? 0),
-        saved: savedByGoal.get(row.id) ?? 0,
-        saved_this_month: 0, // Archived goals don't track this month
-        target_date: (row.target_date as string | null) ?? "",
-        account_id: (row.account_id as string | null) ?? "",
-        monthly_contribution: Number(row.monthly_contribution ?? 0),
-        icon: (row.icon as string | null) ?? "target",
-        archived: true,
-      }),
-    );
+    return (data ?? []).map((row): Goal => ({
+      id: row.id as string,
+      name: row.name as string,
+      blurb: (row.blurb as string | null) ?? "",
+      target: Number(row.target_amount ?? 0),
+      saved: savedByGoal.get(row.id) ?? 0,
+      saved_this_month: 0, // Archived goals don't track this month
+      target_date: (row.target_date as string | null) ?? "",
+      account_id: (row.account_id as string | null) ?? "",
+      monthly_contribution: Number(row.monthly_contribution ?? 0),
+      icon: (row.icon as string | null) ?? "target",
+      archived: true,
+    }));
   }, []);
 
 function pickContributionTxn(
@@ -459,9 +453,7 @@ export const liveGoalContributions = (): Promise<GoalContribution[]> =>
     ]);
     if (contrib.error) throw contrib.error;
     if (goalsRes.error) throw goalsRes.error;
-    const accountByGoal = new Map(
-      (goalsRes.data ?? []).map((g) => [g.id, g.account_id ?? ""]),
-    );
+    const accountByGoal = new Map((goalsRes.data ?? []).map((g) => [g.id, g.account_id ?? ""]));
     return (contrib.data ?? []).map((row): GoalContribution => {
       const headerId = row.transaction_id;
       const txn = headerId
@@ -566,7 +558,59 @@ function mapJobRow(row: {
     suggested_category_id: row.suggested_category_id,
     transaction_id: row.transaction_id,
     confidence: row.confidence === null ? null : Number(row.confidence),
+    possible_duplicate: null,
   };
+}
+
+const NEAR_DUPLICATE_CHUNK = 200;
+/** Two days of slack on the SQL bound; the exact ±1 IST day test runs in memory. */
+const NEAR_DUPLICATE_SLACK_MS = 2 * 86_400_000;
+
+/**
+ * Attaches `possible_duplicate` to the rows still awaiting a decision. Computed
+ * on every read rather than stored: a stage-time flag goes stale the moment the
+ * matched transaction is edited or deleted, and this needs no migration.
+ *
+ * Only `pending`/`held` rows are matched — a committed row would match the very
+ * transaction it created.
+ */
+async function attachNearDuplicates(
+  supabase: SupabaseClient<Database>,
+  rows: ImportJobRow[],
+): Promise<ImportJobRow[]> {
+  const open = rows.filter((row) => row.status === "pending" || row.status === "held");
+  if (open.length === 0) return rows;
+
+  const accountIds = [...new Set(open.map((row) => row.account_id))];
+  const amounts = [...new Set(open.map(signedAmountPaise))];
+  const times = open.map((row) => Date.parse(row.occurred_at));
+  const from = new Date(Math.min(...times) - NEAR_DUPLICATE_SLACK_MS).toISOString();
+  const to = new Date(Math.max(...times) + NEAR_DUPLICATE_SLACK_MS).toISOString();
+
+  const committed: MatchableTransaction[] = [];
+  for (let i = 0; i < amounts.length; i += NEAR_DUPLICATE_CHUNK) {
+    const { data, error } = await supabase
+      .from("v_transactions_flat")
+      .select("transaction_id, account_id, occurred_at, amount, merchant")
+      .in("account_id", accountIds)
+      .in("amount", amounts.slice(i, i + NEAR_DUPLICATE_CHUNK))
+      .gte("occurred_at", from)
+      .lte("occurred_at", to);
+    if (error) throw error;
+    for (const txn of data ?? []) {
+      committed.push({
+        id: (txn.transaction_id as string | null) ?? "",
+        account_id: txn.account_id as string,
+        occurred_at: txn.occurred_at as string,
+        amount: Number(txn.amount ?? 0),
+        merchant: (txn.merchant as string | null) ?? null,
+      });
+    }
+  }
+
+  const matches = matchNearDuplicates(open, committed);
+  if (matches.size === 0) return rows;
+  return rows.map((row) => ({ ...row, possible_duplicate: matches.get(row.id) ?? null }));
 }
 
 function reviewKindFor(row: ImportJobRow): ReviewKind {
@@ -593,6 +637,7 @@ function mapReviewItem(row: ImportJobRow): ImportReviewItem {
     occurred_at: row.occurred_at,
     suggested_category_id: row.suggested_category_id,
     confidence: row.confidence,
+    possible_duplicate: row.possible_duplicate,
   };
 }
 
@@ -642,37 +687,37 @@ export const liveImportProfiles = (): Promise<ImportProfile[]> =>
       .is("deleted_at", null)
       .order("modified_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map(
-      (row): ImportProfile => ({
-        id: row.id,
-        account_id: row.account_id,
-        source_id: row.source_id,
-        bank_preset: row.bank_preset,
-        mapping: asMapping(row.mapping),
-      }),
-    );
+    return (data ?? []).map((row): ImportProfile => ({
+      id: row.id,
+      account_id: row.account_id,
+      source_id: row.source_id,
+      bank_preset: row.bank_preset,
+      mapping: asMapping(row.mapping),
+    }));
   }, []);
 
-export const liveImportJobs = (): Promise<ImportJob[]> =>
+/** `includeDismissed` is for the archive only — the hub must not resurrect dismissed jobs. */
+export const liveImportJobs = (includeDismissed = false): Promise<ImportJob[]> =>
   live<ImportJob[]>(async (supabase) => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("import_jobs")
-      .select("id, source_id, title, rows_done, rows_total, finished_at, imported, duplicates")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
+      .select(
+        "id, source_id, title, rows_done, rows_total, finished_at, imported, duplicates, deleted_at",
+      );
+    if (!includeDismissed) query = query.is("deleted_at", null);
+    const { data, error } = await query.order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map(
-      (row): ImportJob => ({
-        id: row.id,
-        source_id: row.source_id,
-        title: row.title ?? "",
-        rows_done: Number(row.rows_done ?? 0),
-        rows_total: Number(row.rows_total ?? 0),
-        finished_at: row.finished_at,
-        imported: Number(row.imported ?? 0),
-        duplicates: Number(row.duplicates ?? 0),
-      }),
-    );
+    return (data ?? []).map((row): ImportJob => ({
+      id: row.id,
+      source_id: row.source_id,
+      title: row.title ?? "",
+      rows_done: Number(row.rows_done ?? 0),
+      rows_total: Number(row.rows_total ?? 0),
+      finished_at: row.finished_at,
+      imported: Number(row.imported ?? 0),
+      duplicates: Number(row.duplicates ?? 0),
+      dismissed_at: row.deleted_at,
+    }));
   }, []);
 
 const JOB_ROW_COLUMNS =
@@ -692,7 +737,10 @@ export const liveImportJobRows = (
     if (statuses?.length) query = query.in("status", statuses);
     const { data, error } = await query;
     if (error) throw error;
-    return (data ?? []).map((row) => mapJobRow(row));
+    return attachNearDuplicates(
+      supabase,
+      (data ?? []).map((row) => mapJobRow(row)),
+    );
   }, []);
 
 export const liveImportJobQueue = (jobId: string): Promise<ImportJobRow[]> =>
@@ -710,10 +758,19 @@ export const liveImportReviewItems = (): Promise<ImportReviewItem[]> =>
       // renders every one of them. The queue is a to-do list, not an archive.
       .limit(200);
     if (error) throw error;
-    const items = (data ?? []).map((row) => mapReviewItem(mapJobRow(row)));
-    const rank = (kind: ReviewKind) =>
-      kind === "held" ? 0 : kind === "low_confidence" ? 1 : 2;
-    return items.sort((a, b) => rank(a.kind) - rank(b.kind));
+    const rows = await attachNearDuplicates(
+      supabase,
+      (data ?? []).map((row) => mapJobRow(row)),
+    );
+    const items = rows.map((row) => mapReviewItem(row));
+    const rank = (kind: ReviewKind) => (kind === "held" ? 0 : kind === "low_confidence" ? 1 : 2);
+    // Suspected duplicates first inside each kind — they are the rows where a
+    // wrong click costs the most.
+    return items.sort(
+      (a, b) =>
+        rank(a.kind) - rank(b.kind) ||
+        Number(Boolean(b.possible_duplicate)) - Number(Boolean(a.possible_duplicate)),
+    );
   }, []);
 
 export const liveImportRules = (): Promise<ImportRule[]> =>
@@ -724,12 +781,10 @@ export const liveImportRules = (): Promise<ImportRule[]> =>
       .is("deleted_at", null)
       .order("match");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): ImportRule => ({
-        id: row.id,
-        match: row.match,
-        category_id: row.category_id,
-        account_id: row.account_id,
-      }),
-    );
+    return (data ?? []).map((row): ImportRule => ({
+      id: row.id,
+      match: row.match,
+      category_id: row.category_id,
+      account_id: row.account_id,
+    }));
   }, []);

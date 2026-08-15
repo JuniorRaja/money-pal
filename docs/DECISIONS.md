@@ -112,6 +112,16 @@ Imported rows are income or expense only. Transfers are not auto-detected. The u
 
 Hash is `sha256(account_id | date | signed_amount | normalized_narration | n)` where `n` is the 0-based index among rows that share the same date + amount + narration **in this file**. Re-importing the same mapped file skips those hashes (`skipped_duplicate`). Two genuine identical charges in one statement get `n=0` and `n=1`. Unique `ux_txn_external` on `transactions(user_id, external_ref)` stores the hash as `external_ref`. `fn_record_transaction` accepts `p_source` (CSV uses `csv`; manual stays `manual`), `p_external_ref`, and `p_confidence`.
 
+## Import — near-duplicates are flagged, never auto-skipped
+
+The hash above only catches a byte-identical narration. The same statement re-exported by another tool writes `UPI-SWIGGY-9876@ybl` where the first wrote `UPI/SWIGGY/9876`, so the hash misses it. **The hash formula does not change** — `ux_txn_external` stores it, and changing it invalidates every `external_ref` already committed.
+
+Instead the queue reads match on the fields that do not drift: same `account_id`, same signed amount, `occurred_at` within **±1 IST day** (banks routinely differ by one between transaction date and value date for the same entry). A match sets `possible_duplicate` on the staged row.
+
+A near-duplicate is **flagged for review, never auto-skipped**. Two genuine ₹200 Swiggy orders on one day are indistinguishable from a duplicate by amount and date alone; a false flag costs one click, a missed duplicate corrupts the ledger. The review deck leads with **Skip** and demotes accept to _Import anyway_; Skip goes through the existing `fn_set_import_row_status` state machine as `skipped` — no new status.
+
+`possible_duplicate` is **computed on every read, never stored** (`attachNearDuplicates` in `data/live.ts`, matcher in `lib/import/near-duplicate.ts`). A flag persisted at stage time goes stale the moment the matched transaction is edited or deleted, and this needs no column and no migration. Only `pending`/`held` rows are matched — a committed row would match the transaction it created.
+
 ## Import — review queue kinds
 
 A staged row reaches "Needs your eye" as exactly one of `pending`, `held`, or `low_confidence` (confidence below `IMPORT_LOW_CONFIDENCE_MAX`, 0.8 — the single threshold; there is no second one). The `review_kind` Postgres enum (`duplicate` / `unknown_merchant` / `large_transfer`) belongs to the superseded `import_review_items` table and is not read by any code path.

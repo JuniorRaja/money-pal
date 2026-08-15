@@ -23,6 +23,7 @@ import { Route as TimelineRouteImport } from './routes/timeline'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as ImportsIndexRouteImport } from './routes/imports/index'
 import { Route as ImportsJobIdRouteImport } from './routes/imports/$jobId'
+import { Route as ImportsHistoryRouteImport } from './routes/imports/history'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -94,6 +95,11 @@ const ImportsJobIdRoute = ImportsJobIdRouteImport.update({
   path: '/$jobId',
   getParentRoute: () => ImportsRouteRoute,
 } as any)
+const ImportsHistoryRoute = ImportsHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => ImportsRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/timeline': typeof TimelineRoute
   '/transactions': typeof TransactionsRoute
   '/imports/$jobId': typeof ImportsJobIdRoute
+  '/imports/history': typeof ImportsHistoryRoute
   '/imports/': typeof ImportsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/timeline': typeof TimelineRoute
   '/transactions': typeof TransactionsRoute
   '/imports/$jobId': typeof ImportsJobIdRoute
+  '/imports/history': typeof ImportsHistoryRoute
   '/imports': typeof ImportsIndexRoute
 }
 export interface FileRoutesById {
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/timeline': typeof TimelineRoute
   '/transactions': typeof TransactionsRoute
   '/imports/$jobId': typeof ImportsJobIdRoute
+  '/imports/history': typeof ImportsHistoryRoute
   '/imports/': typeof ImportsIndexRoute
 }
 export interface FileRouteTypes {
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/timeline'
     | '/transactions'
     | '/imports/$jobId'
+    | '/imports/history'
     | '/imports/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/timeline'
     | '/transactions'
     | '/imports/$jobId'
+    | '/imports/history'
     | '/imports'
   id:
     | '__root__'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/timeline'
     | '/transactions'
     | '/imports/$jobId'
+    | '/imports/history'
     | '/imports/'
   fileRoutesById: FileRoutesById
 }
@@ -308,16 +320,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImportsJobIdRouteImport
       parentRoute: typeof ImportsRouteRoute
     }
+    '/imports/history': {
+      id: '/imports/history'
+      path: '/history'
+      fullPath: '/imports/history'
+      preLoaderRoute: typeof ImportsHistoryRouteImport
+      parentRoute: typeof ImportsRouteRoute
+    }
   }
 }
 
 interface ImportsRouteRouteChildren {
   ImportsJobIdRoute: typeof ImportsJobIdRoute
+  ImportsHistoryRoute: typeof ImportsHistoryRoute
   ImportsIndexRoute: typeof ImportsIndexRoute
 }
 
 const ImportsRouteRouteChildren: ImportsRouteRouteChildren = {
   ImportsJobIdRoute: ImportsJobIdRoute,
+  ImportsHistoryRoute: ImportsHistoryRoute,
   ImportsIndexRoute: ImportsIndexRoute,
 }
 
