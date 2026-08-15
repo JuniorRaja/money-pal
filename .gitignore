@@ -34,6 +34,23 @@ dist-ssr
 
 # AI tooling
 # .claude/
+.cursor/
+.lovable/
+.windsurf/
+.bolt/
+.replit/
+
+# Plans / design docs
+docs/plans/
+
+# Account statements
+docs/Acct_*
+docs/*.csv
+docs/*.pdf
+docs/*.xls
+docs/*.xlsx
+docs/*.ofx
+docs/*.qfx
 
 # Playwright
 .playwright-cli/
