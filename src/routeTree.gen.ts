@@ -14,13 +14,16 @@ import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as BudgetsRouteImport } from './routes/budgets'
 import { Route as GoalsRouteImport } from './routes/goals'
-import { Route as ImportsRouteImport } from './routes/imports'
+import { Route as ImportsRouteRouteImport } from './routes/imports/route'
 import { Route as InvestmentsRouteImport } from './routes/investments'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TimelineRouteImport } from './routes/timeline'
 import { Route as TransactionsRouteImport } from './routes/transactions'
+import { Route as ImportsIndexRouteImport } from './routes/imports/index'
+import { Route as ImportsJobIdRouteImport } from './routes/imports/$jobId'
+import { Route as ImportsNewRouteImport } from './routes/imports/new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -47,7 +50,7 @@ const GoalsRoute = GoalsRouteImport.update({
   path: '/goals',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ImportsRoute = ImportsRouteImport.update({
+const ImportsRouteRoute = ImportsRouteRouteImport.update({
   id: '/imports',
   path: '/imports',
   getParentRoute: () => rootRouteImport,
@@ -82,20 +85,38 @@ const TransactionsRoute = TransactionsRouteImport.update({
   path: '/transactions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ImportsIndexRoute = ImportsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ImportsRouteRoute,
+} as any)
+const ImportsJobIdRoute = ImportsJobIdRouteImport.update({
+  id: '/$jobId',
+  path: '/$jobId',
+  getParentRoute: () => ImportsRouteRoute,
+} as any)
+const ImportsNewRoute = ImportsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => ImportsRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/imports': typeof ImportsRouteRouteWithChildren
   '/accounts': typeof AccountsRoute
   '/assistant': typeof AssistantRoute
   '/budgets': typeof BudgetsRoute
   '/goals': typeof GoalsRoute
-  '/imports': typeof ImportsRoute
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/timeline': typeof TimelineRoute
   '/transactions': typeof TransactionsRoute
+  '/imports/$jobId': typeof ImportsJobIdRoute
+  '/imports/new': typeof ImportsNewRoute
+  '/imports/': typeof ImportsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -103,44 +124,52 @@ export interface FileRoutesByTo {
   '/assistant': typeof AssistantRoute
   '/budgets': typeof BudgetsRoute
   '/goals': typeof GoalsRoute
-  '/imports': typeof ImportsRoute
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/timeline': typeof TimelineRoute
   '/transactions': typeof TransactionsRoute
+  '/imports/$jobId': typeof ImportsJobIdRoute
+  '/imports/new': typeof ImportsNewRoute
+  '/imports': typeof ImportsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/imports': typeof ImportsRouteRouteWithChildren
   '/accounts': typeof AccountsRoute
   '/assistant': typeof AssistantRoute
   '/budgets': typeof BudgetsRoute
   '/goals': typeof GoalsRoute
-  '/imports': typeof ImportsRoute
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/timeline': typeof TimelineRoute
   '/transactions': typeof TransactionsRoute
+  '/imports/$jobId': typeof ImportsJobIdRoute
+  '/imports/new': typeof ImportsNewRoute
+  '/imports/': typeof ImportsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/imports'
     | '/accounts'
     | '/assistant'
     | '/budgets'
     | '/goals'
-    | '/imports'
     | '/investments'
     | '/login'
     | '/reports'
     | '/settings'
     | '/timeline'
     | '/transactions'
+    | '/imports/$jobId'
+    | '/imports/new'
+    | '/imports/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -148,36 +177,41 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/budgets'
     | '/goals'
-    | '/imports'
     | '/investments'
     | '/login'
     | '/reports'
     | '/settings'
     | '/timeline'
     | '/transactions'
+    | '/imports/$jobId'
+    | '/imports/new'
+    | '/imports'
   id:
     | '__root__'
     | '/'
+    | '/imports'
     | '/accounts'
     | '/assistant'
     | '/budgets'
     | '/goals'
-    | '/imports'
     | '/investments'
     | '/login'
     | '/reports'
     | '/settings'
     | '/timeline'
     | '/transactions'
+    | '/imports/$jobId'
+    | '/imports/new'
+    | '/imports/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ImportsRouteRoute: typeof ImportsRouteRouteWithChildren
   AccountsRoute: typeof AccountsRoute
   AssistantRoute: typeof AssistantRoute
   BudgetsRoute: typeof BudgetsRoute
   GoalsRoute: typeof GoalsRoute
-  ImportsRoute: typeof ImportsRoute
   InvestmentsRoute: typeof InvestmentsRoute
   LoginRoute: typeof LoginRoute
   ReportsRoute: typeof ReportsRoute
@@ -227,7 +261,7 @@ declare module '@tanstack/react-router' {
       id: '/imports'
       path: '/imports'
       fullPath: '/imports'
-      preLoaderRoute: typeof ImportsRouteImport
+      preLoaderRoute: typeof ImportsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/investments': {
@@ -272,16 +306,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TransactionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/imports/': {
+      id: '/imports/'
+      path: '/'
+      fullPath: '/imports/'
+      preLoaderRoute: typeof ImportsIndexRouteImport
+      parentRoute: typeof ImportsRouteRoute
+    }
+    '/imports/$jobId': {
+      id: '/imports/$jobId'
+      path: '/$jobId'
+      fullPath: '/imports/$jobId'
+      preLoaderRoute: typeof ImportsJobIdRouteImport
+      parentRoute: typeof ImportsRouteRoute
+    }
+    '/imports/new': {
+      id: '/imports/new'
+      path: '/new'
+      fullPath: '/imports/new'
+      preLoaderRoute: typeof ImportsNewRouteImport
+      parentRoute: typeof ImportsRouteRoute
+    }
   }
 }
 
+interface ImportsRouteRouteChildren {
+  ImportsJobIdRoute: typeof ImportsJobIdRoute
+  ImportsNewRoute: typeof ImportsNewRoute
+  ImportsIndexRoute: typeof ImportsIndexRoute
+}
+
+const ImportsRouteRouteChildren: ImportsRouteRouteChildren = {
+  ImportsJobIdRoute: ImportsJobIdRoute,
+  ImportsNewRoute: ImportsNewRoute,
+  ImportsIndexRoute: ImportsIndexRoute,
+}
+
+const ImportsRouteRouteWithChildren = ImportsRouteRoute._addFileChildren(
+  ImportsRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ImportsRouteRoute: ImportsRouteRouteWithChildren,
   AccountsRoute: AccountsRoute,
   AssistantRoute: AssistantRoute,
   BudgetsRoute: BudgetsRoute,
   GoalsRoute: GoalsRoute,
-  ImportsRoute: ImportsRoute,
   InvestmentsRoute: InvestmentsRoute,
   LoginRoute: LoginRoute,
   ReportsRoute: ReportsRoute,

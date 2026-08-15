@@ -6,9 +6,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
-import type { AccountKind, HoldingClass, SliceKind, TransactionType } from "@/data/schema";
+import type { AccountKind, BankPreset, HoldingClass, ImportMapping, SliceKind, TransactionType } from "@/data/schema";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { shiftPeriod } from "@/lib/period";
 
 type AppSupabase = SupabaseClient<Database>;
@@ -1184,5 +1184,620 @@ export const archiveCreditCardCycleFn = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .is("deleted_at", null);
     if (error) throw error;
+    return { id: data.id };
+  });
+
+// =============================================================================
+// CSV IMPORT CENTER
+// =============================================================================
+
+const BANK_PRESETS: BankPreset[] = ["hdfc_savings", "hdfc_cc", "dbs", "custom"];
+const IMPORT_ROW_CHUNK = 200;
+
+function fail(error: { message: string } | null | undefined): never {
+  throw new Error(error?.message?.trim() || "Import request failed");
+}
+
+function asJson(value: ImportMapping): Json {
+  return value as Json;
+}
+
+function normalizeRuleMatch(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+type ImportRowDraft = {
+  occurred_at: string;
+  merchant?: string | null;
+  descriptor?: string | null;
+  amount_paise: number;
+  type: "income" | "expense";
+  raw_line?: ImportMapping;
+  import_hash: string;
+  suggested_category_id?: string | null;
+  confidence?: number | null;
+};
+
+async function findExistingExternalRefs(
+  supabase: AppSupabase,
+  hashes: string[],
+): Promise<Set<string>> {
+  const found = new Set<string>();
+  for (let i = 0; i < hashes.length; i += IMPORT_ROW_CHUNK) {
+    const chunk = hashes.slice(i, i + IMPORT_ROW_CHUNK);
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("external_ref")
+      .in("external_ref", chunk)
+      .is("deleted_at", null);
+    if (error) fail(error);
+    for (const row of data ?? []) {
+      if (row.external_ref) found.add(row.external_ref);
+    }
+  }
+  return found;
+}
+
+async function upsertImportRuleRow(
+  supabase: AppSupabase,
+  userId: string,
+  input: { match: string; category_id: string; account_id?: string | null },
+): Promise<{ id: string }> {
+  const match = normalizeRuleMatch(input.match);
+  if (!match) throw new Error("match is required");
+  if (!input.category_id) throw new Error("category_id is required");
+
+  let existingQuery = supabase
+    .from("import_rules")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("match", match)
+    .is("deleted_at", null);
+  existingQuery = input.account_id
+    ? existingQuery.eq("account_id", input.account_id)
+    : existingQuery.is("account_id", null);
+
+  const { data: existing, error: lookupError } = await existingQuery.maybeSingle();
+  if (lookupError) throw lookupError;
+
+  if (existing) {
+    const { error } = await supabase
+      .from("import_rules")
+      .update({
+        category_id: input.category_id,
+        modified_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+    if (error) throw error;
+    return { id: existing.id };
+  }
+
+  const { data: created, error } = await supabase
+    .from("import_rules")
+    .insert({
+      user_id: userId,
+      match,
+      category_id: input.category_id,
+      account_id: input.account_id ?? null,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return { id: created.id };
+}
+
+async function ensureImportSourceAndProfile(
+  supabase: AppSupabase,
+  userId: string,
+  input: {
+    account_id: string;
+    bank_preset: BankPreset;
+    source_name: string;
+    source_id?: string | null | undefined;
+    mapping: ImportMapping;
+  },
+): Promise<{ sourceId: string; profileId: string }> {
+  const mapping = asJson(input.mapping ?? {});
+  let sourceId = input.source_id ?? null;
+
+  if (sourceId) {
+    const { data: source, error } = await supabase
+      .from("import_sources")
+      .select("id")
+      .eq("id", sourceId)
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (error) fail(error);
+    if (!source) throw new Error("import source not found");
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("import_profiles")
+    .select("id, source_id")
+    .eq("user_id", userId)
+    .eq("account_id", input.account_id)
+    .eq("bank_preset", input.bank_preset)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (profileError) fail(profileError);
+
+  if (!sourceId) sourceId = profile?.source_id ?? null;
+
+  if (sourceId) {
+    const { data: liveSource, error } = await supabase
+      .from("import_sources")
+      .select("id")
+      .eq("id", sourceId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (error) fail(error);
+    if (!liveSource) sourceId = null;
+  }
+
+  if (!sourceId) {
+    const { data: createdSource, error } = await supabase
+      .from("import_sources")
+      .insert({
+        user_id: userId,
+        kind: "csv",
+        name: input.source_name.trim(),
+        status: "idle",
+      })
+      .select("id")
+      .single();
+    if (error) fail(error);
+    sourceId = createdSource.id;
+  }
+
+  if (profile) {
+    const { error } = await supabase
+      .from("import_profiles")
+      .update({
+        source_id: sourceId,
+        mapping,
+        modified_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id);
+    if (error) fail(error);
+    return { sourceId, profileId: profile.id };
+  }
+
+  const { data: createdProfile, error } = await supabase
+    .from("import_profiles")
+    .insert({
+      user_id: userId,
+      account_id: input.account_id,
+      source_id: sourceId,
+      bank_preset: input.bank_preset,
+      mapping,
+    })
+    .select("id")
+    .single();
+  if (error) fail(error);
+  return { sourceId, profileId: createdProfile.id };
+}
+
+async function bumpJobRowsDone(supabase: AppSupabase, jobId: string): Promise<void> {
+  const { data: job, error } = await supabase
+    .from("import_jobs")
+    .select("rows_done, rows_total")
+    .eq("id", jobId)
+    .is("deleted_at", null)
+    .single();
+  if (error) throw error;
+  const next = Number(job.rows_done ?? 0) + 1;
+  const patch: Database["public"]["Tables"]["import_jobs"]["Update"] = {
+    rows_done: next,
+    modified_at: new Date().toISOString(),
+  };
+  if (job.rows_total > 0 && next >= job.rows_total) {
+    patch.finished_at = new Date().toISOString();
+  }
+  const { error: updateError } = await supabase.from("import_jobs").update(patch).eq("id", jobId);
+  if (updateError) throw updateError;
+}
+
+async function unbumpJobRowsDone(supabase: AppSupabase, jobId: string): Promise<void> {
+  const { data: job, error } = await supabase
+    .from("import_jobs")
+    .select("rows_done")
+    .eq("id", jobId)
+    .is("deleted_at", null)
+    .single();
+  if (error) throw error;
+  const next = Math.max(0, Number(job.rows_done ?? 0) - 1);
+  const { error: updateError } = await supabase
+    .from("import_jobs")
+    .update({
+      rows_done: next,
+      finished_at: null,
+      modified_at: new Date().toISOString(),
+    })
+    .eq("id", jobId);
+  if (updateError) throw updateError;
+}
+
+export interface UpsertImportProfileInput {
+  account_id: string;
+  bank_preset: BankPreset;
+  source_name: string;
+  source_id?: string | null;
+  mapping: ImportMapping;
+}
+
+export const upsertImportProfileFn = createServerFn({ method: "POST" })
+  .validator((input: UpsertImportProfileInput) => {
+    if (!input.account_id) throw new Error("account_id is required");
+    if (!BANK_PRESETS.includes(input.bank_preset)) throw new Error("bank_preset is invalid");
+    if (!input.source_name?.trim()) throw new Error("source_name is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    return ensureImportSourceAndProfile(supabase, userId, data);
+  });
+
+export interface StageImportInput {
+  account_id: string;
+  bank_preset: BankPreset;
+  source_name: string;
+  source_id?: string | null;
+  mapping: ImportMapping;
+  title: string;
+  rows: ImportRowDraft[];
+}
+
+export const stageImportFn = createServerFn({ method: "POST" })
+  .validator((input: StageImportInput) => {
+    if (!input.account_id) throw new Error("account_id is required");
+    if (!BANK_PRESETS.includes(input.bank_preset)) throw new Error("bank_preset is invalid");
+    if (!input.source_name?.trim()) throw new Error("source_name is required");
+    if (!input.title?.trim()) throw new Error("title is required");
+    if (!input.rows?.length) throw new Error("rows are required");
+    const hashes = new Set<string>();
+    for (const row of input.rows) {
+      if (!row.occurred_at) throw new Error("each row needs occurred_at");
+      if (!row.import_hash?.trim()) throw new Error("each row needs import_hash");
+      if (row.amount_paise <= 0) throw new Error("amount_paise must be positive");
+      if (row.type !== "income" && row.type !== "expense") {
+        throw new Error("row type must be income or expense");
+      }
+      if (hashes.has(row.import_hash)) {
+        throw new Error("duplicate import_hash in payload");
+      }
+      hashes.add(row.import_hash);
+    }
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { sourceId, profileId } = await ensureImportSourceAndProfile(supabase, userId, {
+      account_id: data.account_id,
+      bank_preset: data.bank_preset,
+      source_name: data.source_name,
+      source_id: data.source_id,
+      mapping: data.mapping,
+    });
+
+    const existingRefs = await findExistingExternalRefs(
+      supabase,
+      data.rows.map((row) => row.import_hash),
+    );
+    const duplicateCount = data.rows.filter((row) => existingRefs.has(row.import_hash)).length;
+    const now = new Date().toISOString();
+    const allDuplicates = duplicateCount === data.rows.length;
+
+    const { data: job, error: jobError } = await supabase
+      .from("import_jobs")
+      .insert({
+        user_id: userId,
+        source_id: sourceId,
+        title: data.title.trim(),
+        rows_total: data.rows.length,
+        rows_done: duplicateCount,
+        imported: 0,
+        duplicates: duplicateCount,
+        finished_at: allDuplicates ? now : null,
+      })
+      .select("id")
+      .single();
+    if (jobError) fail(jobError);
+
+    const payloads = data.rows.map((row) => ({
+      user_id: userId,
+      job_id: job.id,
+      account_id: data.account_id,
+      occurred_at: row.occurred_at,
+      merchant: row.merchant?.trim() || null,
+      descriptor: row.descriptor?.trim() || null,
+      amount_paise: row.amount_paise,
+      type: row.type,
+      raw_line: asJson(row.raw_line ?? {}),
+      import_hash: row.import_hash,
+      status: existingRefs.has(row.import_hash)
+        ? ("skipped_duplicate" as const)
+        : ("pending" as const),
+      suggested_category_id: row.suggested_category_id ?? null,
+      confidence: row.confidence ?? null,
+    }));
+
+    for (let i = 0; i < payloads.length; i += IMPORT_ROW_CHUNK) {
+      const chunk = payloads.slice(i, i + IMPORT_ROW_CHUNK);
+      const { error } = await supabase.from("import_job_rows").insert(chunk);
+      if (error) fail(error);
+    }
+
+    return {
+      source_id: sourceId,
+      profile_id: profileId,
+      job_id: job.id,
+      rows_total: data.rows.length,
+      rows_done: duplicateCount,
+      duplicates: duplicateCount,
+    };
+  });
+
+export interface CommitImportRowInput {
+  row_id: string;
+  patch?: {
+    occurred_at?: string;
+    merchant?: string | null;
+    descriptor?: string | null;
+    amount_paise?: number;
+    type?: "income" | "expense";
+    suggested_category_id?: string | null;
+    confidence?: number | null;
+  };
+  /** When the user corrects category, persist a merchant → category rule. */
+  rule?: {
+    match: string;
+    category_id: string;
+    account_id?: string | null;
+  };
+}
+
+export const commitImportRowFn = createServerFn({ method: "POST" })
+  .validator((input: CommitImportRowInput) => {
+    if (!input.row_id) throw new Error("row_id is required");
+    if (input.patch?.amount_paise !== undefined && input.patch.amount_paise <= 0) {
+      throw new Error("amount_paise must be positive");
+    }
+    if (input.patch?.type && input.patch.type !== "income" && input.patch.type !== "expense") {
+      throw new Error("type must be income or expense");
+    }
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+
+    if (data.patch) {
+      const patch = data.patch;
+      const update: Database["public"]["Tables"]["import_job_rows"]["Update"] = {
+        modified_at: new Date().toISOString(),
+      };
+      if (patch.occurred_at !== undefined) update.occurred_at = patch.occurred_at;
+      if (patch.merchant !== undefined) update.merchant = patch.merchant?.trim() || null;
+      if (patch.descriptor !== undefined) update.descriptor = patch.descriptor?.trim() || null;
+      if (patch.amount_paise !== undefined) update.amount_paise = patch.amount_paise;
+      if (patch.type !== undefined) update.type = patch.type;
+      if (patch.suggested_category_id !== undefined) {
+        update.suggested_category_id = patch.suggested_category_id;
+      }
+      if (patch.confidence !== undefined) update.confidence = patch.confidence;
+
+      const { error } = await supabase
+        .from("import_job_rows")
+        .update(update)
+        .eq("id", data.row_id)
+        .in("status", ["pending", "held"]);
+      if (error) throw error;
+    }
+
+    const { data: txnId, error } = await supabase.rpc("fn_commit_import_row", {
+      p_row_id: data.row_id,
+    });
+    if (error) throw error;
+
+    let rule_id: string | null = null;
+    if (data.rule) {
+      const saved = await upsertImportRuleRow(supabase, userId, data.rule);
+      rule_id = saved.id;
+    }
+
+    return { row_id: data.row_id, transaction_id: txnId as string | null, rule_id };
+  });
+
+export interface SkipImportRowInput {
+  row_id: string;
+}
+
+export const skipImportRowFn = createServerFn({ method: "POST" })
+  .validator((input: SkipImportRowInput) => {
+    if (!input.row_id) throw new Error("row_id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { data: row, error } = await supabase
+      .from("import_job_rows")
+      .select("id, job_id, status")
+      .eq("id", data.row_id)
+      .is("deleted_at", null)
+      .single();
+    if (error || !row) throw new Error("import row not found");
+    if (row.status === "skipped") return { row_id: row.id, status: "skipped" as const };
+    if (row.status === "imported" || row.status === "skipped_duplicate") {
+      throw new Error("import row is already resolved");
+    }
+
+    const { error: updateError } = await supabase
+      .from("import_job_rows")
+      .update({ status: "skipped", modified_at: new Date().toISOString() })
+      .eq("id", row.id);
+    if (updateError) throw updateError;
+
+    await bumpJobRowsDone(supabase, row.job_id);
+    return { row_id: row.id, status: "skipped" as const };
+  });
+
+export interface ReopenImportRowInput {
+  row_id: string;
+}
+
+export const reopenImportRowFn = createServerFn({ method: "POST" })
+  .validator((input: ReopenImportRowInput) => {
+    if (!input.row_id) throw new Error("row_id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { data: row, error } = await supabase
+      .from("import_job_rows")
+      .select("id, job_id, status")
+      .eq("id", data.row_id)
+      .is("deleted_at", null)
+      .single();
+    if (error || !row) throw new Error("import row not found");
+    if (row.status === "pending") return { row_id: row.id, status: "pending" as const };
+    if (row.status === "imported" || row.status === "skipped_duplicate") {
+      throw new Error("imported rows cannot be reopened");
+    }
+
+    const { error: updateError } = await supabase
+      .from("import_job_rows")
+      .update({ status: "pending", modified_at: new Date().toISOString() })
+      .eq("id", row.id);
+    if (updateError) throw updateError;
+
+    if (row.status === "skipped") await unbumpJobRowsDone(supabase, row.job_id);
+    return { row_id: row.id, status: "pending" as const };
+  });
+
+export interface HoldImportRowInput {
+  row_id: string;
+}
+
+export const holdImportRowFn = createServerFn({ method: "POST" })
+  .validator((input: HoldImportRowInput) => {
+    if (!input.row_id) throw new Error("row_id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { data: row, error } = await supabase
+      .from("import_job_rows")
+      .select("id, status")
+      .eq("id", data.row_id)
+      .is("deleted_at", null)
+      .single();
+    if (error || !row) throw new Error("import row not found");
+    if (row.status === "held") return { row_id: row.id, status: "held" as const };
+    if (row.status !== "pending") throw new Error("only pending rows can be held");
+
+    const { error: updateError } = await supabase
+      .from("import_job_rows")
+      .update({ status: "held", modified_at: new Date().toISOString() })
+      .eq("id", row.id);
+    if (updateError) throw updateError;
+    return { row_id: row.id, status: "held" as const };
+  });
+
+export interface UpsertImportRuleInput {
+  match: string;
+  category_id: string;
+  account_id?: string | null;
+}
+
+export const upsertImportRuleFn = createServerFn({ method: "POST" })
+  .validator((input: UpsertImportRuleInput) => {
+    if (!input.match?.trim()) throw new Error("match is required");
+    if (!input.category_id) throw new Error("category_id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    return upsertImportRuleRow(supabase, userId, data);
+  });
+
+export interface RenameImportSourceInput {
+  id: string;
+  name: string;
+}
+
+export const renameImportSourceFn = createServerFn({ method: "POST" })
+  .validator((input: RenameImportSourceInput) => {
+    if (!input.id) throw new Error("id is required");
+    if (!input.name?.trim()) throw new Error("name is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("import_sources")
+      .update({ name: data.name.trim(), modified_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return { id: data.id };
+  });
+
+export interface SetImportSourcePausedInput {
+  id: string;
+  paused: boolean;
+}
+
+export const setImportSourcePausedFn = createServerFn({ method: "POST" })
+  .validator((input: SetImportSourcePausedInput) => {
+    if (!input.id) throw new Error("id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const status = data.paused ? "paused" : "idle";
+    const { error } = await supabase
+      .from("import_sources")
+      .update({ status, modified_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return { id: data.id, status };
+  });
+
+export interface DisconnectImportSourceInput {
+  id: string;
+}
+
+export const disconnectImportSourceFn = createServerFn({ method: "POST" })
+  .validator((input: DisconnectImportSourceInput) => {
+    if (!input.id) throw new Error("id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("import_sources")
+      .update({ deleted_at: now, is_active: false, modified_at: now })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (error) throw error;
+
+    await supabase
+      .from("import_profiles")
+      .update({ deleted_at: now, is_active: false, modified_at: now })
+      .eq("source_id", data.id)
+      .is("deleted_at", null);
+
     return { id: data.id };
   });

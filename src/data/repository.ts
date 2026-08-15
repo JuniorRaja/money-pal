@@ -15,6 +15,13 @@ import {
   liveArchivedGoals,
   liveGoalContributions,
   liveHoldings,
+  liveImportJobQueue,
+  liveImportJobRows,
+  liveImportJobs,
+  liveImportProfiles,
+  liveImportReviewItems,
+  liveImportRules,
+  liveImportSources,
   liveLabels,
   liveMonthlyRollups,
   liveSlices,
@@ -32,7 +39,11 @@ import type {
   GoalContribution,
   Holding,
   ImportJob,
+  ImportJobRow,
+  ImportProfile,
   ImportReviewItem,
+  ImportRowStatus,
+  ImportRule,
   ImportSource,
   Label,
   MonthlyRollup,
@@ -69,10 +80,18 @@ export const getSlices = (): Promise<Slice[]> => liveSlices();
 export const getCreditCardCycles = (accountId?: string): Promise<CreditCardCycle[]> =>
   liveCreditCardCycles(accountId);
 
-// Import/workshop features — return empty until backend is wired up.
-export const getImportSources = (): Promise<ImportSource[]> => Promise.resolve([]);
-export const getImportJobs = (): Promise<ImportJob[]> => Promise.resolve([]);
-export const getImportReviewItems = (): Promise<ImportReviewItem[]> => Promise.resolve([]);
+export const getImportSources = (): Promise<ImportSource[]> => liveImportSources();
+export const getImportJobs = (): Promise<ImportJob[]> => liveImportJobs();
+export const getImportReviewItems = (): Promise<ImportReviewItem[]> => liveImportReviewItems();
+export const getImportProfiles = (): Promise<ImportProfile[]> => liveImportProfiles();
+export const getImportRules = (): Promise<ImportRule[]> => liveImportRules();
+export const getImportJobRows = (
+  jobId: string,
+  statuses?: ImportRowStatus[],
+): Promise<ImportJobRow[]> => liveImportJobRows(jobId, statuses);
+/** Pending + held rows for the card-review stack. */
+export const getImportJobQueue = (jobId: string): Promise<ImportJobRow[]> =>
+  liveImportJobQueue(jobId);
 
 // Settings — return sensible defaults; real settings come from profile table later.
 export const getSettings = (): Promise<UserSettings> =>

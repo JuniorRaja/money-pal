@@ -212,12 +212,34 @@ export interface TimelineEvent {
 }
 
 export type ImportSourceKind = "gmail" | "pdf" | "csv" | "manual";
+export type BankPreset = "hdfc_savings" | "hdfc_cc" | "dbs" | "custom";
+export type ImportRowStatus =
+  | "pending"
+  | "imported"
+  | "skipped_duplicate"
+  | "skipped"
+  | "held";
+export type ImportSourceStatus = "idle" | "paused" | string;
+
+/** Parsed-column mapping stored on `import_profiles.mapping` (parser-owned shape). */
+export type ImportMapping = Record<string, unknown>;
+
+export interface ImportProfile {
+  id: string;
+  account_id: string;
+  source_id: string | null;
+  bank_preset: BankPreset;
+  mapping: ImportMapping;
+}
 
 export interface ImportSource {
   id: string;
   kind: ImportSourceKind;
   name: string;
-  status: string;
+  status: ImportSourceStatus;
+  account_id: string | null;
+  profile_id: string | null;
+  bank_preset: BankPreset | null;
 }
 
 export interface ImportJob {
@@ -231,7 +253,40 @@ export interface ImportJob {
   duplicates: number;
 }
 
-export type ReviewKind = "duplicate" | "unknown_merchant" | "large_transfer";
+export interface ImportJobRow {
+  id: string;
+  job_id: string;
+  account_id: string;
+  occurred_at: ISODateTime;
+  merchant: string;
+  descriptor: string;
+  amount_paise: Paise;
+  type: "income" | "expense";
+  raw_line: ImportMapping;
+  import_hash: string;
+  status: ImportRowStatus;
+  suggested_category_id: string | null;
+  transaction_id: string | null;
+  confidence: number | null;
+}
+
+export interface ImportRule {
+  id: string;
+  match: string;
+  category_id: string;
+  account_id: string | null;
+}
+
+/** Hub “Needs your eye”: pending/held staging rows (and low-confidence pending). */
+export const IMPORT_LOW_CONFIDENCE_MAX = 0.8;
+
+export type ReviewKind =
+  | "duplicate"
+  | "unknown_merchant"
+  | "large_transfer"
+  | "pending"
+  | "held"
+  | "low_confidence";
 
 export interface ImportReviewItem {
   id: string;
@@ -239,6 +294,13 @@ export interface ImportReviewItem {
   title: string;
   detail: string;
   action_label: string;
+  job_id: string;
+  account_id: string;
+  status: ImportRowStatus;
+  amount_paise: Paise;
+  occurred_at: ISODateTime;
+  suggested_category_id: string | null;
+  confidence: number | null;
 }
 
 export interface MonthlyRollup {

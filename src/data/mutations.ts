@@ -29,6 +29,16 @@ import {
   archiveBudgetLineFn,
   applyBudgetTemplateFn,
   copyBudgetFromPreviousFn,
+  upsertImportProfileFn,
+  stageImportFn,
+  commitImportRowFn,
+  skipImportRowFn,
+  reopenImportRowFn,
+  holdImportRowFn,
+  upsertImportRuleFn,
+  renameImportSourceFn,
+  setImportSourcePausedFn,
+  disconnectImportSourceFn,
   type CreateTransactionInput,
   type UpdateTransactionInput,
   type DeleteTransactionInput,
@@ -53,7 +63,18 @@ import {
   type CreateHoldingInput,
   type UpsertCreditCardCycleInput,
   type ArchiveCreditCardCycleInput,
+  type UpsertImportProfileInput,
+  type StageImportInput,
+  type CommitImportRowInput,
+  type SkipImportRowInput,
+  type ReopenImportRowInput,
+  type HoldImportRowInput,
+  type UpsertImportRuleInput,
+  type RenameImportSourceInput,
+  type SetImportSourcePausedInput,
+  type DisconnectImportSourceInput,
 } from "@/lib/mutations.functions";
+import { mutationErrorMessage } from "@/lib/mutation-error";
 import type {
   Account,
   AccountKind,
@@ -543,4 +564,64 @@ export async function createHolding(input: NewHoldingInput): Promise<Holding> {
     account_id: input.account_id,
     day_change_pct: 0,
   };
+}
+
+// =============================================================================
+// CSV IMPORT CENTER
+// =============================================================================
+
+export type {
+  UpsertImportProfileInput,
+  StageImportInput,
+  CommitImportRowInput,
+  SkipImportRowInput,
+  HoldImportRowInput,
+  UpsertImportRuleInput,
+  RenameImportSourceInput,
+  SetImportSourcePausedInput,
+  DisconnectImportSourceInput,
+};
+
+export async function upsertImportProfile(input: UpsertImportProfileInput) {
+  return upsertImportProfileFn({ data: input });
+}
+
+export async function stageImport(input: StageImportInput) {
+  try {
+    return await stageImportFn({ data: input });
+  } catch (error) {
+    throw new Error(mutationErrorMessage(error, "Could not stage this import"));
+  }
+}
+
+export async function commitImportRow(input: CommitImportRowInput) {
+  return commitImportRowFn({ data: input });
+}
+
+export async function skipImportRow(rowId: string) {
+  return skipImportRowFn({ data: { row_id: rowId } });
+}
+
+export async function reopenImportRow(rowId: string) {
+  return reopenImportRowFn({ data: { row_id: rowId } });
+}
+
+export async function holdImportRow(rowId: string) {
+  return holdImportRowFn({ data: { row_id: rowId } });
+}
+
+export async function upsertImportRule(input: UpsertImportRuleInput) {
+  return upsertImportRuleFn({ data: input });
+}
+
+export async function renameImportSource(id: string, name: string) {
+  return renameImportSourceFn({ data: { id, name } });
+}
+
+export async function setImportSourcePaused(id: string, paused: boolean) {
+  return setImportSourcePausedFn({ data: { id, paused } });
+}
+
+export async function disconnectImportSource(id: string) {
+  return disconnectImportSourceFn({ data: { id } });
 }

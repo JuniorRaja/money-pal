@@ -759,6 +759,107 @@ export type Database = {
           },
         ]
       }
+      import_job_rows: {
+        Row: {
+          account_id: string
+          amount_paise: number
+          confidence: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          descriptor: string | null
+          id: string
+          import_hash: string
+          is_active: boolean
+          job_id: string
+          merchant: string | null
+          modified_at: string
+          modified_by: string | null
+          occurred_at: string
+          raw_line: Json
+          status: Database["public"]["Enums"]["import_row_status"]
+          suggested_category_id: string | null
+          transaction_id: string | null
+          type: Database["public"]["Enums"]["txn_type"]
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          amount_paise: number
+          confidence?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriptor?: string | null
+          id?: string
+          import_hash: string
+          is_active?: boolean
+          job_id: string
+          merchant?: string | null
+          modified_at?: string
+          modified_by?: string | null
+          occurred_at: string
+          raw_line?: Json
+          status?: Database["public"]["Enums"]["import_row_status"]
+          suggested_category_id?: string | null
+          transaction_id?: string | null
+          type: Database["public"]["Enums"]["txn_type"]
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          amount_paise?: number
+          confidence?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriptor?: string | null
+          id?: string
+          import_hash?: string
+          is_active?: boolean
+          job_id?: string
+          merchant?: string | null
+          modified_at?: string
+          modified_by?: string | null
+          occurred_at?: string
+          raw_line?: Json
+          status?: Database["public"]["Enums"]["import_row_status"]
+          suggested_category_id?: string | null
+          transaction_id?: string | null
+          type?: Database["public"]["Enums"]["txn_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_job_rows_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_job_rows_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_job_rows_suggested_category_id_fkey"
+            columns: ["suggested_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_job_rows_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_jobs: {
         Row: {
           created_at: string
@@ -821,6 +922,66 @@ export type Database = {
           },
         ]
       }
+      import_profiles: {
+        Row: {
+          account_id: string
+          bank_preset: Database["public"]["Enums"]["bank_preset"]
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          is_active: boolean
+          mapping: Json
+          modified_at: string
+          modified_by: string | null
+          source_id: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          bank_preset: Database["public"]["Enums"]["bank_preset"]
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          mapping?: Json
+          modified_at?: string
+          modified_by?: string | null
+          source_id?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          bank_preset?: Database["public"]["Enums"]["bank_preset"]
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          mapping?: Json
+          modified_at?: string
+          modified_by?: string | null
+          source_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_profiles_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_profiles_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "import_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_review_items: {
         Row: {
           action_label: string | null
@@ -876,6 +1037,63 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_rules: {
+        Row: {
+          account_id: string | null
+          category_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          is_active: boolean
+          match: string
+          modified_at: string
+          modified_by: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          match: string
+          modified_at?: string
+          modified_by?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          is_active?: boolean
+          match?: string
+          modified_at?: string
+          modified_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
         ]
@@ -1935,6 +2153,10 @@ export type Database = {
         Args: { p_amount: number; p_from: string; p_on?: string; p_to: string }
         Returns: number
       }
+      fn_commit_import_row: {
+        Args: { p_row_id: string }
+        Returns: string
+      }
       fn_delete_transaction: {
         Args: { p_transaction_id: string }
         Returns: boolean
@@ -1943,13 +2165,16 @@ export type Database = {
         Args: {
           p_amount: number
           p_category?: string
+          p_confidence?: number
           p_descriptor?: string
+          p_external_ref?: string
           p_from_account: string
           p_from_label?: string
           p_merchant?: string
           p_note?: string
           p_occurred_at: string
           p_payment_method?: string
+          p_source?: string
           p_to_account?: string
           p_to_label?: string
           p_type: Database["public"]["Enums"]["txn_type"]
@@ -1980,6 +2205,7 @@ export type Database = {
     }
     Enums: {
       account_kind: "bank" | "cash" | "credit_card" | "investment" | "loan"
+      bank_preset: "hdfc_savings" | "hdfc_cc" | "dbs" | "custom"
       category_kind:
         | "income"
         | "essentials"
@@ -1993,6 +2219,12 @@ export type Database = {
         | "fixed_income"
         | "crypto"
       import_kind: "gmail" | "pdf" | "csv" | "manual"
+      import_row_status:
+        | "pending"
+        | "imported"
+        | "skipped_duplicate"
+        | "skipped"
+        | "held"
       review_kind: "duplicate" | "unknown_merchant" | "large_transfer"
       slice_kind: "owned" | "custodial" | "earmark"
       timeline_kind: "money" | "ai_insight" | "goal" | "bill" | "system"
@@ -2125,6 +2357,7 @@ export const Constants = {
   public: {
     Enums: {
       account_kind: ["bank", "cash", "credit_card", "investment", "loan"],
+      bank_preset: ["hdfc_savings", "hdfc_cc", "dbs", "custom"],
       category_kind: [
         "income",
         "essentials",
@@ -2140,6 +2373,13 @@ export const Constants = {
         "crypto",
       ],
       import_kind: ["gmail", "pdf", "csv", "manual"],
+      import_row_status: [
+        "pending",
+        "imported",
+        "skipped_duplicate",
+        "skipped",
+        "held",
+      ],
       review_kind: ["duplicate", "unknown_merchant", "large_transfer"],
       slice_kind: ["owned", "custodial", "earmark"],
       timeline_kind: ["money", "ai_insight", "goal", "bill", "system"],

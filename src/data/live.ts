@@ -13,18 +13,31 @@ import { supabase } from "@/integrations/supabase/client";
 import type {
   Account,
   AccountAllocation,
+  BankPreset,
   BudgetPeriod,
+  Category,
   CategorySpend,
   CreditCardCycle,
   Goal,
   GoalContribution,
   Holding,
+  ImportJob,
+  ImportJobRow,
+  ImportMapping,
+  ImportProfile,
+  ImportReviewItem,
+  ImportRowStatus,
+  ImportRule,
+  ImportSource,
+  ImportSourceKind,
   Label,
   MonthlyRollup,
+  ReviewKind,
   Slice,
   TimelineEvent,
   Transaction,
 } from "@/data/schema";
+import { IMPORT_LOW_CONFIDENCE_MAX } from "@/data/schema";
 
 /** True when a Supabase session exists in this environment (browser only). */
 export async function hasSession(): Promise<boolean> {
@@ -485,4 +498,208 @@ export const liveMonthlyRollups = (): Promise<MonthlyRollup[]> =>
       });
     }
     return [...merged.values()].sort((a, b) => (a.period < b.period ? -1 : 1)).slice(-12);
+  }, []);
+
+function asMapping(value: unknown): ImportMapping {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as ImportMapping;
+  }
+  return {};
+}
+
+function mapJobRow(row: {
+  id: string;
+  job_id: string;
+  account_id: string;
+  occurred_at: string;
+  merchant: string | null;
+  descriptor: string | null;
+  amount_paise: number;
+  type: string;
+  raw_line: unknown;
+  import_hash: string;
+  status: ImportRowStatus;
+  suggested_category_id: string | null;
+  transaction_id: string | null;
+  confidence: number | null;
+}): ImportJobRow {
+  const type = row.type === "income" ? "income" : "expense";
+  return {
+    id: row.id,
+    job_id: row.job_id,
+    account_id: row.account_id,
+    occurred_at: row.occurred_at,
+    merchant: row.merchant ?? "",
+    descriptor: row.descriptor ?? "",
+    amount_paise: Number(row.amount_paise ?? 0),
+    type,
+    raw_line: asMapping(row.raw_line),
+    import_hash: row.import_hash,
+    status: row.status,
+    suggested_category_id: row.suggested_category_id,
+    transaction_id: row.transaction_id,
+    confidence: row.confidence === null ? null : Number(row.confidence),
+  };
+}
+
+function reviewKindFor(row: ImportJobRow): ReviewKind {
+  if (row.status === "held") return "held";
+  if (row.confidence !== null && row.confidence < IMPORT_LOW_CONFIDENCE_MAX) {
+    return "low_confidence";
+  }
+  return "unknown_merchant";
+}
+
+function mapReviewItem(row: ImportJobRow): ImportReviewItem {
+  const kind = reviewKindFor(row);
+  const when = row.occurred_at.slice(0, 10);
+  return {
+    id: row.id,
+    kind,
+    title: row.merchant || row.descriptor || "Imported row",
+    detail: `${when} · ${row.type}`,
+    action_label: row.status === "held" ? "Resume" : "Review",
+    job_id: row.job_id,
+    account_id: row.account_id,
+    status: row.status,
+    amount_paise: row.amount_paise,
+    occurred_at: row.occurred_at,
+    suggested_category_id: row.suggested_category_id,
+    confidence: row.confidence,
+  };
+}
+
+export const liveImportSources = (): Promise<ImportSource[]> =>
+  live<ImportSource[]>(async () => {
+    const [sources, profiles] = await Promise.all([
+      supabase
+        .from("import_sources")
+        .select("id, kind, name, status")
+        .is("deleted_at", null)
+        .order("name"),
+      supabase
+        .from("import_profiles")
+        .select("id, account_id, source_id, bank_preset")
+        .is("deleted_at", null),
+    ]);
+    if (sources.error) throw sources.error;
+    if (profiles.error) throw profiles.error;
+
+    const profileBySource = new Map<string, (typeof profiles.data)[number]>();
+    for (const profile of profiles.data ?? []) {
+      if (!profile.source_id) continue;
+      if (!profileBySource.has(profile.source_id)) {
+        profileBySource.set(profile.source_id, profile);
+      }
+    }
+
+    return (sources.data ?? []).map((row): ImportSource => {
+      const profile = profileBySource.get(row.id);
+      return {
+        id: row.id,
+        kind: row.kind as ImportSourceKind,
+        name: row.name,
+        status: row.status,
+        account_id: profile?.account_id ?? null,
+        profile_id: profile?.id ?? null,
+        bank_preset: (profile?.bank_preset as BankPreset | undefined) ?? null,
+      };
+    });
+  }, []);
+
+export const liveImportProfiles = (): Promise<ImportProfile[]> =>
+  live<ImportProfile[]>(async () => {
+    const { data, error } = await supabase
+      .from("import_profiles")
+      .select("id, account_id, source_id, bank_preset, mapping")
+      .is("deleted_at", null)
+      .order("modified_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(
+      (row): ImportProfile => ({
+        id: row.id,
+        account_id: row.account_id,
+        source_id: row.source_id,
+        bank_preset: row.bank_preset,
+        mapping: asMapping(row.mapping),
+      }),
+    );
+  }, []);
+
+export const liveImportJobs = (): Promise<ImportJob[]> =>
+  live<ImportJob[]>(async () => {
+    const { data, error } = await supabase
+      .from("import_jobs")
+      .select("id, source_id, title, rows_done, rows_total, finished_at, imported, duplicates")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(
+      (row): ImportJob => ({
+        id: row.id,
+        source_id: row.source_id,
+        title: row.title ?? "",
+        rows_done: Number(row.rows_done ?? 0),
+        rows_total: Number(row.rows_total ?? 0),
+        finished_at: row.finished_at,
+        imported: Number(row.imported ?? 0),
+        duplicates: Number(row.duplicates ?? 0),
+      }),
+    );
+  }, []);
+
+const JOB_ROW_COLUMNS =
+  "id, job_id, account_id, occurred_at, merchant, descriptor, amount_paise, type, raw_line, import_hash, status, suggested_category_id, transaction_id, confidence";
+
+export const liveImportJobRows = (
+  jobId: string,
+  statuses?: ImportRowStatus[],
+): Promise<ImportJobRow[]> =>
+  live<ImportJobRow[]>(async () => {
+    let query = supabase
+      .from("import_job_rows")
+      .select(JOB_ROW_COLUMNS)
+      .eq("job_id", jobId)
+      .is("deleted_at", null)
+      .order("occurred_at", { ascending: true });
+    if (statuses?.length) query = query.in("status", statuses);
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []).map((row) => mapJobRow(row));
+  }, []);
+
+export const liveImportJobQueue = (jobId: string): Promise<ImportJobRow[]> =>
+  liveImportJobRows(jobId, ["pending", "held"]);
+
+export const liveImportReviewItems = (): Promise<ImportReviewItem[]> =>
+  live<ImportReviewItem[]>(async () => {
+    const { data, error } = await supabase
+      .from("import_job_rows")
+      .select(JOB_ROW_COLUMNS)
+      .in("status", ["pending", "held"])
+      .is("deleted_at", null)
+      .order("occurred_at", { ascending: true });
+    if (error) throw error;
+    const items = (data ?? []).map((row) => mapReviewItem(mapJobRow(row)));
+    const rank = (kind: ReviewKind) =>
+      kind === "held" ? 0 : kind === "low_confidence" ? 1 : 2;
+    return items.sort((a, b) => rank(a.kind) - rank(b.kind));
+  }, []);
+
+export const liveImportRules = (): Promise<ImportRule[]> =>
+  live<ImportRule[]>(async () => {
+    const { data, error } = await supabase
+      .from("import_rules")
+      .select("id, match, category_id, account_id")
+      .is("deleted_at", null)
+      .order("match");
+    if (error) throw error;
+    return (data ?? []).map(
+      (row): ImportRule => ({
+        id: row.id,
+        match: row.match,
+        category_id: row.category_id,
+        account_id: row.account_id,
+      }),
+    );
   }, []);

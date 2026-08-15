@@ -35,7 +35,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-
 const groups = [
   {
     label: "Money",
@@ -106,7 +105,9 @@ function Sidebar({ onAdd }: { onAdd: (kind: RecordKind) => void }) {
         <Monogram />
         {!collapsed && (
           <div className="leading-tight">
-            <p className="text-sm font-semibold tracking-tight text-sidebar-foreground">money-pal</p>
+            <p className="text-sm font-semibold tracking-tight text-sidebar-foreground">
+              money-pal
+            </p>
             <p className="text-[11px] text-muted-foreground">Financial OS</p>
           </div>
         )}
@@ -137,7 +138,6 @@ function Sidebar({ onAdd }: { onAdd: (kind: RecordKind) => void }) {
         </DropdownMenu>
       </div>
 
-
       <nav className="flex-1 space-y-6 px-3">
         {groups.map((group) => (
           <div key={group.label}>
@@ -148,7 +148,10 @@ function Sidebar({ onAdd }: { onAdd: (kind: RecordKind) => void }) {
             )}
             <ul className="space-y-1">
               {group.items.map((item) => {
-                const active = path === item.to;
+                const active =
+                  item.to === "/"
+                    ? path === "/"
+                    : path === item.to || path.startsWith(`${item.to}/`);
                 return (
                   <li key={item.to}>
                     <Link
@@ -190,8 +193,12 @@ function Sidebar({ onAdd }: { onAdd: (kind: RecordKind) => void }) {
         </span>
         {!collapsed && (
           <span className="flex-1 leading-tight">
-            <span className="block text-[13px] font-medium">{user?.email?.split("@")[0] || "User"}</span>
-            <span className="block text-[11px] text-muted-foreground">{user?.email || "Not signed in"}</span>
+            <span className="block text-[13px] font-medium">
+              {user?.email?.split("@")[0] || "User"}
+            </span>
+            <span className="block text-[11px] text-muted-foreground">
+              {user?.email || "Not signed in"}
+            </span>
           </span>
         )}
         {!collapsed && <LogOut className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -290,4 +297,3 @@ export function AppShell({
     </div>
   );
 }
-

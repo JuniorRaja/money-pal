@@ -37,3 +37,31 @@ A contribution may point at a `transactions` header id. Linking does not move le
 ## Goals — archive leaves the ledger
 
 Soft-deleting a goal hides it from progress. Contribution rows stay. Accounts, slices, and transactions are not changed.
+
+## Import — CSV/Excel in the browser
+
+Phase 4 import is CSV and Excel (`.xlsx` / `.xls`) parsed **in the browser**. The original file is never uploaded or stored. Only parsed staging rows persist so a job can pause and resume.
+
+## Import — bank presets
+
+First-class presets: **HDFC savings**, **HDFC credit card**, **DBS**. Other Indian banks use the generic mapper (`custom`). A successful map is saved on `import_profiles` (unique per user + account + preset) and reused. **Sync now** means import another file with that mapping.
+
+## Import — hub, wizard, card review
+
+Keep Connected sources, Parsing activity, and Needs your eye. New import is a real wizard (account required, optional preset, then file). Review is Tinder-style cards. A job can be paused and resumed (commit part of the file, come back later). Gmail and PDF are coming-soon tiles, not live sources. No Gmail OAuth in this pass.
+
+## Import — categorisation and default slice
+
+Light merchant heuristics plus review. Accepting a correction writes an `import_rules` row (normalized merchant contains → category; optional account, else global). Staged rows may carry `suggested_category_id`. On commit, the account’s `is_default` label (PRD “Unassigned”) is applied as the slice.
+
+## Import — no transfer matching
+
+Imported rows are income or expense only. Transfers are not auto-detected. The user can edit the transaction later.
+
+## Import — hash dedupe
+
+Hash is `sha256(account_id | date | signed_amount | normalized_narration | n)` where `n` is the 0-based index among rows that share the same date + amount + narration **in this file**. Re-importing the same mapped file skips those hashes (`skipped_duplicate`). Two genuine identical charges in one statement get `n=0` and `n=1`. Unique `ux_txn_external` on `transactions(user_id, external_ref)` stores the hash as `external_ref`. `fn_record_transaction` accepts `p_source` (CSV uses `csv`; manual stays `manual`), `p_external_ref`, and `p_confidence`.
+
+## Import — live model vs PRD
+
+Category lives on `transactions`. Staging is `import_job_rows`, not uploaded files. Hub tables `import_sources` / `import_jobs` / `import_review_items` remain; profiles, staged rows, and rules are additive. Do not rewrite PRD history.
