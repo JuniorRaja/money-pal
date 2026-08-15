@@ -56,7 +56,9 @@ import type {
   UserSettings,
 } from "@/data/schema";
 
+import { dayKey } from "@/lib/money";
 import { currentPeriod } from "@/lib/period";
+import { deriveTimelineEvents } from "@/lib/timeline";
 
 /** Current local calendar period for budget/transaction queries. */
 export const CURRENT_PERIOD = currentPeriod();
@@ -70,7 +72,6 @@ export const SLICEABLE_KINDS = ["bank", "cash"] as const;
 export const getAccounts = (): Promise<Account[]> => liveAccounts();
 export const getCategories = (): Promise<Category[]> => liveCategories();
 export const getLabels = (): Promise<Label[]> => liveLabels();
-export const getTimelineEvents = (): Promise<TimelineEvent[]> => liveTimeline();
 export const getGoals = (): Promise<Goal[]> => liveGoals();
 export const getArchivedGoals = (): Promise<Goal[]> => liveArchivedGoals();
 export const getGoalContributions = (): Promise<GoalContribution[]> => liveGoalContributions();
@@ -277,6 +278,63 @@ export async function getUniqueSliceNames(): Promise<string[]> {
 export async function getLabelIdsByName(name: string): Promise<string[]> {
   const labels = await getLabels();
   return labels.filter((l) => l.name === name).map((l) => l.id);
+}
+
+/** Matches the row cap `liveTimeline()` puts on the stored half of the feed. */
+const TIMELINE_LIMIT = 200;
+
+/**
+ * The stored table (imports, AI insights, notes) unioned with events derived
+ * from the ledger on every read — see `@/lib/timeline` for why nothing is
+ * written back.
+ *
+ * ponytail: ten parallel reads per call, and the bell puts it on every page.
+ * Give it a request-scoped cache if that ever shows up in a profile.
+ */
+export async function getTimelineEvents(): Promise<TimelineEvent[]> {
+  const [
+    stored,
+    accounts,
+    budgets,
+    categories,
+    contributions,
+    cycles,
+    goals,
+    jobs,
+    slices,
+    transactions,
+  ] = await Promise.all([
+    liveTimeline(),
+    getAccounts(),
+    getBudgets(),
+    getCategories(),
+    getGoalContributions(),
+    getCreditCardCycles(),
+    getGoals(),
+    getImportJobs(),
+    getSlices(),
+    listTransactions(),
+  ]);
+
+  const derived = deriveTimelineEvents({
+    accounts,
+    budgets,
+    categories,
+    contributions,
+    cycles,
+    goals,
+    jobs,
+    slices,
+    transactions,
+    period: CURRENT_PERIOD,
+    today: dayKey(new Date().toISOString()),
+  });
+
+  // Parse, never string-compare: stored rows carry "+00:00" and derived ones
+  // "+05:30", so the two halves do not sort lexicographically against each other.
+  return [...stored, ...derived]
+    .sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))
+    .slice(0, TIMELINE_LIMIT);
 }
 
 export const timelineKinds: { id: TimelineKind | "all"; label: string }[] = [

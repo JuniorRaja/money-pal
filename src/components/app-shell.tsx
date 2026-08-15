@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
@@ -35,7 +36,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { getTimelineEvents } from "@/data/repository";
+import { formatDay } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 const groups = [
@@ -226,6 +230,72 @@ function Sidebar({
   );
 }
 
+/**
+ * Same derived feed the Timeline renders. "Unread" is anything newer than the
+ * last time this popover was opened, kept in the existing prefs blob — the feed
+ * has no per-event state to write to, and does not need one for a read marker.
+ */
+function NotificationBell() {
+  const { prefs, setPrefs } = useSession();
+  const { data: events = [] } = useQuery({
+    queryKey: ["timeline-feed"],
+    queryFn: getTimelineEvents,
+    staleTime: 5 * 60_000,
+  });
+
+  const seen = Date.parse(prefs.timelineSeenAt) || 0;
+  const unread = events.filter((e) => Date.parse(e.occurred_at) > seen).length;
+
+  return (
+    <Popover
+      onOpenChange={(open) => {
+        if (open) setPrefs({ timelineSeenAt: new Date().toISOString() });
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
+          className="relative hidden h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground sm:flex"
+        >
+          <Bell className="h-4 w-4" />
+          {unread > 0 && (
+            <span className="numeric absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0">
+        <p className="border-b border-border px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Latest signals
+        </p>
+        <ul className="max-h-[320px] overflow-y-auto">
+          {events.length === 0 && (
+            <li className="px-4 py-6 text-center text-sm text-muted-foreground">
+              Nothing to flag yet.
+            </li>
+          )}
+          {events.slice(0, 8).map((event) => (
+            <li key={event.id} className="border-b border-border/60 px-4 py-3 last:border-0">
+              <p className="text-sm text-foreground">{event.title}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{event.detail}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {formatDay(event.occurred_at)}
+              </p>
+            </li>
+          ))}
+        </ul>
+        <Link
+          to="/timeline"
+          className="block border-t border-border px-4 py-2.5 text-center text-xs text-primary transition-colors hover:bg-accent"
+        >
+          Open timeline
+        </Link>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function TopBar({
   searchPlaceholder,
   onOpenPalette,
@@ -254,10 +324,7 @@ function TopBar({
         <Sparkles className="h-4 w-4 text-primary" />
         <span className="hidden sm:inline">Ask Money Pal</span>
       </Link>
-      <button className="relative hidden h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground sm:flex">
-        <Bell className="h-4 w-4" />
-        <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-primary" />
-      </button>
+      <NotificationBell />
       <button
         onClick={() => setPrefs({ theme: prefs.theme === "dark" ? "light" : "dark" })}
         className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"

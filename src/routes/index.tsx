@@ -25,6 +25,7 @@ import {
   getAccounts,
   getBudgets,
   getCategories,
+  getCreditCardCycles,
   getGoals,
   getMonthlyRollups,
   getSlices,
@@ -40,13 +41,18 @@ import type {
   Account,
   BudgetPeriod,
   Category,
+  CreditCardCycle,
   Goal,
   MonthlyRollup,
   Slice,
   TimelineEvent,
   Transaction,
 } from "@/data/schema";
-import { formatCompact, formatDay, formatMoney, formatPct } from "@/lib/money";
+import { dayKey, formatCompact, formatDay, formatMoney, formatPct } from "@/lib/money";
+import { dueLabel, upcomingBills } from "@/lib/timeline";
+
+/** How far ahead the Overview panel looks — the timeline itself only alerts at 5 days. */
+const UPCOMING_BILL_DAYS = 30;
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -65,8 +71,8 @@ export const Route = createFileRoute("/")({
     ],
   }),
   loader: async () => {
-    const [accounts, transactions, rollups, budgets, goals, events, categories] = await Promise.all(
-      [
+    const [accounts, transactions, rollups, budgets, goals, events, categories, cycles] =
+      await Promise.all([
         getAccounts(),
         listTransactions({ period: CURRENT_PERIOD }),
         getMonthlyRollups(),
@@ -74,16 +80,16 @@ export const Route = createFileRoute("/")({
         getGoals(),
         getTimelineEvents(),
         getCategories(),
-      ],
-    );
+        getCreditCardCycles(),
+      ]);
     const slices = await getSlices();
-    return { accounts, transactions, rollups, budgets, goals, events, categories, slices };
+    return { accounts, transactions, rollups, budgets, goals, events, categories, slices, cycles };
   },
   component: OverviewPage,
 });
 
 function OverviewPage() {
-  const { accounts, transactions, rollups, budgets, goals, events, categories, slices } =
+  const { accounts, transactions, rollups, budgets, goals, events, categories, slices, cycles } =
     Route.useLoaderData() as {
       accounts: Account[];
       transactions: Transaction[];
@@ -93,7 +99,14 @@ function OverviewPage() {
       events: TimelineEvent[];
       categories: Category[];
       slices: Slice[];
+      cycles: CreditCardCycle[];
     };
+  const bills = upcomingBills(
+    cycles,
+    accounts,
+    dayKey(new Date().toISOString()),
+    UPCOMING_BILL_DAYS,
+  );
   const nw = summariseNetWorth(accounts);
   const ownership = summariseOwnership(
     accounts,
@@ -282,14 +295,44 @@ function OverviewPage() {
               </div>
             </div>
           </Panel>
-          <Panel title="Upcoming bills">
-            <div className="flex flex-col items-center justify-center py-6 text-center">
-              <CalendarClock className="h-4 w-4 text-muted-foreground" />
-              <p className="mt-2 text-sm text-foreground">No upcoming bills yet.</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Card due dates will show up here once cycles are tracked.
-              </p>
-            </div>
+          <Panel
+            title="Upcoming bills"
+            action={
+              bills.length ? (
+                <Link to="/accounts" className="text-xs text-primary">
+                  Cards
+                </Link>
+              ) : undefined
+            }
+          >
+            {bills.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                <p className="mt-2 text-sm text-foreground">No upcoming bills yet.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Card due dates will show up here once cycles are tracked.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {bills.slice(0, 4).map((bill) => (
+                  <li key={bill.cycle.id} className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-foreground">
+                        {bill.account?.name ?? "Card"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Due {dueLabel(bill.due_in_days)} · min{" "}
+                        {formatCompact(bill.cycle.minimum_due)}
+                      </p>
+                    </div>
+                    <span className="numeric shrink-0 text-sm text-foreground">
+                      {formatMoney(bill.outstanding, { whole: true })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
         </div>
 
@@ -341,6 +384,11 @@ function OverviewPage() {
           }
         >
           <ul className="space-y-4">
+            {events.length === 0 && (
+              <li className="text-sm text-muted-foreground">
+                Nothing to flag yet — signals appear as your ledger fills up.
+              </li>
+            )}
             {events.slice(0, 5).map((e) => (
               <li key={e.id} className="flex gap-3">
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary/70" />

@@ -6,7 +6,8 @@ import { AppShell } from "@/components/app-shell";
 import { Panel } from "@/components/mm-ui";
 import { getTimelineEvents, timelineKinds } from "@/data/repository";
 import type { TimelineEvent, TimelineKind } from "@/data/schema";
-import { formatDay, formatMoney, formatTime } from "@/lib/money";
+import { dayKey, formatDay, formatMoney, formatTime } from "@/lib/money";
+import { noonIst } from "@/lib/timeline";
 
 export const Route = createFileRoute("/timeline")({
   head: () => ({
@@ -37,7 +38,9 @@ export function TimelinePage() {
   const [kind, setKind] = useState<TimelineKind | "all">("all");
   const rows = kind === "all" ? events : events.filter((e) => e.kind === kind);
 
-  const days = [...new Set(rows.map((e) => e.occurred_at.slice(0, 10)))];
+  // Group on the IST calendar day, never a raw prefix slice — Postgres hands
+  // midnight IST back as "…T18:30:00+00:00", which slices to the day before.
+  const days = [...new Set(rows.map((e) => dayKey(e.occurred_at)))];
 
   return (
     <AppShell
@@ -60,15 +63,24 @@ export function TimelinePage() {
     >
       <div className="grid grid-cols-[1fr_320px] gap-6">
         <div className="scroll-rail max-h-[calc(100vh-260px)] pr-3">
+          {days.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-border px-6 py-12 text-center">
+              <p className="text-sm text-foreground">Nothing here yet.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Events appear as your ledger fills up — budgets crossing their line, goals hitting a
+                milestone, statements coming due.
+              </p>
+            </div>
+          )}
           {days.map((day) => (
             <section key={day} className="mb-2">
               <p className="sticky top-0 z-10 -mx-1 bg-background/90 px-1 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground backdrop-blur">
-                {formatDay(`${day}T00:00:00`)}
+                {formatDay(noonIst(day))}
               </p>
               <ul className="relative pl-[112px]">
                 <span className="absolute left-[92px] top-0 bottom-0 w-px bg-border" />
                 {rows
-                  .filter((e) => e.occurred_at.startsWith(day))
+                  .filter((e) => dayKey(e.occurred_at) === day)
                   .map((e) => {
                     const Icon = icons[e.kind];
                     return (

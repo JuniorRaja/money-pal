@@ -20,6 +20,8 @@ export interface AppPrefs {
   numberFormat: "indian" | "international";
   assistantTone: "concise" | "detailed";
   assistantContext: boolean;
+  /** ISO timestamp of the last time the notification feed was opened. "" = never. */
+  timelineSeenAt: string;
 }
 
 interface SessionValue {
@@ -52,6 +54,7 @@ const defaultPrefs: AppPrefs = {
   numberFormat: "indian",
   assistantTone: "concise",
   assistantContext: true,
+  timelineSeenAt: "",
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
