@@ -19,7 +19,7 @@ import {
 } from "recharts";
 
 import { AppShell } from "@/components/app-shell";
-import { Bar, Panel, Ring, Sparkline, StatCard } from "@/components/mm-ui";
+import { Bar, Panel, Ring, StatCard } from "@/components/mm-ui";
 import {
   CURRENT_PERIOD,
   getAccounts,
@@ -109,12 +109,6 @@ function OverviewPage() {
     expense: r.expense / 100,
   }));
 
-  const upcoming = [
-    { name: "HDFC Regalia bill", due: "12 Aug 2026", amount: -1845000 },
-    { name: "ICICI Amazon Pay", due: "14 Aug 2026", amount: -724000 },
-    { name: "Axis Neo", due: "16 Aug 2026", amount: -312000 },
-  ];
-
   return (
     <AppShell
       title="Overview"
@@ -129,25 +123,18 @@ function OverviewPage() {
             <span className="numeric text-xs text-success">{formatPct(9.4)} this quarter</span>
           }
         >
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="numeric text-[46px] leading-none text-foreground">
-                {formatMoney(ownership.owned, { whole: true })}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Cash {formatCompact(nw.cash)} · Investments {formatCompact(nw.investments)} ·
-                Liabilities {formatCompact(nw.liabilities)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Truly yours. {formatCompact(ownership.custodial)} held for others is out of this
-                figure; {formatCompact(ownership.earmarked)} is earmarked.
-              </p>
-            </div>
-            <Sparkline
-              points={[62, 64, 63, 68, 70, 69, 74, 77, 79, 82, 84, 88]}
-              width={220}
-              height={56}
-            />
+          <div>
+            <p className="numeric text-[46px] leading-none text-foreground">
+              {formatMoney(ownership.owned, { whole: true })}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Cash {formatCompact(nw.cash)} · Investments {formatCompact(nw.investments)} ·
+              Liabilities {formatCompact(nw.liabilities)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Truly yours. {formatCompact(ownership.custodial)} held for others is out of this
+              figure; {formatCompact(ownership.earmarked)} is earmarked.
+            </p>
           </div>
           <div className="mt-6 h-[210px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -296,17 +283,13 @@ function OverviewPage() {
             </div>
           </Panel>
           <Panel title="Upcoming bills">
-            <ul className="space-y-3">
-              {upcoming.map((b) => (
-                <li key={b.name} className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2 text-foreground">
-                    <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
-                    {b.name}
-                  </span>
-                  <span className="numeric text-muted-foreground">{formatMoney(b.amount)}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <CalendarClock className="h-4 w-4 text-muted-foreground" />
+              <p className="mt-2 text-sm text-foreground">No upcoming bills yet.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Card due dates will show up here once cycles are tracked.
+              </p>
+            </div>
           </Panel>
         </div>
 
