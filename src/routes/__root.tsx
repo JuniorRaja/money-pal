@@ -7,12 +7,14 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import appCss from "../styles.css?url";
 import { SessionProvider } from "../components/session";
 import { AuthErrorHandler } from "../components/auth-error-handler";
 import { Toaster } from "../components/ui/sonner";
+import { isAuthError } from "../data/live";
+import { supabase } from "../integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -39,6 +41,18 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const authExpired = isAuthError(error);
+
+  // Full reload (not router.navigate) so this works even when the error boundary
+  // renders outside SessionProvider, e.g. an error thrown during SSR.
+  useEffect(() => {
+    if (!authExpired) return;
+    void supabase.auth.signOut().finally(() => {
+      window.location.href = "/login";
+    });
+  }, [authExpired]);
+
+  if (authExpired) return null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">

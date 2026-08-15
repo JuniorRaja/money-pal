@@ -68,15 +68,23 @@ export async function hasSession(): Promise<boolean> {
   return checkSession(await getSupabase());
 }
 
-/** Runs a live read. Returns empty fallback when not signed in or on error. */
+/** True when an error means "your token is dead," as opposed to an RLS/query bug. */
+export function isAuthError(error: unknown): boolean {
+  const code = (error as { code?: string } | null)?.code;
+  const status = (error as { status?: number } | null)?.status;
+  const message = (error as { message?: string } | null)?.message ?? "";
+  return code === "PGRST301" || status === 401 || /jwt/i.test(message);
+}
+
+/** Runs a live read. Returns empty fallback when not signed in; rethrows real query failures. */
 async function live<T>(run: (supabase: SupabaseClient<Database>) => Promise<T>, fallback: T): Promise<T> {
   const supabase = await getSupabase();
   if (!(await checkSession(supabase))) return fallback;
   try {
     return await run(supabase);
   } catch (error) {
-    console.warn("[live] query failed", error);
-    return fallback;
+    console.error("[live] query failed", error);
+    throw error;
   }
 }
 
