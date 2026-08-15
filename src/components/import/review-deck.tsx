@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { Category, ImportJobRow, ImportRule } from "@/data/schema";
+import { IMPORT_LOW_CONFIDENCE_MAX } from "@/data/schema";
 import { commitImportRow, holdImportRow, reopenImportRow, skipImportRow } from "@/data/mutations";
-import { HEURISTIC_REVIEW_THRESHOLD, midnightIst, resolveSuggestedCategoryId } from "@/lib/import";
-import { formatDay, formatMoney } from "@/lib/money";
+import { midnightIst, resolveSuggestedCategoryId } from "@/lib/import";
+import { dayKey, formatDay, formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 type StampKind = "accepted" | "skipped" | "held";
@@ -143,7 +144,7 @@ export function ReviewDeck({
       accountId: current.account_id,
     });
     setEdit({
-      occurred_on: current.occurred_at.slice(0, 10),
+      occurred_on: dayKey(current.occurred_at),
       merchant: current.merchant,
       descriptor: current.descriptor,
       amount: paiseToRupees(current.amount_paise),
@@ -162,10 +163,14 @@ export function ReviewDeck({
     async (stamp: StampKind, work: () => Promise<void>) => {
       if (!current) return;
       setFlying({ row: current, stamp });
-      await new Promise((resolve) => window.setTimeout(resolve, 420));
-      await work();
-      setHistory((prev) => [...prev, { row: current, stamp }]);
-      setFlying(null);
+      try {
+        // Run the request alongside the card animation, not after it.
+        await Promise.all([work(), new Promise((resolve) => window.setTimeout(resolve, 420))]);
+        setHistory((prev) => [...prev, { row: current, stamp }]);
+      } finally {
+        // Without this the card stays hidden behind a stuck ghost on any failure.
+        setFlying(null);
+      }
     },
     [current],
   );
@@ -290,6 +295,8 @@ export function ReviewDeck({
         onDone();
         return;
       }
+      // Enter already fires the focused button's own click — don't accept as well.
+      if (event.key === "Enter" && target?.tagName === "BUTTON") return;
       if (!current || busy) return;
       if (event.key === "a" || event.key === "A" || event.key === "Enter") {
         event.preventDefault();
@@ -446,7 +453,7 @@ export function ReviewDeck({
                 Held
               </span>
             )}
-            {(current.confidence ?? 0) < HEURISTIC_REVIEW_THRESHOLD && (
+            {(current.confidence ?? 0) < IMPORT_LOW_CONFIDENCE_MAX && (
               <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] text-destructive">
                 Needs a look
               </span>

@@ -75,7 +75,12 @@ export function parseAmountToPaise(raw: string): Paise | null {
     s = s.slice(1).trim();
   }
 
-  s = s.replace(/[₹rs\s]/gi, "").replace(/,/g, "");
+  // Strip the currency token only at the edges — a character class would eat the
+  // "r"/"s" out of "Rs.100" and leave ".100" (10 paise instead of 100 rupees).
+  s = s
+    .replace(/^(?:₹|rs\.?|inr)\s*/i, "")
+    .replace(/\s*(?:₹|rs\.?|inr)$/i, "")
+    .replace(/[\s,]/g, "");
   if (!s) return 0;
 
   const n = Number(s);

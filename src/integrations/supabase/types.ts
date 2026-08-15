@@ -2161,6 +2161,10 @@ export type Database = {
         Args: { p_transaction_id: string }
         Returns: boolean
       }
+      fn_set_import_row_status: {
+        Args: { p_row_id: string; p_status: Database["public"]["Enums"]["import_row_status"] }
+        Returns: Database["public"]["Enums"]["import_row_status"]
+      }
       fn_record_transaction: {
         Args: {
           p_amount: number

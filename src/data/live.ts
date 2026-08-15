@@ -38,6 +38,7 @@ import type {
   Transaction,
 } from "@/data/schema";
 import { IMPORT_LOW_CONFIDENCE_MAX } from "@/data/schema";
+import { dayKey } from "@/lib/money";
 
 /** True when a Supabase session exists in this environment (browser only). */
 export async function hasSession(): Promise<boolean> {
@@ -547,12 +548,12 @@ function reviewKindFor(row: ImportJobRow): ReviewKind {
   if (row.confidence !== null && row.confidence < IMPORT_LOW_CONFIDENCE_MAX) {
     return "low_confidence";
   }
-  return "unknown_merchant";
+  return "pending";
 }
 
 function mapReviewItem(row: ImportJobRow): ImportReviewItem {
   const kind = reviewKindFor(row);
-  const when = row.occurred_at.slice(0, 10);
+  const when = dayKey(row.occurred_at);
   return {
     id: row.id,
     kind,
@@ -678,7 +679,10 @@ export const liveImportReviewItems = (): Promise<ImportReviewItem[]> =>
       .select(JOB_ROW_COLUMNS)
       .in("status", ["pending", "held"])
       .is("deleted_at", null)
-      .order("occurred_at", { ascending: true });
+      .order("occurred_at", { ascending: true })
+      // One 2000-row statement would otherwise ship 2000 rows to the hub, which
+      // renders every one of them. The queue is a to-do list, not an archive.
+      .limit(200);
     if (error) throw error;
     const items = (data ?? []).map((row) => mapReviewItem(mapJobRow(row)));
     const rank = (kind: ReviewKind) =>

@@ -9,7 +9,7 @@ export type {
   StatementParseResult,
   UnsignedAmountMeans,
 } from "./types";
-export { HEURISTIC_REVIEW_THRESHOLD, PREVIEW_ROW_COUNT } from "./types";
+export { PREVIEW_ROW_COUNT } from "./types";
 
 export {
   BANK_PRESETS,
@@ -23,8 +23,8 @@ export {
 
 export {
   parseFileToGrid,
+  parseImportGrid,
   parseImportBuffer,
-  parseImportFile,
   parseImportText,
   isSpreadsheetFilename,
 } from "./parse";
@@ -52,7 +52,6 @@ export {
 } from "./normalize";
 
 export { suggestImportAccounts, importableAccounts } from "./match-accounts";
-export { setPendingImportFile, takePendingImportFile } from "./pending-file";
 
 export {
   applyImportRules,

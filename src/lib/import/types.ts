@@ -51,11 +51,11 @@ export type MappedImportRow = {
   /** Signed paise: negative = money out (matches `Transaction.amount`). */
   amount_paise: Paise;
   type: Exclude<TransactionType, "transfer">;
+  /** Empty until `attachHashesToRows` runs — the hash needs the destination account. */
   import_hash: string;
   occurrence_index: number;
   suggested_category_name: string | null;
   confidence: number;
-  raw: Record<string, string>;
 };
 
 export type StatementParseResult = {
@@ -72,8 +72,6 @@ export type StatementParseResult = {
 
 export type ParseImportOptions = {
   filename: string;
-  /** When omitted, rows are mapped but hashes are filled later via `attachHashesToRows`. */
-  accountId?: string | undefined;
   preset?: BankPresetId | undefined;
   mapping?: ColumnMapping | undefined;
 };
@@ -85,6 +83,3 @@ export type HeuristicSuggestion = {
 };
 
 export const PREVIEW_ROW_COUNT = 8;
-
-/** Rows at or above this confidence can be treated as easy-accept in review UI. */
-export const HEURISTIC_REVIEW_THRESHOLD = 0.75;

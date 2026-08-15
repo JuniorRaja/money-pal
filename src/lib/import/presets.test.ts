@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import * as XLSX from "xlsx";
+import { attachHashesToRows } from "./hash.ts";
 import { applyHeuristics, extractMerchant } from "./heuristics.ts";
 import { detectBankPreset } from "./presets.ts";
 import { parseImportBuffer, parseImportText } from "./parse.ts";
@@ -51,13 +52,12 @@ describe("HDFC / DBS fixture rows → mapped fields", () => {
   it("skips HDFC NetBanking junk until the header and maps debit/credit", async () => {
     const result = await parseImportText(HDFC_SAVINGS_CSV, {
       filename: "hdfc-savings.csv",
-      accountId: ACCOUNT,
     });
     assert.equal(result.detectedPreset, "hdfc_savings");
     assert.equal(result.mappingErrors.length, 0);
     assert.equal(result.rows.length, 4);
 
-    const [swiggy0, swiggy1, salary, amazon] = result.rows;
+    const [swiggy0, swiggy1, salary, amazon] = await attachHashesToRows(ACCOUNT, result.rows);
     assert.equal(swiggy0?.occurred_on, "2026-08-01");
     assert.equal(swiggy0?.amount_paise, -45000);
     assert.equal(swiggy0?.type, "expense");
@@ -82,7 +82,6 @@ describe("HDFC / DBS fixture rows → mapped fields", () => {
   it("maps HDFC credit card Debit/Credit + amount", async () => {
     const result = await parseImportText(HDFC_CC_CSV, {
       filename: "hdfc-cc.csv",
-      accountId: ACCOUNT,
       preset: "hdfc_cc",
     });
     assert.equal(result.detectedPreset, "hdfc_cc");
@@ -97,7 +96,6 @@ describe("HDFC / DBS fixture rows → mapped fields", () => {
   it("maps DBS debit/credit and named-month dates", async () => {
     const result = await parseImportText(DBS_CSV, {
       filename: "dbs.csv",
-      accountId: ACCOUNT,
     });
     assert.equal(result.detectedPreset, "dbs");
     assert.equal(result.rows.length, 3);
@@ -151,7 +149,6 @@ describe("HDFC / DBS fixture rows → mapped fields", () => {
 
     const result = await parseImportBuffer(bytes, {
       filename: "hdfc-savings.xlsx",
-      accountId: ACCOUNT,
     });
     assert.equal(result.detectedPreset, "hdfc_savings");
     assert.equal(result.rows.length, 2);
