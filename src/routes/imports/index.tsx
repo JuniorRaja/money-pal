@@ -10,6 +10,7 @@ import {
   PencilLine,
   Play,
   Unplug,
+  X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -43,6 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   disconnectImportSource,
+  dismissImportJob,
   renameImportSource,
   setImportSourcePaused,
 } from "@/data/mutations";
@@ -119,6 +121,10 @@ function ImportsHub() {
   const [disconnect, setDisconnect] = useState<ImportSource | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [flow, setFlow] = useState<ImportFlow | null>(null);
+  const [dismissJob, setDismissJob] = useState<ImportJob | null>(null);
+  const [showAllReview, setShowAllReview] = useState(false);
+  // The queue is a to-do list; a whole statement's worth of rows is a wall.
+  const visibleReview = showAllReview ? review : review.slice(0, 8);
 
   const jobsById = useMemo(() => new Map(jobs.map((job) => [job.id, job])), [jobs]);
 
@@ -173,7 +179,11 @@ function ImportsHub() {
         <div className="mt-5 space-y-4">
           {activeJobs.map((job) => (
             <Panel key={job.id} title={`Waiting on you · ${job.title}`}>
-              <JobProgress job={job} onReview={() => setFlow({ kind: "review", jobId: job.id })} />
+              <JobProgress
+                job={job}
+                onReview={() => setFlow({ kind: "review", jobId: job.id })}
+                onDismiss={() => setDismissJob(job)}
+              />
             </Panel>
           ))}
         </div>
@@ -186,7 +196,7 @@ function ImportsHub() {
           </p>
         ) : (
           <ul className="space-y-3">
-            {review.map((item) => {
+            {visibleReview.map((item) => {
               const copy = KIND_COPY[item.kind];
               return (
                 <li
@@ -219,6 +229,17 @@ function ImportsHub() {
                 </li>
               );
             })}
+            {review.length > visibleReview.length && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setShowAllReview(true)}
+                  className="w-full rounded-xl border border-dashed border-border py-2 text-xs text-muted-foreground transition-colors hover:bg-accent"
+                >
+                  Show {review.length - visibleReview.length} more
+                </button>
+              </li>
+            )}
           </ul>
         )}
       </Panel>
@@ -342,6 +363,37 @@ function ImportsHub() {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={Boolean(dismissJob)} onOpenChange={(open) => !open && setDismissJob(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dismiss {dismissJob?.title}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dismissJob
+                ? `${dismissJob.rows_total - dismissJob.rows_done} unreviewed row(s) are discarded. The ${dismissJob.imported} row(s) already imported stay on the ledger, and you can import the file again later.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!dismissJob) return;
+                try {
+                  await dismissImportJob(dismissJob.id);
+                  setDismissJob(null);
+                  await router.invalidate();
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Could not dismiss");
+                }
+              }}
+            >
+              Dismiss
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={Boolean(disconnect)} onOpenChange={(open) => !open && setDisconnect(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -456,10 +508,12 @@ function JobProgress({
   job,
   compact,
   onReview,
+  onDismiss,
 }: {
   job: ImportJob;
   compact?: boolean;
   onReview?: () => void;
+  onDismiss?: () => void;
 }) {
   const done = job.finished_at !== null;
   const total = Math.max(job.rows_total, 1);
@@ -472,8 +526,21 @@ function JobProgress({
           {done && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />}
           <span className="truncate">{compact ? job.title : `${job.rows_done} of ${job.rows_total}`}</span>
         </span>
-        <span className="numeric shrink-0 text-xs text-muted-foreground">
-          {job.rows_done} / {job.rows_total}
+        <span className="flex shrink-0 items-center gap-2">
+          <span className="numeric text-xs text-muted-foreground">
+            {job.rows_done} / {job.rows_total}
+          </span>
+          {onDismiss && (
+            <button
+              type="button"
+              aria-label={`Dismiss ${job.title}`}
+              title="Dismiss this import"
+              onClick={onDismiss}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </span>
       </div>
       <Bar value={pct} tone={done ? "success" : "primary"} />

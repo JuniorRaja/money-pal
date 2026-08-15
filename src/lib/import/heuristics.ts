@@ -153,13 +153,23 @@ const KEYWORD_RULES: readonly KeywordRule[] = [
   },
 ];
 
+/** Payment rails that prefix Indian narration but never name a merchant. */
+const RAIL_PREFIX = /^(?:UPI|NEFT|IMPS|ACH|POS|ATM|RTGS|MMT|CMS|P2P|P2A|PCD|INF)\b[\s.:-]*/i;
+
 function cleanMerchantToken(raw: string): string {
-  return raw
+  const words = raw
     .replace(/[_/]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/^(UPI|NEFT|IMPS|ACH|POS|ATM)\s+/i, "")
-    .trim();
+    .split(" ")
+    // Reference numbers ride along in nearly every narration and are never a
+    // merchant — "IMPS P2P 622157719873#09" contains no name at all.
+    .filter((word) => !/\d{5,}/.test(word) && !/^[#*\d]+$/.test(word));
+
+  let out = words.join(" ").trim();
+  // Stacked rails are common ("UPI-IMPS-..."), so strip until none is left.
+  while (RAIL_PREFIX.test(out)) out = out.replace(RAIL_PREFIX, "").trim();
+  return out;
 }
 
 /**
@@ -175,7 +185,9 @@ export function extractMerchant(narration: string): string {
   );
   if (upiHandle?.[1]) return titleCase(cleanMerchantToken(upiHandle[1]));
 
-  const upi = raw.match(/\bUPI[-/]([^/-@]+)/i);
+  // The hyphen must be escaped: `[^/-@]` reads as the range / → @, which
+  // excludes every digit and cut "UPI-J AMALIYA COOL BAR-Q3566..." at the "3".
+  const upi = raw.match(/\bUPI[-/]([^\-/@]+)/i);
   if (upi?.[1]) return titleCase(cleanMerchantToken(upi[1]));
 
   const neft = raw.match(/\bNEFT\s*(?:CR|DR)?[- ]+[A-Z]{4}[0-9]+[- ]+([^-]+)/i);
@@ -188,9 +200,12 @@ export function extractMerchant(narration: string): string {
   if (pos?.[1]) return titleCase(cleanMerchantToken(pos[1].split(/\s{2,}/)[0] ?? pos[1]));
 
   const first = cleanMerchantToken(raw.split(/[-/,]/)[0] ?? raw);
-  if (first.length >= 3 && first.length <= 48 && !/^\d+$/.test(first)) return titleCase(first);
+  if (first.length >= 3 && first.length <= 48) return titleCase(first);
 
-  return titleCase(raw.slice(0, 48).trim());
+  // Nothing but rails and reference numbers. Returning "" drops confidence to
+  // 0.2 and shows the raw narration, which beats presenting a reference number
+  // as if it were a merchant name.
+  return titleCase(cleanMerchantToken(raw).slice(0, 48));
 }
 
 function titleCase(value: string): string {

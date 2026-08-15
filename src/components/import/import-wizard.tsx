@@ -101,6 +101,19 @@ export function ImportWizard({
         preset: (source?.bank_preset as BankPresetId | null) ?? undefined,
         mapping: nextMapping ?? savedMapping ?? undefined,
       });
+      // Three distinct columns is the floor for date + description + amount, so
+      // anything narrower can never satisfy the mapping editor. Say so here
+      // rather than dropping the user into an unsatisfiable form.
+      if (result.headers.length < 3) {
+        setParseError(
+          `This doesn't look like a bank statement — only ${result.headers.length} column${
+            result.headers.length === 1 ? "" : "s"
+          } found. Export the statement itself as CSV or Excel and try again.`,
+        );
+        setParsed(null);
+        setStep("file");
+        return;
+      }
       setParsed(result);
       setMapping(result.mapping);
       const errors = result.mapping

@@ -39,6 +39,7 @@ import {
   renameImportSourceFn,
   setImportSourcePausedFn,
   disconnectImportSourceFn,
+  dismissImportJobFn,
   type CreateTransactionInput,
   type UpdateTransactionInput,
   type DeleteTransactionInput,
@@ -73,6 +74,7 @@ import {
   type RenameImportSourceInput,
   type SetImportSourcePausedInput,
   type DisconnectImportSourceInput,
+  type DismissImportJobInput,
 } from "@/lib/mutations.functions";
 import { mutationErrorMessage } from "@/lib/mutation-error";
 import type {
@@ -580,6 +582,7 @@ export type {
   RenameImportSourceInput,
   SetImportSourcePausedInput,
   DisconnectImportSourceInput,
+  DismissImportJobInput,
 };
 
 export async function upsertImportProfile(input: UpsertImportProfileInput) {
@@ -624,4 +627,8 @@ export async function setImportSourcePaused(id: string, paused: boolean) {
 
 export async function disconnectImportSource(id: string) {
   return disconnectImportSourceFn({ data: { id } });
+}
+
+export async function dismissImportJob(id: string) {
+  return dismissImportJobFn({ data: { id } });
 }

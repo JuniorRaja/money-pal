@@ -121,8 +121,8 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen min-w-[1180px]">
-      <div className="flex w-[46%] flex-col justify-center px-24">
+    <div className="flex min-h-screen">
+      <div className="flex w-full flex-col justify-center px-6 py-12 sm:px-12 lg:w-[46%] lg:px-24 lg:py-0">
         <div className="flex items-center gap-3">
           <svg viewBox="0 0 40 40" className="h-9 w-9 text-primary" aria-hidden="true">
             <path
@@ -271,7 +271,8 @@ function LoginPage() {
         )}
       </div>
 
-      <div className="relative isolate flex w-[54%] flex-col justify-end overflow-hidden bg-accent/60 p-12">
+      {/* Decorative panel — the sign-in form is the whole page on a phone. */}
+      <div className="relative isolate hidden w-[54%] flex-col justify-end overflow-hidden bg-accent/60 p-12 lg:flex">
         <Signature variant="login" />
         <div className="relative border-t border-border/60 pt-6 text-xs text-muted-foreground">
           <p>Money Pal 1.0.0 · Secure cloud sync</p>

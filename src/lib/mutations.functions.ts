@@ -1697,6 +1697,43 @@ export const setImportSourcePausedFn = createServerFn({ method: "POST" })
     return { id: data.id, status };
   });
 
+export interface DismissImportJobInput {
+  id: string;
+}
+
+/**
+ * Abandon a staged job. Rows go first — a dismissed job whose rows survived
+ * would keep filling the review queue with no panel left to reach them from.
+ * Committed rows are untouched: the ledger keeps whatever was already accepted.
+ */
+export const dismissImportJobFn = createServerFn({ method: "POST" })
+  .validator((input: DismissImportJobInput) => {
+    if (!input.id) throw new Error("id is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const now = new Date().toISOString();
+
+    const rows = await supabase
+      .from("import_job_rows")
+      .update({ deleted_at: now, is_active: false })
+      .eq("job_id", data.id)
+      .in("status", ["pending", "held"])
+      .is("deleted_at", null);
+    if (rows.error) throw rows.error;
+
+    const job = await supabase
+      .from("import_jobs")
+      .update({ deleted_at: now, is_active: false })
+      .eq("id", data.id)
+      .is("deleted_at", null);
+    if (job.error) throw job.error;
+
+    return { id: data.id };
+  });
+
 export interface DisconnectImportSourceInput {
   id: string;
 }

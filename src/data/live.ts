@@ -679,7 +679,10 @@ export const liveImportReviewItems = (): Promise<ImportReviewItem[]> =>
       .select(JOB_ROW_COLUMNS)
       .in("status", ["pending", "held"])
       .is("deleted_at", null)
-      .order("occurred_at", { ascending: true });
+      .order("occurred_at", { ascending: true })
+      // One 2000-row statement would otherwise ship 2000 rows to the hub, which
+      // renders every one of them. The queue is a to-do list, not an archive.
+      .limit(200);
     if (error) throw error;
     const items = (data ?? []).map((row) => mapReviewItem(mapJobRow(row)));
     const rank = (kind: ReviewKind) =>

@@ -78,6 +78,32 @@ Staged and committed rows use midnight Asia/Kolkata (`midnightIst`). Postgres re
 
 Light merchant heuristics plus review. Accepting a correction writes an `import_rules` row (normalized merchant contains → category; optional account, else global). Staged rows may carry `suggested_category_id`. On commit, the account’s `is_default` label (PRD “Unassigned”) is applied as the slice.
 
+## Import — a job can be dismissed
+
+Every staged job used to be permanent: the only way to clear a panel was to resolve every row.
+`dismissImportJob` soft-deletes the job **and** its unresolved (`pending` / `held`) rows — rows
+first, so a dismissed job cannot leave orphans in the review queue. Rows already `imported` and the
+transactions they wrote are untouched; re-importing the same file re-stages only what was never
+committed, because the hashes of the committed rows still dedupe. Deliberately a plain RLS update
+rather than an RPC: no counter arithmetic is involved.
+
+"Waiting for you" fetches at most 200 rows and renders 8, with a "Show N more". The queue is a
+to-do list, not an archive of everything ever staged.
+
+## Import — a file that is not a statement is rejected at the door
+
+Fewer than three columns cannot satisfy date + description + amount, so the mapping editor would
+present three permanently-unsatisfiable errors. The wizard says so on the file step instead and
+lets the user drop a different file.
+
+## Import — a reference number is not a merchant
+
+`extractMerchant` drops tokens containing five or more digits and tokens that are only digits,
+`#`, or `*`, then strips payment-rail prefixes (`UPI`, `NEFT`, `IMPS`, `RTGS`, `P2P`, …) until none
+remains. When nothing is left it returns `""` — `applyHeuristics` then falls to confidence 0.2 and
+shows the raw narration, which sends the row to review honestly rather than presenting
+"P2p 622157719873#09" as a merchant name.
+
 ## Import — no transfer matching
 
 Imported rows are income or expense only. Transfers are not auto-detected. The user can edit the transaction later.
