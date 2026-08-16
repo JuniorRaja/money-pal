@@ -1,4 +1,18 @@
-import { test, expect, parseMoney } from "./fixtures";
+import { test, expect, parseMoney, clickWhenReady } from "./fixtures";
+import type { Page } from "@playwright/test";
+
+/**
+ * Transactions have no page-local "add" button — every record type is
+ * created through the nav rail's "Add new" menu (see app-shell.tsx), which
+ * opens the shared AddRecordDialog scoped to kind="transaction".
+ */
+async function openAddTransactionDialog(page: Page) {
+  const menuItem = page.getByRole("menuitem", { name: "Transaction" });
+  await clickWhenReady(page.getByRole("button", { name: "Add new" }), menuItem);
+  const dialog = page.getByRole("dialog");
+  await clickWhenReady(menuItem, dialog);
+  return dialog;
+}
 
 test.describe("Transactions — CRUD Operations", () => {
   // ─────────────────────────────────────────────────────────────────────────
@@ -9,188 +23,70 @@ test.describe("Transactions — CRUD Operations", () => {
     test("Add Transaction dialog opens from the page action button", async ({
       transactionsPage: page,
     }) => {
-      // Click the "Add Transaction" button (or "+" fab)
-      const addBtn = page.locator("button", { hasText: "Add Transaction" });
-      if (await addBtn.isVisible()) {
-        await addBtn.click();
-      } else {
-        // Fallback: look for a Plus button in the header area
-        await page
-          .locator("button")
-          .filter({ has: page.locator("svg.lucide-plus") })
-          .first()
-          .click();
-      }
-
-      // Dialog should appear
-      await expect(page.locator("[role=dialog], dialog")).toBeVisible({ timeout: 5000 });
+      await openAddTransactionDialog(page);
     });
 
     test("Create dialog has all required transaction fields", async ({
       transactionsPage: page,
     }) => {
-      const addBtn = page.locator("button", { hasText: "Add Transaction" });
-      if (await addBtn.isVisible()) {
-        await addBtn.click();
-      } else {
-        await page
-          .locator("button")
-          .filter({ has: page.locator("svg.lucide-plus") })
-          .first()
-          .click();
-      }
+      const dialog = await openAddTransactionDialog(page);
 
-      const dialog = page.locator("[role=dialog], dialog");
-      await expect(dialog).toBeVisible({ timeout: 5000 });
-
-      // Should have these core fields (by label or placeholder)
-      const expectedFields = ["Date", "Merchant", "Amount", "Type", "Account", "Category"];
+      // Direction replaces a plain "Type" select — see add-record-dialog.tsx.
+      const expectedFields = ["Date", "Direction", "Merchant", "Amount (₹)", "Account", "Category"];
       for (const field of expectedFields) {
-        const label = dialog.locator(`text=${field}`);
-        // Either a label or a select/input with this name should exist
-        const isVisible = await label.isVisible().catch(() => false);
-        if (!isVisible) {
-          // Try lowercase
-          const lcLabel = dialog.locator(`text=${field.toLowerCase()}`);
-          await expect(lcLabel).toBeVisible();
-        }
+        await expect(dialog.getByText(field, { exact: true })).toBeVisible();
       }
     });
 
     test("submitting with empty fields shows validation errors", async ({
       transactionsPage: page,
     }) => {
-      const addBtn = page.locator("button", { hasText: "Add Transaction" });
-      if (await addBtn.isVisible()) {
-        await addBtn.click();
-      } else {
-        await page
-          .locator("button")
-          .filter({ has: page.locator("svg.lucide-plus") })
-          .first()
-          .click();
-      }
+      const dialog = await openAddTransactionDialog(page);
 
-      const dialog = page.locator("[role=dialog], dialog");
-      await expect(dialog).toBeVisible({ timeout: 5000 });
+      // Every field starts empty (see defaults.transaction) — submit as-is.
+      await dialog.getByRole("button", { name: "Save transaction" }).click();
 
-      // Clear any pre-filled fields and submit
-      const merchantInput = dialog.locator("input").filter({ hasText: "" }).first();
-      if (merchantInput) {
-        await merchantInput.clear().catch(() => {});
-      }
-
-      // Click save/submit button
-      const submitBtn = dialog
-        .locator(
-          "button[type=submit], button:has-text('Save'), button:has-text('Add'), button:has-text('Create')",
-        )
-        .last();
-      await submitBtn.click();
-
-      // Should show at least one validation error
-      await expect(dialog.locator("text=/required|enter|pick/i")).toBeVisible({ timeout: 3000 });
+      await expect(dialog.getByText(/required|enter|pick/i).first()).toBeVisible({
+        timeout: 3000,
+      });
     });
 
     test("successfully creating a transaction adds it to the table", async ({
       transactionsPage: page,
     }) => {
-      // Get initial row count
-      const initialCount = await page.locator("table tbody tr:not(.bg-muted\\/50)").count();
-
-      // Open Add Transaction dialog
-      const addBtn = page.locator("button", { hasText: "Add Transaction" });
-      if (await addBtn.isVisible()) {
-        await addBtn.click();
-      } else {
-        await page
-          .locator("button")
-          .filter({ has: page.locator("svg.lucide-plus") })
-          .first()
-          .click();
-      }
-
-      const dialog = page.locator("[role=dialog], dialog");
-      await expect(dialog).toBeVisible({ timeout: 5000 });
-
-      // Fill in the form with valid data
+      const dialog = await openAddTransactionDialog(page);
       const uniqueMerchant = `TestMerchant_${Date.now()}`;
 
-      // Fill merchant
-      const merchantField = dialog.locator("input").nth(0);
-      // Find the actual merchant input — look for label or placeholder
-      const merchantInput = dialog
-        .locator("label:has-text('Merchant') input, input[placeholder*='merchant' i]")
-        .first();
-      if (await merchantInput.isVisible().catch(() => false)) {
-        await merchantInput.fill(uniqueMerchant);
-      } else {
-        // Fallback: fill the first empty text input after the date field
-        const inputs = dialog.locator("input[type=text], input:not([type])");
-        const count = await inputs.count();
-        for (let i = 0; i < count; i++) {
-          const val = await inputs.nth(i).inputValue();
-          if (!val || val === "") {
-            await inputs.nth(i).fill(uniqueMerchant);
-            break;
-          }
-        }
-      }
+      await dialog.getByLabel("Merchant", { exact: true }).fill(uniqueMerchant);
+      await dialog.getByLabel("Amount (₹)", { exact: true }).fill("500");
 
-      // Fill amount
-      const amountInput = dialog
-        .locator("label:has-text('Amount') input, input[placeholder*='amount' i]")
-        .first();
-      if (await amountInput.isVisible().catch(() => false)) {
-        await amountInput.fill("500");
-      } else {
-        // Fallback: find numeric input
-        const numInputs = dialog.locator("input[type=number], input[inputmode=numeric]");
-        if ((await numInputs.count()) > 0) {
-          await numInputs.first().fill("500");
-        }
-      }
+      // Field order for kind="transaction" (add-record-dialog.tsx): Direction,
+      // Account, Category, Slice. Accounts/categories load asynchronously
+      // after the dialog mounts, so wait past the placeholder-only option.
+      const accountSelect = dialog.locator("select").nth(1);
+      await expect(accountSelect.locator("option")).not.toHaveCount(1, { timeout: 10_000 });
+      const accountValue = await accountSelect.locator("option").nth(1).getAttribute("value");
+      await accountSelect.selectOption(accountValue ?? "");
 
-      // Select account (first available option)
-      const accountSelect = dialog.locator("label:has-text('Account') select, select").first();
-      if (await accountSelect.isVisible().catch(() => false)) {
-        const options = await accountSelect.locator("option").all();
-        if (options.length > 1) {
-          const val = await options[1].getAttribute("value");
-          if (val) await accountSelect.selectOption(val);
-        }
-      }
+      const categorySelect = dialog.locator("select").nth(2);
+      await expect(categorySelect.locator("option")).not.toHaveCount(1, { timeout: 10_000 });
+      const categoryValue = await categorySelect.locator("option").nth(1).getAttribute("value");
+      await categorySelect.selectOption(categoryValue ?? "");
 
-      // Select category (first available option)
-      const categorySelect = dialog.locator("label:has-text('Category') select, select").nth(1);
-      if (await categorySelect.isVisible().catch(() => false)) {
-        const options = await categorySelect.locator("option").all();
-        if (options.length > 1) {
-          const val = await options[1].getAttribute("value");
-          if (val) await categorySelect.selectOption(val);
-        }
-      }
+      await dialog.getByRole("button", { name: "Save transaction" }).click();
+      await expect(page.getByText("Transaction added")).toBeVisible({ timeout: 10_000 });
 
-      // Submit
-      const submitBtn = dialog
-        .locator(
-          "button[type=submit], button:has-text('Save'), button:has-text('Add'), button:has-text('Create')",
-        )
-        .last();
-      await submitBtn.click();
+      const newRow = page.locator(`table tbody tr:has-text("${uniqueMerchant}")`);
+      await expect(newRow).toBeVisible({ timeout: 10_000 });
 
-      // Wait for dialog to close or for new row to appear
-      await page.waitForTimeout(2000);
-
-      // Verify: either dialog closed OR a success toast appeared
-      const dialogStillVisible = await dialog.isVisible().catch(() => false);
-      if (!dialogStillVisible) {
-        // Table should have one more row OR the new merchant should be visible
-        const newRow = page.locator(`table tbody tr:has-text("${uniqueMerchant}")`);
-        const hasNewRow = await newRow.isVisible().catch(() => false);
-        // If the period filter hides it, at least verify the dialog closed cleanly
-        expect(dialogStillVisible).toBe(false);
-      }
+      // Cleanup: this test is the only one in the suite that leaves a
+      // transaction behind — remove it so reruns don't accumulate rows.
+      await newRow.click();
+      const aside = page.locator("aside.rise");
+      await aside.getByRole("button", { name: "More" }).click();
+      await page.getByRole("menuitem", { name: "Delete Transaction" }).click();
+      await page.getByRole("button", { name: "Delete", exact: true }).click();
+      await expect(newRow).toBeHidden({ timeout: 10_000 });
     });
   });
 
@@ -204,7 +100,7 @@ test.describe("Transactions — CRUD Operations", () => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
-      const aside = page.locator("aside");
+      const aside = page.locator("aside.rise");
       await expect(aside).toBeVisible();
 
       // Look for Edit button/action in the panel
@@ -236,7 +132,7 @@ test.describe("Transactions — CRUD Operations", () => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
-      const aside = page.locator("aside");
+      const aside = page.locator("aside.rise");
       await expect(aside).toBeVisible();
 
       // Get current merchant name from detail panel
@@ -262,10 +158,16 @@ test.describe("Transactions — CRUD Operations", () => {
     test("updating merchant name reflects in the table after save", async ({
       transactionsPage: page,
     }) => {
+      // EditTransactionDialog's form has enough fields to exceed the default
+      // viewport height, and DialogContent has no internal scroll container
+      // (dialog.tsx) — grow the viewport so the footer's Save button is
+      // reachable at all, not just scrolled-to.
+      await page.setViewportSize({ width: 1280, height: 1400 });
+
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
-      const aside = page.locator("aside");
+      const aside = page.locator("aside.rise");
       await expect(aside).toBeVisible();
 
       const editBtn = aside.locator("button:has-text('Edit'), button[aria-label='Edit']");
@@ -280,10 +182,12 @@ test.describe("Transactions — CRUD Operations", () => {
           await merchantInput.clear();
           await merchantInput.fill(updatedName);
 
-          // Save
+          // Save — the edit form has enough fields to overflow a default
+          // viewport, so the footer button needs an explicit scroll first.
           const saveBtn = dialog
             .locator("button[type=submit], button:has-text('Save'), button:has-text('Update')")
             .last();
+          await saveBtn.scrollIntoViewIfNeeded();
           await saveBtn.click();
           await page.waitForTimeout(1500);
 
@@ -310,7 +214,7 @@ test.describe("Transactions — CRUD Operations", () => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
-      const aside = page.locator("aside");
+      const aside = page.locator("aside.rise");
       await expect(aside).toBeVisible();
 
       // Delete might be in a "More" dropdown or directly visible
@@ -338,7 +242,7 @@ test.describe("Transactions — CRUD Operations", () => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
-      const aside = page.locator("aside");
+      const aside = page.locator("aside.rise");
       await expect(aside).toBeVisible();
 
       // Try to trigger delete
@@ -381,7 +285,7 @@ test.describe("Transactions — CRUD Operations", () => {
       const merchantName = (await merchantCell.locator("p").first().textContent()) ?? "";
 
       await firstRow.click();
-      const aside = page.locator("aside");
+      const aside = page.locator("aside.rise");
       await expect(aside).toBeVisible();
 
       // Attempt to delete
@@ -450,7 +354,7 @@ test.describe("Transactions — CRUD Operations", () => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
-      const aside = page.locator("aside");
+      const aside = page.locator("aside.rise");
       await expect(aside).toBeVisible();
 
       // Look for Change Slice button
@@ -472,7 +376,7 @@ test.describe("Transactions — CRUD Operations", () => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       if ((await dataRow.count()) === 0) return;
       await dataRow.click();
-      const aside = page.locator("aside");
+      const aside = page.locator("aside.rise");
       await expect(aside).toBeVisible();
       await expect(aside.locator("button:has-text('Split')")).toHaveCount(0);
     });
@@ -487,11 +391,12 @@ test.describe("Transactions — CRUD Operations", () => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
-      const aside = page.locator("aside");
+      const aside = page.locator("aside.rise");
       await expect(aside).toBeVisible();
 
-      // Switch to Notes tab
-      await aside.locator("button", { hasText: "Notes" }).click();
+      // "Add Note" is an action button that flips the panel into note-editing
+      // mode — there's no separate tab strip (see transactions.tsx focusNotes).
+      await aside.getByRole("button", { name: "Add Note" }).click();
       const textarea = aside.locator("textarea");
       await expect(textarea).toBeVisible();
       await expect(textarea).toBeEditable();
@@ -501,10 +406,10 @@ test.describe("Transactions — CRUD Operations", () => {
       const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
       await dataRow.click();
 
-      const aside = page.locator("aside");
+      const aside = page.locator("aside.rise");
       await expect(aside).toBeVisible();
 
-      await aside.locator("button", { hasText: "Notes" }).click();
+      await aside.getByRole("button", { name: "Add Note" }).click();
       const textarea = aside.locator("textarea");
       await textarea.fill("Test note for E2E verification");
 

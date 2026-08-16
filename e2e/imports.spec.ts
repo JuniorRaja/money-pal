@@ -1,4 +1,5 @@
-import { test as base, expect, type Page } from "./fixtures";
+import { test, expect } from "./fixtures";
+import { dropStatement } from "./import-helpers";
 
 /**
  * Import Center E2E plan (Playwright)
@@ -14,10 +15,6 @@ import { test as base, expect, type Page } from "./fixtures";
  * the file input rather than uploaded from disk.
  */
 
-const email = process.env.E2E_EMAIL ?? process.env.TESTING_USERID ?? process.env.TEST_EMAIL ?? "";
-const password =
-  process.env.E2E_PASSWORD ?? process.env.TESTING_PASSWORD ?? process.env.TEST_PASSWORD ?? "";
-
 /**
  * Amounts here exercise the parser paths that used to fail silently:
  * "Rs." prefixes and Indian digit grouping. Dates are first-of-month so a
@@ -32,66 +29,20 @@ Date,Narration,Value Dat,Debit Amount,Credit Amount,Chq/Ref Number,Closing Balan
 01/10/2026,UPI-AMAZON-amazonpay@apl-0000-333-SHOP,01/10/2026,"Rs. 1,299.00",,,168251.00
 `;
 
-async function ensureSignedIn(page: Page) {
-  await page.goto("/imports");
-  await page.waitForLoadState("networkidle");
-  if (!page.url().includes("/login")) return;
-
-  if (!email || !password) {
-    throw new Error(
-      "Import tests need E2E_EMAIL and E2E_PASSWORD (or TEST_EMAIL / TEST_PASSWORD).",
-    );
-  }
-
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
-  await page.getByRole("button", { name: /sign in/i }).click();
-  await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 20_000 });
-  await page.goto("/imports");
-  await expect(page.getByRole("heading", { name: "Import Center" })).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
 /**
- * Drops the fixture and lands on the review deck. The dialog only renders its
- * file input once five repository reads resolve, so the wait is generous. When
- * more than one account matches the statement the wizard asks which one — pick
- * the first rather than assuming the single-candidate shortcut.
+ * A second, distinct statement for the commit round-trip test — one row, its
+ * own amount/date/narration, so the resulting transaction is unambiguous to
+ * find on /transactions regardless of what earlier tests staged or held from
+ * STATEMENT above. The reference number carries a run-unique timestamp so a
+ * re-run's exact-hash dedupe (DECISIONS — "Import — hash dedupe") never
+ * silently skips staging it.
  */
-async function dropStatement(page: Page) {
-  // The tile renders in the SSR HTML but does nothing until React hydrates, and
-  // Playwright's actionability checks do not wait for that — so click until the
-  // dialog actually appears rather than once.
-  const input = page.locator('input[type="file"]');
-  await expect(async () => {
-    await page.locator('main button:has-text("CSV / Excel")').click();
-    await expect(input).toBeAttached({ timeout: 5_000 });
-  }).toPass({ timeout: 60_000 });
-  await input.setInputFiles({
-    name: `hdfc-${Date.now()}.csv`,
-    mimeType: "text/csv",
-    buffer: Buffer.from(STATEMENT, "utf8"),
-  });
+const ROUNDTRIP_STATEMENT = `HDFC BANK
+Account Statement for A/c XXXX1234
 
-  const accountSelect = page.locator('[role="dialog"] select');
-  const deck = page.getByText(/left in this job/);
-  await expect(accountSelect.or(deck).first()).toBeVisible({ timeout: 30_000 });
-
-  if (await accountSelect.isVisible().catch(() => false)) {
-    const value = await accountSelect.locator("option").nth(1).getAttribute("value");
-    await accountSelect.selectOption(value ?? "");
-    await page.locator('[role="dialog"] button:has-text("Review rows")').click();
-  }
-  await expect(deck).toBeVisible({ timeout: 30_000 });
-}
-
-const test = base.extend<{ importsPage: Page }>({
-  importsPage: async ({ page }, use) => {
-    await ensureSignedIn(page);
-    await use(page);
-  },
-});
+Date,Narration,Value Dat,Debit Amount,Credit Amount,Chq/Ref Number,Closing Balance
+02/08/2026,UPI-SWIGGY-E2EROUNDTRIP@YBL-HDFC0001234-${Date.now()}-PAYMENT,02/08/2026,Rs.222.00,0.00,,50000.00
+`;
 
 test.describe("Import Center", () => {
   // The import dialog cannot accept a file until five repository reads resolve,
@@ -105,7 +56,7 @@ test.describe("Import Center", () => {
   });
 
   test("maps the columns without asking for help", async ({ importsPage: page }) => {
-    await dropStatement(page);
+    await dropStatement(page, STATEMENT);
     // Reaching the deck at all means date/description/amount resolved on their
     // own — the mapping editor never appeared.
     await expect(page.getByText(/Match date, description, and amount/)).toBeHidden();
@@ -115,7 +66,7 @@ test.describe("Import Center", () => {
   test("review deck shows the amount and date the statement stated", async ({
     importsPage: page,
   }) => {
-    await dropStatement(page);
+    await dropStatement(page, STATEMENT);
     const card = page.locator('[role="dialog"] article').first();
 
     // "Rs.100" must read as ₹100.00, not ₹0.10 (the character-class bug), and
@@ -129,7 +80,7 @@ test.describe("Import Center", () => {
   });
 
   test("the deck stays interactive when a row action fails", async ({ importsPage: page }) => {
-    await dropStatement(page);
+    await dropStatement(page, STATEMENT);
     const card = page.locator('[role="dialog"] article').first();
     await expect(card).toBeVisible();
 
@@ -139,5 +90,28 @@ test.describe("Import Center", () => {
     // live card at opacity-0 is the failure this guards against.
     await expect(card).toHaveCSS("opacity", "1", { timeout: 15_000 });
     await expect(page.locator('[role="dialog"] button:has-text("Accept")')).toBeEnabled();
+  });
+
+  test("accepting a row commits it — it appears on /transactions with the right amount, date, and category", async ({
+    importsPage: page,
+  }) => {
+    await dropStatement(page, ROUNDTRIP_STATEMENT);
+    const card = page.locator('[role="dialog"] article').first();
+    await expect(card).toContainText("222.00");
+    await expect(card).toContainText(/02 Aug 2026/);
+
+    await page.locator('[role="dialog"] button:has-text("Accept")').click();
+    await expect(page.getByText("Caught up for now")).toBeVisible({ timeout: 15_000 });
+    await page.locator('[role="dialog"] button:has-text("Back to Import Center")').click();
+
+    await page.goto("/transactions");
+    await page.waitForSelector("table", { timeout: 15_000 });
+    const row = page
+      .locator("table tbody tr")
+      .filter({ hasText: "Swiggy" })
+      .filter({ hasText: "222.00" });
+    await expect(row.first()).toBeVisible({ timeout: 10_000 });
+    // SWIGGY is a keyword-mapped Dining merchant (see lib/import/heuristics.ts).
+    await expect(row.first().locator("td").nth(2)).toContainText("Dining");
   });
 });

@@ -6,7 +6,7 @@ test.describe("Transactions Page — UI Functionality", () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   test("page loads with title and subtitle", async ({ transactionsPage: page }) => {
-    await expect(page.locator("text=Transactions")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Transactions", exact: true })).toBeVisible();
     await expect(page.locator("text=Every financial event, organized and clear.")).toBeVisible();
   });
 
@@ -52,7 +52,7 @@ test.describe("Transactions Page — UI Functionality", () => {
     await firstRow.click();
 
     // Detail panel (aside) should appear
-    await expect(page.locator("aside")).toBeVisible();
+    await expect(page.locator("aside.rise")).toBeVisible();
   });
 
   test("detail panel shows merchant name and amount", async ({ transactionsPage: page }) => {
@@ -60,7 +60,7 @@ test.describe("Transactions Page — UI Functionality", () => {
     const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
     await dataRow.click();
 
-    const aside = page.locator("aside");
+    const aside = page.locator("aside.rise");
     await expect(aside).toBeVisible();
 
     // Should have merchant name (first letter avatar + text)
@@ -69,58 +69,43 @@ test.describe("Transactions Page — UI Functionality", () => {
     await expect(aside.locator("p.numeric.text-3xl")).toBeVisible();
   });
 
-  test("detail panel has Details and Notes tabs", async ({ transactionsPage: page }) => {
+  test("detail panel shows transaction metadata fields", async ({ transactionsPage: page }) => {
     const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
     await dataRow.click();
 
-    const aside = page.locator("aside");
-    await expect(aside.locator("button", { hasText: "Details" })).toBeVisible();
-    await expect(aside.locator("button", { hasText: "Notes & Attachments" })).toBeVisible();
-  });
-
-  test("detail panel Details tab shows transaction metadata fields", async ({
-    transactionsPage: page,
-  }) => {
-    const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
-    await dataRow.click();
-
-    const aside = page.locator("aside");
-    // Details tab should be active by default
-    const fields = [
-      "Account",
-      "Category",
-      "Type",
-      "Payment Method",
-      "Source",
-      "Transaction ID",
-      "Confidence",
-    ];
+    const aside = page.locator("aside.rise");
+    // See DetailRow usages in transactions.tsx — no separate tab strip, and
+    // no Category/Payment Method/Confidence rows in the read-only panel.
+    const fields = ["Slice", "Type", "Account", "Source", "Transaction ID"];
     for (const field of fields) {
       await expect(aside.locator(`dt:has-text("${field}")`)).toBeVisible();
     }
   });
 
-  test("detail panel Notes tab shows textarea", async ({ transactionsPage: page }) => {
+  test("Add Note flips the panel into an editable notes view", async ({
+    transactionsPage: page,
+  }) => {
     const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
     await dataRow.click();
 
-    const aside = page.locator("aside");
-    await aside.locator("button", { hasText: "Notes & Attachments" }).click();
+    const aside = page.locator("aside.rise");
+    await aside.getByRole("button", { name: "Add Note" }).click();
     await expect(aside.locator("textarea")).toBeVisible();
   });
 
   test("closing detail panel removes it from the DOM", async ({ transactionsPage: page }) => {
     const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
     await dataRow.click();
-    await expect(page.locator("aside")).toBeVisible();
+    const aside = page.locator("aside.rise");
+    await expect(aside).toBeVisible();
 
-    // Click close button (X icon)
-    await page
-      .locator("aside button")
+    // Click close button (X icon, top-right of the panel header).
+    await aside
+      .locator("button")
       .filter({ has: page.locator("svg") })
       .first()
       .click();
-    await expect(page.locator("aside")).not.toBeVisible();
+    await expect(aside).toBeHidden();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -129,42 +114,53 @@ test.describe("Transactions Page — UI Functionality", () => {
 
   test("search input filters transactions by merchant name", async ({ transactionsPage: page }) => {
     const searchInput = page.locator("input[placeholder*='Search']");
-    await searchInput.fill("Zomato");
+    // The empty-state row has no bg-muted/50 class either (it's a plain
+    // <tr><td colSpan=6>), so exclude it explicitly or a 0-match search
+    // miscounts it as one data row.
+    const rows = page
+      .locator("table tbody tr:not(.bg-muted\\/50)")
+      .filter({ hasNotText: "Nothing matches those filters yet." });
 
-    // Wait for reactivity
-    await page.waitForTimeout(300);
-
-    // Either rows match or "Nothing matches" is shown
-    const rows = page.locator("table tbody tr:not(.bg-muted\\/50)");
-    const rowCount = await rows.count();
-    if (rowCount > 0) {
-      // All visible rows should contain the search term
-      for (let i = 0; i < rowCount; i++) {
-        const text = await rows.nth(i).textContent();
+    // First interaction on a fresh page can land before hydration wires the
+    // input's onChange. A single fill() dispatches one input event that can
+    // land in the same dead window — type it out instead so the controlled
+    // value actually commits, and retry until the filter takes.
+    await expect(async () => {
+      await searchInput.fill("");
+      await searchInput.pressSequentially("Zomato", { delay: 20 });
+      await page.waitForTimeout(300);
+      const rowCount = await rows.count();
+      if (rowCount > 0) {
+        const text = await rows.first().textContent();
         expect(text?.toLowerCase()).toContain("zomato");
+      } else {
+        await expect(page.getByText("Nothing matches those filters yet.")).toBeVisible({
+          timeout: 1000,
+        });
       }
-    } else {
-      await expect(page.locator("text=Nothing matches those filters yet.")).toBeVisible();
-    }
+    }).toPass({ timeout: 15_000 });
   });
 
   test("type filter shows only selected transaction type", async ({ transactionsPage: page }) => {
-    // Find the type filter select
+    // Find the type filter select — first interaction on a fresh page, same
+    // hydration race as the search box: the native <select> visually shows
+    // the picked option even when React's onChange missed it. A row-count
+    // change isn't a reliable retry signal (the current period can
+    // legitimately be all-expense already) — retry the whole flow against
+    // the actual invariant: the opened row's own Type field.
     const typeSelect = page.locator("select").last();
-    await typeSelect.selectOption("expense");
-
-    await page.waitForTimeout(300);
-
-    // If we open detail panel on any visible row, type should be "expense"
     const rows = page.locator("table tbody tr:not(.bg-muted\\/50)");
-    const rowCount = await rows.count();
-    if (rowCount > 0) {
+    const aside = page.locator("aside.rise");
+
+    await expect(async () => {
+      await typeSelect.selectOption("expense");
+      await page.waitForTimeout(300);
+      expect(await rows.count()).toBeGreaterThan(0);
       await rows.first().click();
-      const aside = page.locator("aside");
-      await expect(aside).toBeVisible();
+      await expect(aside).toBeVisible({ timeout: 2000 });
       const typeField = aside.locator("dt:has-text('Type')").locator("..").locator("dd");
-      await expect(typeField).toContainText("expense");
-    }
+      await expect(typeField).toContainText("expense", { timeout: 2000 });
+    }).toPass({ timeout: 15_000 });
   });
 
   test("period filter changes displayed transactions", async ({ transactionsPage: page }) => {
@@ -186,10 +182,13 @@ test.describe("Transactions Page — UI Functionality", () => {
     transactionsPage: page,
   }) => {
     const searchInput = page.locator("input[placeholder*='Search']");
-    await searchInput.fill("xyznonexistentmerchant12345");
+    const empty = page.getByText("Nothing matches those filters yet.");
 
-    await page.waitForTimeout(300);
-    await expect(page.locator("text=Nothing matches those filters yet.")).toBeVisible();
+    await expect(async () => {
+      await searchInput.fill("");
+      await searchInput.pressSequentially("xyznonexistentmerchant12345", { delay: 20 });
+      await expect(empty).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15_000 });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -212,7 +211,7 @@ test.describe("Transactions Page — UI Functionality", () => {
     if (rowCount < 2) return; // Need at least 2 rows
 
     await rows.first().click();
-    const aside = page.locator("aside");
+    const aside = page.locator("aside.rise");
     const firstMerchant = await aside.locator("p.text-sm.font-medium").textContent();
 
     await rows.nth(1).click();

@@ -50,15 +50,23 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
   test("Total Expenses equals sum of all negative amounts in the table (absolute)", async ({
     transactionsPage: page,
   }) => {
-    const amountCells = page.locator("table tbody tr:not(.bg-muted\\/50) td:last-child");
-    const count = await amountCells.count();
+    const rows = page.locator("table tbody tr:not(.bg-muted\\/50)");
+    const count = await rows.count();
 
     let expenseSum = 0;
     for (let i = 0; i < count; i++) {
-      const text = (await amountCells.nth(i).textContent()) ?? "";
-      const hasDestructive = await amountCells
-        .nth(i)
-        .evaluate((el) => el.classList.contains("text-destructive"));
+      const row = rows.nth(i);
+      // summariseCashflow excludes transfers from expense entirely (moving
+      // money between your own accounts isn't a cost); the table renders a
+      // transfer's one display leg with an account cell like "From → To".
+      const accountText = (await row.locator("td").nth(3).textContent()) ?? "";
+      if (accountText.includes("→")) continue;
+
+      const amountCell = row.locator("td:last-child");
+      const text = (await amountCell.textContent()) ?? "";
+      const hasDestructive = await amountCell.evaluate((el) =>
+        el.classList.contains("text-destructive"),
+      );
       if (hasDestructive) {
         // parseMoney returns negative for expenses, we accumulate absolute
         expenseSum += Math.abs(parseMoney(text));
@@ -154,7 +162,7 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
     const rowAmount = parseMoney(rowAmountText);
 
     await dataRow.click();
-    const aside = page.locator("aside");
+    const aside = page.locator("aside.rise");
     await expect(aside).toBeVisible();
 
     const panelAmountEl = aside.locator("p.numeric.text-3xl");
@@ -164,23 +172,9 @@ test.describe("Transactions Page — Calculations & Amounts", () => {
     expect(panelAmount).toBe(rowAmount);
   });
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // CONFIDENCE DISPLAY
-  // ─────────────────────────────────────────────────────────────────────────
-
-  test("confidence is displayed as percentage in detail panel", async ({
-    transactionsPage: page,
-  }) => {
-    const dataRow = page.locator("table tbody tr:not(.bg-muted\\/50)").first();
-    await dataRow.click();
-
-    const aside = page.locator("aside");
-    const confidenceField = aside.locator("dt:has-text('Confidence')").locator("..").locator("dd");
-    const confidenceText = (await confidenceField.textContent()) ?? "";
-
-    // Should contain a percentage like "98%" or "High · 98%"
-    expect(confidenceText).toMatch(/\d+%/);
-  });
+  // Note: heuristic-categorization confidence is an import-review concept
+  // (review-deck.tsx) and was never surfaced on this page's detail panel —
+  // no test needed for it here.
 
   // ─────────────────────────────────────────────────────────────────────────
   // FILTER CALCULATIONS — stats should update when filters change

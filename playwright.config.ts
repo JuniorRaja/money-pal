@@ -19,15 +19,19 @@ if (existsSync(envPath)) {
 /**
  * Playwright configuration for Money Pal E2E tests.
  *
- * Assumes the dev server is already running on port 3000.
- * Start it manually with `npm run dev` before running tests.
+ * `webServer` below starts (or reuses) the dev server on port 3000.
  */
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  // Every spec shares one live Supabase test account (TESTING_USERID) — two
+  // spec files mutating transactions/net-worth concurrently produces false
+  // failures (a slice's "owned" total shifting mid-assertion because another
+  // worker committed a transaction). Force serial execution everywhere, not
+  // just CI, until specs get per-file account isolation.
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
   reporter: [["html", { open: "never" }]],
   use: {
     baseURL: "http://localhost:3000",
