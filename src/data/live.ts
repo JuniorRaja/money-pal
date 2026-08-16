@@ -35,6 +35,7 @@ import type {
   ImportSourceKind,
   Label,
   MonthlyRollup,
+  NotificationChannel,
   ReviewKind,
   Slice,
   TimelineEvent,
@@ -78,6 +79,10 @@ export async function hasSession(): Promise<boolean> {
 /** True when an error means "your token is dead," as opposed to an RLS/query bug. */
 export function isAuthError(error: unknown): boolean {
   const code = (error as { code?: string } | null)?.code;
+  // PGRST303 ("JWT issued at future") is a transient Supabase clock-skew blip
+  // right after sign-in, not a dead session — React Query's default retry
+  // resolves it within seconds. Signing the user out on it is the actual bug.
+  if (code === "PGRST303") return false;
   const status = (error as { status?: number } | null)?.status;
   const message = (error as { message?: string } | null)?.message ?? "";
   return code === "PGRST301" || status === 401 || /jwt/i.test(message);
@@ -181,7 +186,6 @@ export const liveCreditCardCycles = (accountId?: string): Promise<CreditCardCycl
       .select(
         "id, account_id, statement_date, due_date, credit_limit, statement_balance, payment_due_amount, minimum_due, amount_paid, is_current, notes",
       )
-      .is("deleted_at", null)
       .order("statement_date", { ascending: false });
     if (accountId) query = query.eq("account_id", accountId);
     const { data, error } = await query;
@@ -216,6 +220,24 @@ export const liveCategories = (): Promise<Category[]> =>
       color_token: row.color_token ?? "chart-1",
     }));
   }, []);
+
+const NO_NOTIFICATION_CHANNEL: NotificationChannel = {
+  telegram_bot_token: null,
+  telegram_chat_id: null,
+  telegram_enabled: false,
+  last_digest_sent_at: null,
+};
+
+export const liveNotificationChannel = (): Promise<NotificationChannel> =>
+  live<NotificationChannel>(async (supabase) => {
+    const { data, error } = await supabase
+      .from("notification_channels")
+      .select("telegram_bot_token, telegram_chat_id, telegram_enabled, last_digest_sent_at")
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (error) throw error;
+    return data ?? NO_NOTIFICATION_CHANNEL;
+  }, NO_NOTIFICATION_CHANNEL);
 
 export const liveLabels = (): Promise<Label[]> =>
   live<Label[]>(async (supabase) => {

@@ -594,6 +594,43 @@ export const updateSliceFn = createServerFn({ method: "POST" })
     return { id: data.id };
   });
 
+// =============================================================================
+// NOTIFICATIONS — TELEGRAM CHANNEL CONFIG
+// =============================================================================
+
+export interface SaveNotificationChannelInput {
+  telegram_bot_token: string | null;
+  telegram_chat_id: string | null;
+  telegram_enabled: boolean;
+}
+
+export const saveNotificationChannelFn = createServerFn({ method: "POST" })
+  .validator((input: SaveNotificationChannelInput) => {
+    if (
+      input.telegram_enabled &&
+      (!input.telegram_bot_token?.trim() || !input.telegram_chat_id?.trim())
+    ) {
+      throw new Error("Bot token and chat id are required to enable Telegram");
+    }
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase.from("notification_channels").upsert(
+      {
+        user_id: userId,
+        telegram_bot_token: data.telegram_bot_token?.trim() || null,
+        telegram_chat_id: data.telegram_chat_id?.trim() || null,
+        telegram_enabled: data.telegram_enabled,
+        modified_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+    if (error) throw error;
+    return { success: true };
+  });
+
 function isUniqueViolation(error: { code?: string } | null): boolean {
   return error?.code === "23505";
 }

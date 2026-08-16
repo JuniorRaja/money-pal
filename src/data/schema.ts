@@ -317,6 +317,13 @@ export interface ImportReviewItem {
   possible_duplicate: PossibleDuplicate | null;
 }
 
+export interface NotificationChannel {
+  telegram_bot_token: string | null;
+  telegram_chat_id: string | null;
+  telegram_enabled: boolean;
+  last_digest_sent_at: ISODateTime | null;
+}
+
 export interface MonthlyRollup {
   period: string; // "2026-03"
   income: Paise;

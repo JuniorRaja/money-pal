@@ -24,6 +24,7 @@ import {
   liveImportSources,
   liveLabels,
   liveMonthlyRollups,
+  liveNotificationChannel,
   liveSlices,
   liveTimeline,
   liveTransactions,
@@ -47,6 +48,7 @@ import type {
   ImportSource,
   Label,
   MonthlyRollup,
+  NotificationChannel,
   Paise,
   Slice,
   TimelineEvent,
@@ -77,6 +79,7 @@ export const getArchivedGoals = (): Promise<Goal[]> => liveArchivedGoals();
 export const getGoalContributions = (): Promise<GoalContribution[]> => liveGoalContributions();
 export const getHoldings = (): Promise<Holding[]> => liveHoldings();
 export const getMonthlyRollups = (): Promise<MonthlyRollup[]> => liveMonthlyRollups();
+export const getNotificationChannel = (): Promise<NotificationChannel> => liveNotificationChannel();
 export const getSlices = (): Promise<Slice[]> => liveSlices();
 export const getCreditCardCycles = (accountId?: string): Promise<CreditCardCycle[]> =>
   liveCreditCardCycles(accountId);

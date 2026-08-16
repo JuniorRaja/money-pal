@@ -1220,6 +1220,48 @@ export type Database = {
           },
         ];
       };
+      notification_channels: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          deleted_at: string | null;
+          is_active: boolean;
+          last_digest_sent_at: string | null;
+          modified_at: string;
+          modified_by: string | null;
+          telegram_bot_token: string | null;
+          telegram_chat_id: string | null;
+          telegram_enabled: boolean;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          is_active?: boolean;
+          last_digest_sent_at?: string | null;
+          modified_at?: string;
+          modified_by?: string | null;
+          telegram_bot_token?: string | null;
+          telegram_chat_id?: string | null;
+          telegram_enabled?: boolean;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          deleted_at?: string | null;
+          is_active?: boolean;
+          last_digest_sent_at?: string | null;
+          modified_at?: string;
+          modified_by?: string | null;
+          telegram_bot_token?: string | null;
+          telegram_chat_id?: string | null;
+          telegram_enabled?: boolean;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           accent: string | null;

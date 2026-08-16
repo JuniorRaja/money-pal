@@ -1,4 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -17,9 +18,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
-import { updateImportRule, type UpdateImportRuleInput } from "@/data/mutations";
-import { getAccounts, getCategories, getImportRules, getSettings } from "@/data/repository";
-import type { Account, Category, ImportRule } from "@/data/schema";
+import {
+  saveNotificationChannel,
+  updateImportRule,
+  type UpdateImportRuleInput,
+} from "@/data/mutations";
+import {
+  getAccounts,
+  getCategories,
+  getImportRules,
+  getNotificationChannel,
+  getSettings,
+} from "@/data/repository";
+import type { Account, Category, ImportRule, NotificationChannel } from "@/data/schema";
+import { sendTelegramDigestFn, sendTelegramTestFn } from "@/lib/notify.functions";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -35,13 +47,14 @@ export const Route = createFileRoute("/settings")({
     ],
   }),
   loader: async () => {
-    const [settings, rules, categories, accounts] = await Promise.all([
+    const [settings, rules, categories, accounts, notificationChannel] = await Promise.all([
       getSettings(),
       getImportRules(),
       getCategories(),
       getAccounts(),
+      getNotificationChannel(),
     ]);
-    return { settings, rules, categories, accounts };
+    return { settings, rules, categories, accounts, notificationChannel };
   },
   component: SettingsPage,
 });
@@ -51,6 +64,7 @@ const tabs = [
   "Appearance",
   "Formatting",
   "Assistant",
+  "Notifications",
   "Import rules",
   "Privacy",
 ] as const;
@@ -65,7 +79,7 @@ const accents = [
 ];
 
 function SettingsPage() {
-  const { settings, rules, categories, accounts } = Route.useLoaderData();
+  const { settings, rules, categories, accounts, notificationChannel } = Route.useLoaderData();
   const { prefs, setPrefs } = useSession();
   const [tab, setTab] = useState<Tab>("Appearance");
 
@@ -204,6 +218,8 @@ function SettingsPage() {
             </Panel>
           )}
 
+          {tab === "Notifications" && <NotificationsTab channel={notificationChannel} />}
+
           {tab === "Import rules" && (
             <ImportRulesTab rules={rules} categories={categories} accounts={accounts} />
           )}
@@ -223,6 +239,152 @@ function SettingsPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+/**
+ * Telegram digest config. Bot token and chat id live server-side only
+ * (`notification_channels`, RLS-scoped to the owner) — nothing is inlined into
+ * the client bundle. Email reports are a separate, not-yet-built channel.
+ */
+function NotificationsTab({ channel }: { channel: NotificationChannel }) {
+  const router = useRouter();
+  const sendTest = useServerFn(sendTelegramTestFn);
+  const sendDigest = useServerFn(sendTelegramDigestFn);
+
+  const [token, setToken] = useState(channel.telegram_bot_token ?? "");
+  const [chatId, setChatId] = useState(channel.telegram_chat_id ?? "");
+  const [enabled, setEnabled] = useState(channel.telegram_enabled);
+  const [busy, setBusy] = useState<"save" | "test" | "digest" | null>(null);
+
+  async function save(next: { token?: string; chatId?: string; enabled?: boolean }) {
+    const nextToken = next.token ?? token;
+    const nextChatId = next.chatId ?? chatId;
+    const nextEnabled = next.enabled ?? enabled;
+    setBusy("save");
+    try {
+      await saveNotificationChannel({
+        telegram_bot_token: nextToken || null,
+        telegram_chat_id: nextChatId || null,
+        telegram_enabled: nextEnabled,
+      });
+      setEnabled(nextEnabled);
+      toast.success("Notification settings saved");
+      await router.invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save notification settings");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function test() {
+    if (!token.trim() || !chatId.trim()) {
+      toast.error("Add a bot token and chat id first");
+      return;
+    }
+    setBusy("test");
+    try {
+      await sendTest({ data: { bot_token: token.trim(), chat_id: chatId.trim() } });
+      toast.success("Test message sent — check Telegram");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not reach Telegram");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function digestNow() {
+    setBusy("digest");
+    try {
+      const result = await sendDigest();
+      toast.success(result.sent ? `Digest sent — ${result.count} event(s)` : "Nothing new to send");
+      await router.invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send the digest");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <>
+      <Panel title="Telegram">
+        <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+          Message <span className="text-foreground">@BotFather</span> on Telegram, create a bot, and
+          paste the token below. Message your new bot once so it can resolve your chat id, then
+          paste that in too. One daily digest, nothing sends when there is nothing to say.
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Bot token</span>
+            <input
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="123456:ABC-DEF..."
+              className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted-foreground">Chat id</span>
+            <input
+              value={chatId}
+              onChange={(e) => setChatId(e.target.value)}
+              placeholder="123456789"
+              className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+            />
+          </label>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
+          <div>
+            <p className="text-sm text-foreground">Daily digest</p>
+            <p className="text-xs text-muted-foreground">
+              {channel.last_digest_sent_at
+                ? `Last sent ${new Date(channel.last_digest_sent_at).toLocaleString()}`
+                : "Never sent yet"}
+            </p>
+          </div>
+          <Switch
+            checked={enabled}
+            disabled={busy !== null}
+            aria-label="Enable Telegram digest"
+            onCheckedChange={(next) => void save({ enabled: next })}
+          />
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={() => void test()}
+            disabled={busy !== null}
+            className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+          >
+            {busy === "test" ? "Sending…" : "Send test message"}
+          </button>
+          <button
+            onClick={() => void save({})}
+            disabled={busy !== null}
+            className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+          >
+            {busy === "save" ? "Saving…" : "Save"}
+          </button>
+          <button
+            onClick={() => void digestNow()}
+            disabled={busy !== null || !enabled}
+            className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+          >
+            {busy === "digest" ? "Sending…" : "Send digest now"}
+          </button>
+        </div>
+      </Panel>
+
+      <Panel title="Email reports">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Not built yet — a monthly rollup by email is next up after Telegram. See{" "}
+          <span className="text-foreground">docs/plans/P3-3-notifications.md</span>.
+        </p>
+      </Panel>
+    </>
   );
 }
 

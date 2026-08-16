@@ -41,6 +41,7 @@ import {
   setImportSourcePausedFn,
   disconnectImportSourceFn,
   dismissImportJobFn,
+  saveNotificationChannelFn,
   type CreateTransactionInput,
   type UpdateTransactionInput,
   type DeleteTransactionInput,
@@ -77,6 +78,7 @@ import {
   type SetImportSourcePausedInput,
   type DisconnectImportSourceInput,
   type DismissImportJobInput,
+  type SaveNotificationChannelInput,
 } from "@/lib/mutations.functions";
 import { mutationErrorMessage } from "@/lib/mutation-error";
 import type {
@@ -641,4 +643,12 @@ export async function disconnectImportSource(id: string) {
 
 export async function dismissImportJob(id: string) {
   return dismissImportJobFn({ data: { id } });
+}
+
+export async function saveNotificationChannel(input: SaveNotificationChannelInput) {
+  try {
+    return await saveNotificationChannelFn({ data: input });
+  } catch (error) {
+    throw new Error(mutationErrorMessage(error, "Could not save notification settings"));
+  }
 }
