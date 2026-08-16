@@ -31,6 +31,8 @@ export default defineConfig(({ command }) => ({
     }),
     viteReact(),
     // nitro builds the deployable output; it has nothing to do during `vite dev`.
-    command === "build" ? nitro({ preset: "cloudflare-module" }) : null,
+    // Preset is not hardcoded — CI sets NITRO_PRESET=cloudflare_module (see
+    // .github/workflows/deploy.yml and nitro.config.ts for Cloudflare specifics).
+    command === "build" ? nitro() : null,
   ],
 }));
