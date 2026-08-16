@@ -45,8 +45,7 @@ Client-side only — the statement file is never uploaded. `src/lib/import/`:
 
 `parse.ts` → `map.ts`/`presets.ts` (per-bank columns) → `normalize.ts` → `hash.ts` (dedupe; formula
 in DECISIONS.md) → `heuristics.ts` (merchant categorization) → `stage.ts` → review UI in
-`src/routes/imports/`. Plus `match-accounts.ts` (account matching) and `pending-file.ts` (resumable
-uploads).
+`src/routes/imports/`. Plus `match-accounts.ts` (account matching).
 
 ## AI assistant
 
