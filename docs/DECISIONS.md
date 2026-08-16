@@ -112,6 +112,14 @@ remains. When nothing is left it returns `""` — `applyHeuristics` then falls t
 shows the raw narration, which sends the row to review honestly rather than presenting
 "P2p 622157719873#09" as a merchant name.
 
+## CC — amount_paid is derived
+
+`credit_card_cycles.amount_paid` is not stored. `v_credit_card_cycles` (and `v_credit_card_current`) derive it as the sum of positive transfer entries into the CC account that occurred after the previous cycle's `statement_date` and on or before this cycle's `statement_date`. Paying the card as a normal transfer automatically reflects on the cycle; no manual entry.
+
+## CC / EMI — expense → transfer via edit
+
+An imported expense can be converted to a transfer (e.g. into a loan account for an EMI) by opening Edit on the transaction in the side panel and switching type to Transfer. Decision #22 ("no transfer auto-detection on import") stands; this is a post-import manual step.
+
 ## Import — no transfer matching
 
 Imported rows are income or expense only. Transfers are not auto-detected. The user can edit the transaction later.

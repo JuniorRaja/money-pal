@@ -304,7 +304,6 @@ export type Database = {
       credit_card_cycles: {
         Row: {
           account_id: string;
-          amount_paid: number;
           created_at: string;
           created_by: string | null;
           credit_limit: number;
@@ -324,7 +323,6 @@ export type Database = {
         };
         Insert: {
           account_id: string;
-          amount_paid?: number;
           created_at?: string;
           created_by?: string | null;
           credit_limit: number;
@@ -344,7 +342,6 @@ export type Database = {
         };
         Update: {
           account_id?: string;
-          amount_paid?: number;
           created_at?: string;
           created_by?: string | null;
           credit_limit?: number;
@@ -1833,6 +1830,25 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      v_credit_card_cycles: {
+        Row: {
+          account_id: string | null;
+          amount_paid: number | null;
+          created_at: string | null;
+          credit_limit: number | null;
+          due_date: string | null;
+          id: string | null;
+          is_current: boolean | null;
+          minimum_due: number | null;
+          modified_at: string | null;
+          notes: string | null;
+          payment_due_amount: number | null;
+          statement_balance: number | null;
+          statement_date: string | null;
+          user_id: string | null;
+        };
+        Relationships: [];
       };
       v_credit_card_current: {
         Row: {

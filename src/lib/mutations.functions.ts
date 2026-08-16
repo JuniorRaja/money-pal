@@ -1117,7 +1117,6 @@ export interface UpsertCreditCardCycleInput {
   statement_balance: number;
   payment_due_amount: number;
   minimum_due: number;
-  amount_paid: number;
   is_current: boolean;
   notes?: string | null | undefined;
 }
@@ -1152,7 +1151,6 @@ export const upsertCreditCardCycleFn = createServerFn({ method: "POST" })
       statement_balance: data.statement_balance,
       payment_due_amount: data.payment_due_amount,
       minimum_due: data.minimum_due,
-      amount_paid: data.amount_paid,
       is_current: data.is_current,
       notes: data.notes ?? null,
       modified_at: new Date().toISOString(),

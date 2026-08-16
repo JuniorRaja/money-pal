@@ -27,7 +27,6 @@ const emptyForm = {
   statement_balance: "",
   payment_due_amount: "",
   minimum_due: "",
-  amount_paid: "0",
   is_current: true,
   notes: "",
 };
@@ -89,7 +88,6 @@ export function ManageCyclesDialog({
       statement_balance: String(cycle.statement_balance / 100),
       payment_due_amount: String(cycle.payment_due_amount / 100),
       minimum_due: String(cycle.minimum_due / 100),
-      amount_paid: String(cycle.amount_paid / 100),
       is_current: cycle.is_current,
       notes: cycle.notes ?? "",
     });
@@ -115,7 +113,6 @@ export function ManageCyclesDialog({
         statement_balance: paise(form.statement_balance),
         payment_due_amount: paise(form.payment_due_amount),
         minimum_due: paise(form.minimum_due),
-        amount_paid: paise(form.amount_paid),
         is_current: form.is_current,
         notes: form.notes.trim() || null,
       });
@@ -276,25 +273,14 @@ export function ManageCyclesDialog({
                   />
                 </label>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="space-y-1 text-xs text-muted-foreground">
-                  Amount paid (₹)
-                  <input
-                    className={fieldBase}
-                    inputMode="decimal"
-                    value={form.amount_paid}
-                    onChange={(e) => setForm((f) => ({ ...f, amount_paid: e.target.value }))}
-                  />
-                </label>
-                <label className="flex items-end gap-2 pb-2 text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={form.is_current}
-                    onChange={(e) => setForm((f) => ({ ...f, is_current: e.target.checked }))}
-                  />
-                  Mark as current cycle
-                </label>
-              </div>
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={form.is_current}
+                  onChange={(e) => setForm((f) => ({ ...f, is_current: e.target.checked }))}
+                />
+                Mark as current cycle
+              </label>
               {error && <p className="text-xs text-destructive">{error}</p>}
               <DialogFooter className="pt-1">
                 <button

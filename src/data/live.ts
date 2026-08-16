@@ -177,7 +177,7 @@ export const liveAccounts = (): Promise<Account[]> =>
 export const liveCreditCardCycles = (accountId?: string): Promise<CreditCardCycle[]> =>
   live<CreditCardCycle[]>(async (supabase) => {
     let query = supabase
-      .from("credit_card_cycles")
+      .from("v_credit_card_cycles")
       .select(
         "id, account_id, statement_date, due_date, credit_limit, statement_balance, payment_due_amount, minimum_due, amount_paid, is_current, notes",
       )
@@ -187,10 +187,10 @@ export const liveCreditCardCycles = (accountId?: string): Promise<CreditCardCycl
     const { data, error } = await query;
     if (error) throw error;
     return (data ?? []).map((row): CreditCardCycle => ({
-      id: row.id,
-      account_id: row.account_id,
-      statement_date: row.statement_date,
-      due_date: row.due_date,
+      id: row.id ?? "",
+      account_id: row.account_id ?? "",
+      statement_date: row.statement_date ?? "",
+      due_date: row.due_date ?? "",
       credit_limit: Number(row.credit_limit),
       statement_balance: Number(row.statement_balance),
       payment_due_amount: Number(row.payment_due_amount),
