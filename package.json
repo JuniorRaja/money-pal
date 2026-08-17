@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "test:unit": "tsx --env-file=.env --test \"src/**/*.test.ts\"",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "screenshots": "playwright test scripts/capture-screenshots.ts --project=chromium"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

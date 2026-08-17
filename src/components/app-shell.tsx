@@ -5,6 +5,7 @@ import {
   Bell,
   BarChart3,
   Bot,
+  BookOpen,
   CircleDollarSign,
   CreditCard,
   Download,
@@ -44,7 +45,19 @@ import { getTimelineEvents } from "@/data/repository";
 import { formatDay } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
-const groups = [
+type NavItemDef = {
+  to: string;
+  label: string;
+  icon: typeof Wallet;
+  external?: boolean;
+};
+
+type NavGroup = {
+  label: string;
+  items: NavItemDef[];
+};
+
+const groups: NavGroup[] = [
   {
     label: "Money",
     items: [
@@ -71,11 +84,16 @@ const groups = [
       { to: "/settings", label: "Settings", icon: SettingsIcon },
     ],
   },
-] as const;
+  {
+    label: "Help",
+    items: [{ to: "/docs.html", label: "User Guide", icon: BookOpen, external: true }],
+  },
+];
 
-export type NavItem = (typeof groups)[number]["items"][number];
+export type NavItem = NavItemDef;
 
-const navItems = groups.flatMap((group): readonly NavItem[] => group.items);
+// Only internal routes go to command palette (which uses typed router navigation)
+const navItems = groups.flatMap((group) => group.items).filter((item) => !item.external);
 
 function Monogram() {
   return (
@@ -162,7 +180,7 @@ function Sidebar({
         </DropdownMenu>
       </div>
 
-      <nav className="flex-1 space-y-6 px-3">
+      <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto px-3">
         {groups.map((group) => (
           <div key={group.label}>
             {!collapsed && (
@@ -172,14 +190,37 @@ function Sidebar({
             )}
             <ul className="space-y-1">
               {group.items.map((item) => {
+                const isExternal = "external" in item && item.external;
                 const active =
                   item.to === "/"
                     ? path === "/"
                     : path === item.to || path.startsWith(`${item.to}/`);
+
+                if (isExternal) {
+                  return (
+                    <li key={item.to}>
+                      <a
+                        href={item.to}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={item.label}
+                        onClick={onNavigate}
+                        className={cn(
+                          "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                          "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                        )}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {!collapsed && <span className="truncate">{item.label}</span>}
+                      </a>
+                    </li>
+                  );
+                }
+
                 return (
                   <li key={item.to}>
                     <Link
-                      to={item.to}
+                      to={item.to as "/"}
                       title={item.label}
                       onClick={onNavigate}
                       className={cn(

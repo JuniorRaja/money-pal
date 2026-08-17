@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Money Pal — User Guide</title>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --fg: #1a1a1a;
+      --muted: #666;
+      --border: #e5e5e5;
+      --accent: #2563eb;
+      --accent-light: #dbeafe;
+      --success: #16a34a;
+      --warning: #d97706;
+      --card-bg: #fff;
+      --code-bg: #f4f4f5;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0a0a0a;
+        --fg: #fafafa;
+        --muted: #a1a1aa;
+        --border: #27272a;
+        --accent: #3b82f6;
+        --accent-light: #1e3a5f;
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --card-bg: #18181b;
+        --code-bg: #27272a;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: var(--fg);
+      background: var(--bg);
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    h1,
+    h2,
+    h3 {
+      line-height: 1.3;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      margin-bottom: 0.5rem;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin: 3rem 0 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    h3 {
+      font-size: 1.125rem;
+      margin: 2rem 0 0.75rem;
+    }
+
+    p {
+      margin-bottom: 1rem;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    ul,
+    ol {
+      margin: 0 0 1rem 1.5rem;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+
+    code {
+      font-family: 'SF Mono', Consolas, monospace;
+      font-size: 0.875em;
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+    }
+
+    pre {
+      background: var(--code-bg);
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin-bottom: 1rem;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 2rem 0 3rem;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: 1.125rem;
+    }
+
+    .tagline {
+      display: inline-block;
+      background: var(--accent-light);
+      color: var(--accent);
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+    }
+
+    .toc {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .toc h3 {
+      margin-top: 0;
+    }
+
+    .toc ol {
+      margin-bottom: 0;
+    }
+
+    .toc a {
+      color: var(--fg);
+    }
+
+    .toc a:hover {
+      color: var(--accent);
+    }
+
+    .callout {
+      background: var(--card-bg);
+      border-left: 4px solid var(--accent);
+      padding: 1rem 1.25rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1.5rem 0;
+    }
+
+    .callout.warning {
+      border-left-color: var(--warning);
+    }
+
+    .callout.success {
+      border-left-color: var(--success);
+    }
+
+    .callout p:last-child {
+      margin-bottom: 0;
+    }
+
+    figure {
+      margin: 1.5rem 0;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    figcaption {
+      padding: 0.75rem 1rem;
+      background: var(--card-bg);
+      font-size: 0.875rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .example {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin: 1.5rem 0;
+    }
+
+    .example-title {
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.9375rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      font-weight: 600;
+      background: var(--card-bg);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .badge-owned {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-earmark {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .badge-custodial {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .badge-owned {
+        background: #166534;
+        color: #dcfce7;
+      }
+
+      .badge-earmark {
+        background: #1e40af;
+        color: #dbeafe;
+      }
+
+      .badge-custodial {
+        background: #92400e;
+        color: #fef3c7;
+      }
+    }
+
+    footer {
+      margin-top: 4rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="hero">
+    <span class="tagline">Personal Finance OS</span>
+    <h1>Money Pal</h1>
+    <p>Finally, a finance app that knows not all the money in your account is yours.</p>
+  </header>
+
+  <nav class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#what-makes-this-different">What makes this different</a></li>
+      <li><a href="#getting-started">Getting started</a></li>
+      <li><a href="#importing">Importing statements</a></li>
+      <li><a href="#budgets">Budgets</a></li>
+      <li><a href="#goals">Goals</a></li>
+      <li><a href="#more-features">Timeline, Investments &amp; Assistant</a></li>
+      <li><a href="#self-hosting">Self-hosting</a></li>
+    </ol>
+  </nav>
+
+  <section id="what-makes-this-different">
+    <h2>What makes this different</h2>
+
+    <p>Every finance app shows you your bank balance. But that number lies.</p>
+
+    <p>When your account shows ₹77,000, is that actually yours to spend? Or is ₹50,000 of it money your mother parked
+      with you? Is ₹7,000 set aside for emergencies? The real answer is: you have ₹20,000.</p>
+
+    <div class="example">
+      <div class="example-title">The ₹77,000 problem</div>
+      <table>
+        <tr>
+          <th>Label</th>
+          <th>Amount</th>
+          <th>Kind</th>
+          <th>In net worth?</th>
+        </tr>
+        <tr>
+          <td>Mom's money</td>
+          <td>₹50,000</td>
+          <td><span class="badge badge-custodial">Custodial</span></td>
+          <td>No — you hold it, you don't own it</td>
+        </tr>
+        <tr>
+          <td>Mine</td>
+          <td>₹20,000</td>
+          <td><span class="badge badge-owned">Owned</span></td>
+          <td>Yes</td>
+        </tr>
+        <tr>
+          <td>Emergency fund</td>
+          <td>₹7,000</td>
+          <td><span class="badge badge-earmark">Earmarked</span></td>
+          <td>Yes — yours, but reserved</td>
+        </tr>
+      </table>
+      <p>Your bank says ₹77,000. Your net worth is ₹27,000. Other apps cannot tell the difference.</p>
+    </div>
+
+    <h3>Labels: the core idea</h3>
+
+    <p>A <strong>label</strong> is a named slice of money inside one account. One bank balance, many owners. Every
+      transaction specifies which label the money comes from or goes to.</p>
+
+    <p>Labels have three kinds:</p>
+    <ul>
+      <li><span class="badge badge-owned">Owned</span> — Your money, available to spend. Counts toward net worth.</li>
+      <li><span class="badge badge-earmark">Earmarked</span> — Your money, but reserved for something: an emergency
+        fund, a trip, a goal. Counts toward net worth.</li>
+      <li><span class="badge badge-custodial">Custodial</span> — Money you hold for someone else. Does <em>not</em>
+        count toward your net worth. Shown separately as "amount held for others."</li>
+    </ul>
+
+    <p>This is the whole product. Every other feature — budgets, goals, imports, the dashboard — exists to make labels
+      useful.</p>
+
+    <figure>
+      <img src="docs-img/overview.png" alt="Money Pal Overview showing net worth with custodial money excluded">
+      <figcaption>The Overview shows your true net worth — custodial money is tracked but excluded.</figcaption>
+    </figure>
+
+    <div class="callout">
+      <p><strong>Why not just use multiple bank accounts?</strong></p>
+      <p>You could. But then you need to explain to your mother why she should open an account she will never log into.
+        And you pay fees on each one. Labels let you keep one real account while tracking ownership properly inside it.
+      </p>
+    </div>
+  </section>
+
+  <section id="getting-started">
+    <h2>Getting started</h2>
+
+    <p>Once you have access (via an invite link or your own self-hosted instance), getting started takes three steps:
+    </p>
+
+    <h3>1. Add an account</h3>
+    <p>Go to <strong>Accounts</strong> and click <strong>Add account</strong>. Choose the type:</p>
+    <ul>
+      <li><strong>Bank</strong> — savings or current accounts</li>
+      <li><strong>Cash</strong> — physical cash you track</li>
+      <li><strong>Credit card</strong> — tracks balances and due dates</li>
+      <li><strong>Investment</strong> — brokers, mutual funds, gold</li>
+      <li><strong>Loan</strong> — money you owe</li>
+      <li><strong>Receivable</strong> — money others owe you</li>
+    </ul>
+
+    <p>Every account starts with a default label called <strong>Unassigned</strong>. Any money not explicitly labelled
+      lands here.</p>
+
+    <h3>2. Create labels</h3>
+    <p>On the Accounts page, click the menu on any account and choose <strong>Manage labels</strong>. Add labels for how
+      you actually think about that money:</p>
+    <ul>
+      <li>"Mine" (Owned)</li>
+      <li>"Mom's" (Custodial)</li>
+      <li>"Trip fund" (Earmarked)</li>
+      <li>"Emergency" (Earmarked)</li>
+    </ul>
+
+    <p>Labels belong to one account. "Trip" in your HDFC account and "Trip" in your cash wallet are two separate labels
+      — they can share a name but never mix.</p>
+
+    <figure>
+      <img src="docs-img/slices-dialog.png" alt="Managing slices dialog showing owned and custodial labels">
+      <figcaption>The slices dialog lets you split one account balance into owned, earmarked, and custodial portions.
+      </figcaption>
+    </figure>
+
+    <h3>3. Record your first transaction</h3>
+    <p>Go to <strong>Transactions</strong> and click <strong>Add</strong>. Fill in:</p>
+    <ul>
+      <li>Date and description</li>
+      <li>Amount and category</li>
+      <li>Which account</li>
+      <li>Which label(s) the money comes from</li>
+    </ul>
+
+    <p>You can split a transaction across multiple labels. Paying rent from your own money and your roommate's share?
+      Select both labels and specify the amounts.</p>
+
+    <div class="callout success">
+      <p><strong>Tip:</strong> Get the opening balances right. Add a "Starting balance" transaction for each label when
+        you set up. Then everything after is automatically correct.</p>
+    </div>
+
+    <figure>
+      <img src="docs-img/accounts.png" alt="Accounts page showing bank accounts with slice breakdowns">
+      <figcaption>The Accounts page shows each account with its slice breakdown at a glance.</figcaption>
+    </figure>
+  </section>
+
+  <section id="importing">
+    <h2>Importing statements</h2>
+
+    <p>Manual entry works, but importing your bank statement is faster. Money Pal reads CSV and Excel files — the
+      statement never leaves your browser.</p>
+
+    <h3>How to import</h3>
+    <ol>
+      <li>Go to <strong>Import Center</strong></li>
+      <li>Drop your statement file (CSV, XLS, or XLSX)</li>
+      <li>Map columns if this is a new bank format</li>
+      <li>Review flagged rows and confirm</li>
+    </ol>
+
+    <h3>Supported formats</h3>
+    <table>
+      <tr>
+        <th>Bank</th>
+        <th>Format</th>
+        <th>Notes</th>
+      </tr>
+      <tr>
+        <td>HDFC (savings)</td>
+        <td>CSV, Excel</td>
+        <td>Built-in column mapping</td>
+      </tr>
+      <tr>
+        <td>HDFC (credit card)</td>
+        <td>CSV, Excel</td>
+        <td>Built-in column mapping</td>
+      </tr>
+      <tr>
+        <td>DBS</td>
+        <td>CSV, Excel</td>
+        <td>Built-in column mapping</td>
+      </tr>
+      <tr>
+        <td>Other banks</td>
+        <td>CSV, Excel</td>
+        <td>Manual column mapping (saved for reuse)</td>
+      </tr>
+      <tr>
+        <td>PDF statements</td>
+        <td>PDF</td>
+        <td>Text-based PDFs only; scanned images not supported</td>
+      </tr>
+    </table>
+
+    <h3>The review process</h3>
+    <p>Not every row imports automatically. The review screen shows you:</p>
+    <ul>
+      <li><strong>New transactions</strong> — ready to import</li>
+      <li><strong>Possible duplicates</strong> — same amount and date as an existing transaction. You decide: skip or
+        import anyway</li>
+      <li><strong>Unknown merchants</strong> — no category assigned. Pick one, and Money Pal learns for next time</li>
+    </ul>
+
+    <div class="callout">
+      <p><strong>How categorisation learns:</strong> When you assign a category to a merchant, Money Pal saves that as a
+        rule. Next time you import a transaction from "SWIGGY", it already knows that's "Food & Dining".</p>
+      <p>You can view and edit these rules in <strong>Settings → Import rules</strong>.</p>
+    </div>
+
+    <h3>Duplicate detection</h3>
+    <p>Re-importing the same file does nothing — each row is hashed, and duplicates are skipped automatically. Two
+      genuine identical transactions on the same day (two ₹200 Swiggy orders) both import correctly.</p>
+
+    <p>If you see a "possible duplicate" flag, it means the amount and date match an existing transaction, but the
+      description differs. Review it — it might be a duplicate from a different export format, or it might be
+      legitimate.</p>
+
+    <figure>
+      <img src="docs-img/imports.png" alt="Import Center showing connected sources and review queue">
+      <figcaption>The Import Center: drop a statement, map columns once, and review flagged rows.</figcaption>
+    </figure>
+  </section>
+
+  <section id="budgets">
+    <h2>Budgets</h2>
+
+    <p>A budget is a spending limit for a category in a month. Set ₹15,000 for Groceries, and Money Pal shows you how
+      much you have left as you spend.</p>
+
+    <h3>Creating a budget</h3>
+    <ol>
+      <li>Go to <strong>Budgets</strong></li>
+      <li>Click <strong>Add budget</strong></li>
+      <li>Pick a category and set your planned amount</li>
+    </ol>
+
+    <p>You can also use the <strong>50/30/20 template</strong> to auto-create budgets based on your income: 50% needs,
+      30% wants, 20% savings.</p>
+
+    <h3>How progress works</h3>
+    <p>Budget progress is always live. It's calculated as the sum of your spending in that category for the current
+      month — nothing is stored or cached. Delete a transaction, and your budget progress updates instantly.</p>
+
+    <div class="callout warning">
+      <p><strong>No rollover:</strong> Unspent budget does not carry forward to next month. Each month starts fresh.
+        This is a deliberate choice — rollover budgets tend to accumulate confusing surpluses. If you want to save money
+        across months, use a Goal instead.</p>
+    </div>
+
+    <h3>Copy from last month</h3>
+    <p>Starting a new month? Click <strong>Copy last month</strong> to bring over your previous budget amounts.
+      Categories you have already set up this month are not overwritten.</p>
+
+    <figure>
+      <img src="docs-img/budgets.png" alt="Budgets page showing category spending progress">
+      <figcaption>Budget progress updates live as you spend — no sync or reconciliation needed.</figcaption>
+    </figure>
+  </section>
+
+  <section id="goals">
+    <h2>Goals</h2>
+
+    <p>A goal is something you are saving toward: a holiday, a new laptop, an emergency fund. Unlike a budget (which
+      limits spending), a goal tracks contributions.</p>
+
+    <h3>Creating a goal</h3>
+    <ol>
+      <li>Go to <strong>Goals</strong></li>
+      <li>Click <strong>Add goal</strong></li>
+      <li>Name it, set a target amount, and optionally a deadline</li>
+    </ol>
+
+    <h3>Contributing to a goal</h3>
+    <p>Click <strong>Contribute</strong> on any goal and enter the amount you are putting aside. You can optionally link
+      the contribution to a transaction (like a transfer to a savings account).</p>
+
+    <div class="callout">
+      <p><strong>Goals vs Earmark labels:</strong> A goal tracks progress toward a target. An earmark label reserves
+        money inside an account. They are different tools. You might have an "Emergency" earmark label holding ₹50,000,
+        and a separate "Build emergency fund" goal tracking your progress toward ₹100,000.</p>
+    </div>
+
+    <h3>How progress works</h3>
+    <p>Goal progress equals the sum of your contributions. It is not tied to any account balance — even if you spend
+      from your savings account, your goal's "saved" amount does not change. This is intentional: a goal tracks what you
+      have committed, not what remains in a particular account.</p>
+
+    <div class="callout warning">
+      <p><strong>Monthly contribution is a guide, not an auto-transfer:</strong> Setting a monthly contribution amount
+        helps Money Pal calculate your estimated finish date and warn you if you are behind pace. But nothing moves
+        automatically — you contribute manually when you choose to.</p>
+    </div>
+
+    <figure>
+      <img src="docs-img/goals.png" alt="Goals page showing savings progress toward targets">
+      <figcaption>Track multiple goals with progress rings and projected completion dates.</figcaption>
+    </figure>
+  </section>
+
+  <section id="more-features">
+    <h2>Timeline, Investments &amp; Assistant</h2>
+
+    <h3>Timeline</h3>
+    <p>The Timeline is a chronological feed of financial events: transactions, budget alerts, goal milestones, and
+      upcoming bills. Filter by event type to see just what matters to you.</p>
+
+    <p>Credit card due dates appear here automatically once you set up card cycles in your credit card accounts.</p>
+
+    <h3>Investments</h3>
+    <p>Track your investment holdings across equity, mutual funds, gold, and fixed income. The Investments page shows:
+    </p>
+    <ul>
+      <li>Current value and total return</li>
+      <li>Day change (when price feeds are available)</li>
+      <li>Allocation breakdown by asset class</li>
+    </ul>
+
+    <p>Add holdings manually or import them. Prices update daily for holdings with symbols; manually-valued holdings
+      (like property) keep their last entered value until you update them.</p>
+
+    <div class="callout">
+      <p><strong>Investment accounts in net worth:</strong> The Overview shows your investment account <em>ledger
+          balance</em> (what you transferred in), not the market value of holdings. This is because buying a mutual fund
+        is a transfer from bank to broker — the principal is already counted. Adding market value would count the money
+        twice.</p>
+    </div>
+
+    <h3>Assistant</h3>
+    <p>The Assistant answers questions about your finances using natural language. Ask things like:</p>
+    <ul>
+      <li>"How much did I spend on food last month?"</li>
+      <li>"What's my average monthly income?"</li>
+      <li>"Am I on track for my holiday goal?"</li>
+    </ul>
+
+    <div class="callout">
+      <p><strong>What the Assistant can see:</strong> The Assistant only receives computed aggregates — totals by
+        category, by label kind, by month. It never sees individual transaction rows, merchant names, account numbers,
+        or other sensitive details. Your raw financial data stays private.</p>
+    </div>
+
+    <h3>Notifications</h3>
+    <p>Money Pal can alert you to important events:</p>
+    <ul>
+      <li>Budget approaching its limit</li>
+      <li>Credit card due date approaching</li>
+      <li>Goal behind monthly pace</li>
+      <li>Large or unusual transactions</li>
+    </ul>
+    <p>Configure notification preferences in Settings.</p>
+
+    <figure>
+      <img src="docs-img/timeline.png" alt="Timeline showing chronological feed of financial events">
+      <figcaption>The Timeline: your financial story told in order.</figcaption>
+    </figure>
+
+    <figure>
+      <img src="docs-img/investments.png" alt="Investments page showing holdings and allocation">
+      <figcaption>Track holdings across asset classes with daily price updates.</figcaption>
+    </figure>
+  </section>
+
+  <section id="self-hosting">
+    <h2>Self-hosting</h2>
+
+    <p>Money Pal can run on your own server. The setup is two containers: the app and a Postgres database.</p>
+
+    <h3>Requirements</h3>
+    <ul>
+      <li>Docker and Docker Compose</li>
+      <li>A server with at least 1GB RAM</li>
+      <li>A domain name (for HTTPS)</li>
+    </ul>
+
+    <h3>Quick start</h3>
+    <pre><code># Clone the repository
+git clone https://github.com/yourusername/money-pal.git
+cd money-pal
+
+# Copy and edit the environment file
+cp .env.example .env
+# Edit .env with your settings
+
+# Start the containers
+docker compose up -d</code></pre>
+
+    <h3>Environment variables</h3>
+    <table>
+      <tr>
+        <th>Variable</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td><code>DATABASE_URL</code></td>
+        <td>Postgres connection string</td>
+      </tr>
+      <tr>
+        <td><code>SUPABASE_URL</code></td>
+        <td>Your Supabase project URL (or self-hosted Supabase)</td>
+      </tr>
+      <tr>
+        <td><code>SUPABASE_PUBLISHABLE_KEY</code></td>
+        <td>Supabase anon/public key</td>
+      </tr>
+      <tr>
+        <td><code>SUPABASE_SERVICE_ROLE_KEY</code></td>
+        <td>Supabase service role key (server-side only)</td>
+      </tr>
+    </table>
+
+    <p>For detailed setup instructions, see <a href="SETUP.md">SETUP.md</a> in the repository.</p>
+
+    <div class="callout warning">
+      <p><strong>Alpha software:</strong> Money Pal is in active development. Your data is important — keep backups. If
+        you need data deleted, ask and it will be done. Real deletion, including any append-only audit rows.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Money Pal User Guide</p>
+    <p>Screenshots regenerate with <code>npm run screenshots</code></p>
+  </footer>
+
+</body>
+
+</html>
