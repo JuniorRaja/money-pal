@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireAuth } from "@/lib/auth-guard";
 import {
   AlertTriangle,
   Archive,
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/goals")({
       },
     ],
   }),
+  beforeLoad: requireAuth,
   loader: async () => {
     const [goals, archivedGoals, accounts, contributions, transactions] = await Promise.all([
       getGoals(),

@@ -25,7 +25,7 @@ function LoginPage() {
   const { isAuthenticated, hydrated } = useSession();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -105,7 +105,31 @@ function LoginPage() {
     }
   }
 
-  function switchMode(newMode: "signin" | "signup") {
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    if (!email.trim()) {
+      setError("Email is required.");
+      return;
+    }
+
+    setLoading(true);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      { redirectTo: `${window.location.origin}/login` }
+    );
+    setLoading(false);
+
+    if (resetError) {
+      setError(resetError.message);
+    } else {
+      setMessage("Check your email for a password reset link.");
+    }
+  }
+
+  function switchMode(newMode: "signin" | "signup" | "forgot") {
     setMode(newMode);
     setError(null);
     setMessage(null);
@@ -174,6 +198,16 @@ function LoginPage() {
               placeholder="••••••••••"
               className="mt-2 h-12 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors focus:border-primary/60"
             />
+
+            <div className="mt-2 text-right">
+              <button
+                type="button"
+                onClick={() => switchMode("forgot")}
+                className="text-sm text-muted-foreground hover:text-primary"
+              >
+                Forgot password?
+              </button>
+            </div>
 
             {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
             {message && <p className="mt-3 text-sm text-green-600">{message}</p>}
@@ -267,6 +301,56 @@ function LoginPage() {
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => switchMode("signin")}
+                className="font-medium text-primary hover:underline"
+              >
+                Sign in
+              </button>
+            </p>
+          </form>
+        )}
+
+        {mode === "forgot" && (
+          <form onSubmit={handleForgotPassword} className="rise mt-14 max-w-[420px]">
+            <h1 className="text-[44px] leading-tight">Reset password.</h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Enter your email and we'll send you a link to reset your password.
+            </p>
+
+            <label className="mt-10 block text-sm text-foreground" htmlFor="reset-email">
+              Email
+            </label>
+            <input
+              id="reset-email"
+              type="email"
+              autoFocus
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="mt-2 h-12 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors focus:border-primary/60"
+            />
+
+            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+            {message && <p className="mt-3 text-sm text-green-600">{message}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground transition-transform duration-200 hover:brightness-105 active:scale-[0.99] disabled:opacity-60"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="h-4 w-4" />
+              )}
+              Send reset link
+            </button>
+
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Remember your password?{" "}
               <button
                 type="button"
                 onClick={() => switchMode("signin")}

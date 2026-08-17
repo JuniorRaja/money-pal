@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import { requireAuth } from "@/lib/auth-guard";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/budgets")({
   loaderDeps: ({ search }: { search: BudgetsSearch }) => ({
     period: search.period ?? currentPeriod(),
   }),
+  beforeLoad: requireAuth,
   loader: async ({ deps }) => {
     const period = deps.period;
     const [budgets, categories, spend] = await Promise.all([

@@ -1,4 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { requireAuth } from "@/lib/auth-guard";
 import { useServerFn } from "@tanstack/react-start";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -46,6 +47,7 @@ export const Route = createFileRoute("/settings")({
       { property: "og:description", content: "Make Money Pal feel like yours." },
     ],
   }),
+  beforeLoad: requireAuth,
   loader: async () => {
     const [settings, rules, categories, accounts, notificationChannel] = await Promise.all([
       getSettings(),

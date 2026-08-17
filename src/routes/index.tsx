@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requireAuth } from "@/lib/auth-guard";
 import {
   ArrowUpRight,
   CalendarClock,
@@ -71,6 +72,7 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
+  beforeLoad: requireAuth,
   loader: async () => {
     const [accounts, transactions, rollups, budgets, goals, events, categories, cycles] =
       await Promise.all([
@@ -130,13 +132,8 @@ function OverviewPage() {
       signature="overview"
     >
       <div className="grid grid-cols-12 gap-5">
-        <Panel
-          className="col-span-8"
-          title="Net worth"
-          action={
-            <span className="numeric text-xs text-success">{formatPct(9.4)} this quarter</span>
-          }
-        >
+        {/* TODO: Calculate real quarter-over-quarter net worth change percentage */}
+        <Panel className="col-span-8" title="Net worth">
           <div>
             <p className="numeric maskable text-[46px] leading-none text-foreground">
               <MaskedText>{formatMoney(ownership.owned, { whole: true })}</MaskedText>
@@ -207,27 +204,22 @@ function OverviewPage() {
         </Panel>
 
         <div className="col-span-4 grid gap-5">
+          {/* TODO: Calculate real month-over-month change percentages for cash, investments, liabilities */}
           <StatCard
             label="Available cash"
             value={formatMoney(nw.cash, { whole: true })}
-            delta={12.4}
-            hint="vs last month"
             icon={<Wallet className="h-4 w-4" />}
             className="pattern-arcs"
           />
           <StatCard
             label="Investments"
             value={formatMoney(nw.investments, { whole: true })}
-            delta={14.7}
-            hint="vs last month"
             icon={<TrendingUp className="h-4 w-4" />}
             className="pattern-hatch"
           />
           <StatCard
             label="Liabilities"
             value={formatMoney(nw.liabilities, { whole: true })}
-            delta={-6.2}
-            hint="paid down"
             icon={<Landmark className="h-4 w-4" />}
             className="pattern-steps"
           />

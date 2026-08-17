@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireAuth } from "@/lib/auth-guard";
 import {
   Briefcase,
   CreditCard,
@@ -53,6 +54,7 @@ export const Route = createFileRoute("/accounts")({
       },
     ],
   }),
+  beforeLoad: requireAuth,
   loader: async () => {
     const [accounts, slices, cycles] = await Promise.all([
       getAccounts(),
@@ -99,11 +101,11 @@ function AccountsPage() {
       subtitle="Everything you own, owe, and keep aside — in one place."
       signature="accounts"
     >
+      {/* TODO: Calculate real month-over-month change percentages for ownership, cash, investments, liabilities */}
       <div className="grid grid-cols-4 gap-5">
         <StatCard
           label="Yours after custodial"
           value={formatMoney(ownership.owned, { whole: true })}
-          delta={12.5}
           hint={`${formatMoney(ownership.custodial, { whole: true })} held for others`}
           icon={<Briefcase className="h-4 w-4" />}
           className="pattern-weave"
@@ -111,24 +113,18 @@ function AccountsPage() {
         <StatCard
           label="Available cash"
           value={formatMoney(nw.cash, { whole: true })}
-          delta={18.4}
-          hint="vs last month"
           icon={<Wallet className="h-4 w-4" />}
           className="pattern-arcs"
         />
         <StatCard
           label="Investments"
           value={formatMoney(nw.investments, { whole: true })}
-          delta={14.7}
-          hint="vs last month"
           icon={<TrendingUp className="h-4 w-4" />}
           className="pattern-hatch"
         />
         <StatCard
           label="Liabilities"
           value={formatMoney(nw.liabilities, { whole: true })}
-          delta={-6.2}
-          hint="paid down"
           icon={<Landmark className="h-4 w-4" />}
           className="pattern-steps"
         />

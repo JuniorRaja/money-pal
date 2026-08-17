@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireAuth } from "@/lib/auth-guard";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowUp, Bot, Loader2, Sparkles, User } from "lucide-react";
 import { useRef, useState } from "react";
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/assistant")({
       },
     ],
   }),
+  beforeLoad: requireAuth,
   component: AssistantPage,
 });
 
@@ -93,11 +95,10 @@ function AssistantPage() {
                   </span>
                 )}
                 <div
-                  className={`max-w-[76%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-border bg-accent/40 text-foreground"
-                  }`}
+                  className={`max-w-[76%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${m.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-accent/40 text-foreground"
+                    }`}
                 >
                   {m.content}
                 </div>

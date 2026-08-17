@@ -405,15 +405,10 @@ export function AppShell({
   actions,
   children,
 }: PageProps) {
-  const { isAuthenticated, hydrated } = useSession();
   const navigate = useNavigate();
   const [addKind, setAddKind] = useState<RecordKind | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-
-  useEffect(() => {
-    if (hydrated && !isAuthenticated) navigate({ to: "/login" });
-  }, [isAuthenticated, hydrated, navigate]);
 
   // preventDefault or the browser hands Ctrl+K to the address bar instead.
   useEffect(() => {

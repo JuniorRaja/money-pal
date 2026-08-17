@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireAuth } from "@/lib/auth-guard";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { AppShell } from "@/components/app-shell";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/investments")({
       { property: "og:description", content: "What your money is doing while you sleep." },
     ],
   }),
+  beforeLoad: requireAuth,
   loader: async () => ({ holdings: await getHoldings() }),
   component: InvestmentsPage,
 });
@@ -146,13 +148,12 @@ function InvestmentsPage() {
                     </span>
                   </td>
                   <td
-                    className={`numeric px-5 py-3 text-right ${
-                      h.day_change_pct === 0
-                        ? "text-muted-foreground"
-                        : h.day_change_pct > 0
-                          ? "text-success"
-                          : "text-destructive"
-                    }`}
+                    className={`numeric px-5 py-3 text-right ${h.day_change_pct === 0
+                      ? "text-muted-foreground"
+                      : h.day_change_pct > 0
+                        ? "text-success"
+                        : "text-destructive"
+                      }`}
                   >
                     {/* No previous close stored yet — an em dash, not a green 0.0%. */}
                     {h.prev_price > 0 ? formatPct(h.day_change_pct) : "—"}

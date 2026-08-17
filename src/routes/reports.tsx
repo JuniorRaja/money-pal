@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireAuth } from "@/lib/auth-guard";
 import { Download, FileText } from "lucide-react";
 import {
   Bar as RBar,
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/reports")({
       },
     ],
   }),
+  beforeLoad: requireAuth,
   loader: async () => ({
     rollups: await getMonthlyRollups(),
     transactions: await listTransactions(),
@@ -89,20 +91,19 @@ function ReportsPage() {
         </>
       }
     >
+      {/* TODO: Calculate real period-over-period change percentages for income, expenses, and savings rate */}
       <div className="grid grid-cols-4 gap-5">
         <StatCard
           label="Income (6 mo)"
           value={formatMoney(income, { whole: true })}
-          delta={6.1}
           hint="vs prior period"
         />
         <StatCard
           label="Expenses (6 mo)"
           value={formatMoney(expense, { whole: true })}
-          delta={-3.4}
           hint="vs prior period"
         />
-        <StatCard label="Savings rate" value={`${rate}%`} delta={4.2} hint="six month average" />
+        <StatCard label="Savings rate" value={`${rate}%`} hint="six month average" />
         <StatCard
           label="Largest category"
           value={top?.name ?? "—"}

@@ -1,4 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { requireAuth } from "@/lib/auth-guard";
 import {
   CircleDot,
   CreditCard,
@@ -78,6 +79,7 @@ export const Route = createFileRoute("/transactions")({
       { property: "og:description", content: "Every financial event, organized and clear." },
     ],
   }),
+  beforeLoad: requireAuth,
   loader: async () => {
     const [transactions, accounts, categories, labels] = await Promise.all([
       listTransactions(),
