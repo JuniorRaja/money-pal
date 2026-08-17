@@ -1,1 +1,17 @@
 project_id = "wpynmigdmmtdgwzcwmgu"
+
+# Local `supabase start` only — cloud settings live in the dashboard.
+# Everything not listed here keeps the CLI's defaults (ports 54321-54324).
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+
+[auth.email]
+# No mail server locally: signups are confirmed on the spot so a new account
+# works immediately. Cloud keeps confirmations on.
+enable_confirmations = false
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]

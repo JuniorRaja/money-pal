@@ -17,13 +17,35 @@ nitro.
 
 ## Setup
 
-Requires Node 22+ and a Supabase project.
+Requires Node 22+ and Docker Desktop (running).
 
 ```bash
 npm install
-cp .env.example .env   # then fill it in
+cp .env.example .env   # already filled in for local Supabase
 npm run dev            # http://localhost:3000
 ```
+
+`npm run dev` runs `supabase start` first (npm `predev`), which boots the local Supabase stack in
+Docker, applies `supabase/migrations/` in filename order, and runs `supabase/seed.sql`. First run
+pulls the images and takes a few minutes; after that it is seconds, and a no-op if already running.
+
+Sign in as **demo@moneypal.local / demo1234** for three months of seeded data, or sign up with any
+other email for an empty workspace — local has email confirmation off and invite-only signup
+dropped (see `supabase/seed.sql`).
+
+| Command                  | Does                                                        |
+| ------------------------ | ----------------------------------------------------------- |
+| `npm run db:reset`       | wipe local DB, re-run all migrations + seed                  |
+| `npx supabase status`    | ports and keys of the running stack                          |
+| `npx supabase stop`      | shut the stack down (`--no-backup` to discard data)          |
+| `npx vite dev`           | dev server without touching Supabase (e.g. pointing at cloud) |
+
+Mail sent locally is caught by Inbucket at http://127.0.0.1:54324; Studio is at http://127.0.0.1:54323.
+
+**New migration pulled from main?** `supabase start` only applies migrations on a fresh volume —
+run `npm run db:reset` to pick it up.
+
+To develop against a cloud project instead, put its values in `.env` and start with `npx vite dev`.
 
 ### Environment
 

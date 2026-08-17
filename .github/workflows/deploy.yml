@@ -26,16 +26,17 @@ jobs:
 
       - run: npm ci
 
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      # supabase/migrations/ is the live schema, applied in filename order.
-      # --db-url pushes directly without `supabase link` or an access token.
-      - name: Apply migrations
-        run: supabase db push --db-url "$SUPABASE_DB_URL"
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      # Migrations are applied by hand for now (cloud DB predates this workflow
+      # and needs a baseline pass first — see README's "First deploy only" note).
+      # Re-enable once that's done:
+      #
+      # - uses: supabase/setup-cli@v1
+      #   with:
+      #     version: latest
+      # - name: Apply migrations
+      #   run: supabase db push --db-url "$SUPABASE_DB_URL"
+      #   env:
+      #     SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
       # VITE_* are inlined into the client bundle at build time; the unprefixed
       # ones become non-secret Worker vars via nitro.config.ts's cloudflare.wrangler.vars.
