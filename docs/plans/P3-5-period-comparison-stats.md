@@ -1,51 +1,106 @@
 # P3-5 — Period comparison statistics
 
-**Phase:** 3 · **Depends on:** none (data already exists)
+**Phase:** 3 · **Depends on:** none (data already exists) · **Status:** Phase A shipped
 
 ## Problem
 
-The overview, accounts, and reports pages previously showed hardcoded percentage deltas like
-"+9.4% this quarter" and "+12.4% vs last month". These placeholders were removed — the
-StatCards now display values without the misleading fake percentages.
+The overview, accounts and reports pages used to show hardcoded percentage deltas like
+"+9.4% this quarter" and "+12.4% vs last month". Those placeholders were removed, which left
+the StatCards with a value and nothing else — and a brand new user with a wall of ₹0.
 
-This plan implements real calculations to bring those deltas back with actual data.
+This plan brought the deltas back as real calculations, and made every page say something
+useful when there is no history to compare against.
 
-## Current data availability (verified)
+## What shipped
 
-| Data | Source | Historical depth |
-|---|---|---|
-| Monthly income/expense | `v_monthly_cashflow` → `liveMonthlyRollups()` | 12 months |
-| Account balance trend | `Account.trend` (12 points) | ~12 data points per account |
-| Account change_pct | `live.ts:178` calculates from first/last trend point | Single value, already real |
-| Net worth breakdown | `summariseNetWorth()` — live calculation | Point-in-time only |
+All comparison maths lives in **`src/lib/compare.ts`** — pure, Supabase-free, and pinned by
+`src/lib/compare.test.ts` (18 cases). Every function returns `null` rather than a fabricated
+number when there is no honest basis for a comparison.
 
-The **gap**: net worth by category (cash, investments, liabilities) has no monthly history
-stored. We can calculate current totals but cannot compare to "last month" without either:
-1. Storing monthly snapshots, or
-2. Deriving from transaction flow (income minus expense approximates balance change)
+### Balance deltas — from `Account.trend`, not from cashflow
 
-## Approach
+The original plan proposed two things that turned out to be wrong, and both were dropped:
 
-### Phase A — Use what exists (no schema changes)
+- **`aggregateAccountChange`** — a balance-weighted average of `Account.change_pct`. That field
+  is the change across the *whole 12-point trend*, so rolling it up and labelling it
+  "vs last month" would have been a mislabelled year-to-date figure.
+- **`quarterOverQuarter` from cashflow** — summing three months of net cashflow and calling it
+  a net worth change. An approximation presented as the real thing.
 
-For **income/expense/savings rate** (reports page):
-- `MonthlyRollup[]` already has 12 months of data
-- Compare current period to prior period: `(current - prior) / prior * 100`
-- This is accurate and requires no new queries
+Both are unnecessary, because `Account.trend` already *is* real monthly balance history: 12
+points back-cast from the current balance using `v_account_monthly_flow` deltas. `balanceTrend()`
+sums those per net-worth bucket and converts back to whole paise; `balanceChange()` compares two
+points on it.
 
-For **cash/investments/liabilities** (overview, accounts):
-- Use the existing `Account.change_pct` which is calculated from the 12-point trend
-- This is already real data — the sparklines use the same source
-- The individual account cards already show this; roll it up to category level
+The trend's newest point is today's balance and the one before it is the balance at the close of
+last month, so `months: 1` reads exactly as "so far this month" and `months: 3` as "past 3 months".
+This is the same series the sparklines draw, so a roll-up delta can never contradict the account
+card under it.
 
-For **net worth quarter-over-quarter**:
-- Derive from `MonthlyRollup` data: sum 3 months of net cashflow, compare to prior 3 months
-- Approximation: net cashflow ≈ net worth change (ignores investment appreciation)
-- Good enough for Phase A; flag as "based on cashflow" if needed
+### Cashflow deltas — month-to-date against the same days last month
 
-### Phase B — Accurate historical tracking (future, requires migration)
+`monthWindows()` cuts this month at today and last month at the same day of month, capped to its
+length (31 Mar compares against 1–28 Feb). Comparing a part month against a whole one would have
+shown a ~95% collapse in spending every 1st of the month.
 
-Store monthly net worth snapshots in a new table:
+The windows are cut on the **IST calendar day**, which surfaced a real bug: `filterTransactions`
+matched periods with `occurred_at.startsWith(period)` on the raw timestamp. Postgres returns
+midnight IST as `…T18:30:00+00:00`, so every transaction in the first 5.5 hours of a month was
+being counted in the month before. Fixed at the source in `repository.ts`, so every caller
+(transactions, budgets, overview) picked up the fix.
+
+### Reports — complete months only
+
+`rollupWindow()` spans the six **complete** calendar months before the running one. Half of
+August against all of July is a calendar artefact, not a trend. A user with no complete months
+falls back to a clearly-labelled "this month" scope. Gaps in `MonthlyRollup` read as zero (no
+rows means no money moved); a prior window with no rows at all yields `null`, not a delta.
+
+Three existing bugs on that page were fixed along the way:
+
+- Cards labelled "(6 mo)" summed **all 12** rollups.
+- `savings rate` rendered `NaN%` when income was zero — both in the headline and as `NaN`
+  points on the trend line. `savingsRate()` now returns `null` and the line breaks over the gap.
+- The category share denominator was recomputed inside the row map on every row.
+
+### Sign and unit correctness
+
+- `pctChange()` divides by `|prior|`, so a liability moving −50,000 → −30,000 reads as an
+  improvement rather than flipping sign.
+- Liabilities use `{ magnitude: true }` and `deltaTone="down-good"`: the card reports how much
+  debt there is, and less of it renders green.
+- The savings rate delta is a **percentage-point** gap, formatted `+3.2 pp` by `formatPoints()`.
+  A rate moving 40% → 43% is +3 points, not +7.5%, and the two must not look alike.
+- `formatPct()` clamps at `±999%+`. A near-zero baseline makes the ratio explode (₹1 → ₹1,00,000
+  is +9,999,900%); the number stops meaning anything long before it stops fitting the card.
+- `StatCard` reserves the delta row's height, so a card without a delta still lines up with one
+  that has it, and renders a zero delta in muted grey rather than green.
+
+### Empty and first-run states
+
+- **Overview** — the net worth chart becomes a dashed panel with an "Import a statement" link
+  when there are no rollups; the headline points at `/accounts` when no accounts exist; the
+  "This month's insight" panel (which was still hardcoded prose about Dining and Transport) now
+  derives its sentence from the real month-to-date comparison, or explains what is missing.
+- **Accounts / Overview cards** — `balanceHint()` says *why* a delta is absent
+  ("nothing here yet" / "new this month" / "no history yet") instead of leaving a bare row.
+- **Reports** — both charts and the category table have their own empty states.
+- **Goals** — "Saved so far" carries a real delta against last month's closing total (`saved`
+  minus `saved_this_month`); "Monthly plan" shows how many goals were funded this month;
+  "Overall progress" reports how many are behind schedule.
+
+## Deliberately not done
+
+- **"Yours after custodial" has no delta.** Custodial slice amounts are not stored historically,
+  so any month-over-month figure would be about a different number than the one on the card.
+- **Investment appreciation** is only visible where it hits the ledger. The trend back-cast
+  follows transactions, so a holding that was repriced without one does not move the delta.
+  That is the same limitation the sparklines already have.
+
+## Phase B — accurate historical tracking (future, requires migration)
+
+Only worth doing if the two limitations above start to matter. It needs a monthly snapshot table:
+
 ```sql
 create table public.net_worth_history (
   id uuid primary key default gen_random_uuid(),
@@ -54,161 +109,36 @@ create table public.net_worth_history (
   cash bigint not null,
   investments bigint not null,
   liabilities bigint not null,
+  custodial bigint not null,
   net_worth bigint not null,
   created_at timestamptz default now(),
   unique(user_id, period_month)
 );
 ```
 
-Populate via:
-1. A cron job that snapshots at month-end
-2. Backfill from transaction history where possible
+Populated by a month-end cron snapshot, backfilled from transaction history where possible.
+That would give exact custodial history and mark-to-market investment movement.
 
-This gives exact month-over-month comparisons for all categories.
+## Files
 
-## Implementation — Phase A
-
-### New functions in `src/data/repository.ts`
-
-```typescript
-export interface PeriodComparison {
-  current: Paise;
-  prior: Paise;
-  delta_pct: number | null; // null if prior is 0
-}
-
-/** Compare two consecutive periods from monthly rollups. */
-export function compareCashflow(
-  rollups: MonthlyRollup[],
-  metric: 'income' | 'expense' | 'net'
-): PeriodComparison {
-  const sorted = [...rollups].sort((a, b) => b.period.localeCompare(a.period));
-  const current = sorted[0];
-  const prior = sorted[1];
-  if (!current || !prior) return { current: 0, prior: 0, delta_pct: null };
-  
-  const getValue = (r: MonthlyRollup) => {
-    if (metric === 'net') return r.income - r.expense;
-    return r[metric];
-  };
-  
-  const c = getValue(current);
-  const p = getValue(prior);
-  return {
-    current: c,
-    prior: p,
-    delta_pct: p === 0 ? null : ((c - p) / Math.abs(p)) * 100,
-  };
-}
-
-/** Roll up account change percentages by kind. */
-export function aggregateAccountChange(
-  accounts: Account[],
-  kinds: AccountKind[]
-): number | null {
-  const relevant = accounts.filter(a => kinds.includes(a.kind));
-  if (relevant.length === 0) return null;
-  
-  // Weight by absolute balance
-  const totalWeight = relevant.reduce((s, a) => s + Math.abs(a.balance), 0);
-  if (totalWeight === 0) return null;
-  
-  const weightedSum = relevant.reduce(
-    (s, a) => s + a.change_pct * Math.abs(a.balance),
-    0
-  );
-  return weightedSum / totalWeight;
-}
-
-/** Quarter-over-quarter net worth change derived from cashflow. */
-export function quarterOverQuarter(rollups: MonthlyRollup[]): number | null {
-  const sorted = [...rollups].sort((a, b) => b.period.localeCompare(a.period));
-  if (sorted.length < 6) return null;
-  
-  const currentQ = sorted.slice(0, 3);
-  const priorQ = sorted.slice(3, 6);
-  
-  const sum = (rs: MonthlyRollup[]) => 
-    rs.reduce((s, r) => s + (r.income - r.expense), 0);
-  
-  const c = sum(currentQ);
-  const p = sum(priorQ);
-  return p === 0 ? null : ((c - p) / Math.abs(p)) * 100;
-}
-```
-
-### Changes to pages
-
-**index.tsx (overview)**
-```typescript
-// In loader or component
-const cashDelta = aggregateAccountChange(accounts, ['bank', 'cash']);
-const investmentDelta = aggregateAccountChange(accounts, ['investment']);
-const liabilityDelta = aggregateAccountChange(accounts, ['credit_card', 'loan']);
-const qoqDelta = quarterOverQuarter(rollups);
-
-// In JSX
-<Panel title="Net worth" action={
-  qoqDelta !== null && (
-    <span className={`numeric text-xs ${qoqDelta >= 0 ? 'text-success' : 'text-destructive'}`}>
-      {formatPct(qoqDelta)} this quarter
-    </span>
-  )
-}>
-
-<StatCard
-  label="Available cash"
-  value={formatMoney(nw.cash, { whole: true })}
-  delta={cashDelta ?? undefined}
-  hint={cashDelta !== null ? "vs last month" : undefined}
-  icon={<Wallet className="h-4 w-4" />}
-/>
-```
-
-**accounts.tsx** — same pattern as overview
-
-**reports.tsx**
-```typescript
-const incomeComp = compareCashflow(rollups, 'income');
-const expenseComp = compareCashflow(rollups, 'expense');
-
-// Savings rate comparison
-const currentRate = income === 0 ? 0 : ((income - expense) / income) * 100;
-const priorRate = incomeComp.prior === 0 ? 0 
-  : ((incomeComp.prior - expenseComp.prior) / incomeComp.prior) * 100;
-const rateDelta = priorRate === 0 ? null : currentRate - priorRate;
-
-<StatCard
-  label="Income (6 mo)"
-  value={formatMoney(income, { whole: true })}
-  delta={incomeComp.delta_pct ?? undefined}
-  hint={incomeComp.delta_pct !== null ? "vs prior period" : undefined}
-/>
-```
-
-## Files to modify
-
-- `src/data/repository.ts` — add comparison functions
-- `src/routes/index.tsx` — wire up real deltas
-- `src/routes/accounts.tsx` — wire up real deltas  
-- `src/routes/reports.tsx` — wire up real deltas
+| File | Change |
+|---|---|
+| `src/lib/compare.ts` | New — all comparison maths |
+| `src/lib/compare.test.ts` | New — 18 cases covering the edges |
+| `src/data/schema.ts` | `ACCOUNT_KINDS`, `NET_WORTH_KINDS` (single source for bucket membership) |
+| `src/data/repository.ts` | `summariseNetWorth` reads the shared buckets; IST period-filter fix |
+| `src/lib/money.ts` | `formatPct` clamp, new `formatPoints` |
+| `src/lib/period.ts` | `daysInPeriod` extracted from `periodPace` |
+| `src/components/mm-ui.tsx` | `StatCard` gains `deltaUnit` / `deltaTone`, nullable `delta` |
+| `src/routes/index.tsx` | Real QoQ + MoM deltas, MTD cashflow rows, derived insight, empty states |
+| `src/routes/accounts.tsx` | Real MoM deltas on the three tracked buckets |
+| `src/routes/goals.tsx` | Real month delta and pace hints |
+| `src/routes/reports.tsx` | Complete-month window, `pp` savings delta, three bug fixes, empty states |
 
 ## Done when
 
-- All StatCards show real calculated deltas (or nothing if insufficient data)
-- Quarter-over-quarter net worth shows in the overview panel header
-- Deltas are directionally correct: positive when things improved, negative otherwise
-- Liabilities show negative delta as green (paying down debt is good)
-
-## Out of scope (Phase B)
-
-- Accurate investment appreciation tracking
-- Month-end snapshot table and backfill
-- Sub-monthly granularity
-
-## Edge cases
-
-- New user with < 2 months of data: show no delta (null)
-- Account with zero balance: exclude from weighted average
-- Prior period is zero: show no delta (avoid division by zero)
-- Liabilities: invert the color logic (negative balance going more negative = bad)
+- [x] Every StatCard shows a real delta, or nothing plus a reason
+- [x] Quarter-over-quarter net worth in the overview panel header
+- [x] Deltas are directionally correct — positive when things improved
+- [x] Liabilities render a falling balance as green
+- [x] A brand new user sees explanations rather than blank rows and ₹0 walls

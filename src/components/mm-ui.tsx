@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { MaskedText } from "@/components/masked-text";
 import { cn } from "@/lib/utils";
-import { formatPct } from "@/lib/money";
+import { formatPct, formatPoints } from "@/lib/money";
 
 export function Panel({
   title,
@@ -40,16 +40,29 @@ export function StatCard({
   value,
   hint,
   delta,
+  deltaUnit = "pct",
+  deltaTone = "up-good",
   icon,
   className,
 }: {
   label: string;
   value: string;
-  hint?: string;
-  delta?: number;
+  hint?: ReactNode;
+  /** Null means "no honest comparison available" — the row simply stays empty. */
+  delta?: number | null | undefined;
+  /** `pp` for a gap between two rates; `pct` for a relative change. */
+  deltaUnit?: "pct" | "pp";
+  /** `down-good` inverts the colours — less debt is a win. */
+  deltaTone?: "up-good" | "down-good";
   icon?: ReactNode;
   className?: string;
 }) {
+  const tone =
+    delta == null || delta === 0
+      ? "text-muted-foreground"
+      : (deltaTone === "down-good" ? delta < 0 : delta > 0)
+        ? "text-success"
+        : "text-destructive";
   return (
     <div
       className={cn("card-lift rise grain rounded-2xl border border-border bg-card p-5", className)}
@@ -65,13 +78,13 @@ export function StatCard({
       <p className="numeric maskable mt-3 text-[28px] leading-none text-foreground">
         <MaskedText>{value}</MaskedText>
       </p>
-      <div className="mt-3 flex items-center gap-2 text-xs">
-        {typeof delta === "number" && (
-          <span className={delta >= 0 ? "text-success" : "text-destructive"}>
-            {formatPct(delta)}
+      <div className="mt-3 flex h-4 items-center gap-2 text-xs">
+        {delta != null && (
+          <span className={cn("numeric", tone)}>
+            {deltaUnit === "pp" ? formatPoints(delta) : formatPct(delta)}
           </span>
         )}
-        {hint && <span className="text-muted-foreground">{hint}</span>}
+        {hint && <span className="truncate text-muted-foreground">{hint}</span>}
       </div>
     </div>
   );

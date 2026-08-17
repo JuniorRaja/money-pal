@@ -36,6 +36,8 @@ import {
   summariseOwnership,
 } from "@/data/repository";
 import type { Account, CreditCardCycle, Slice } from "@/data/schema";
+import { NET_WORTH_KINDS } from "@/data/schema";
+import { balanceChange, balanceHint } from "@/lib/compare";
 import { formatMoney, formatPct } from "@/lib/money";
 
 export const Route = createFileRoute("/accounts")({
@@ -82,6 +84,11 @@ function AccountsPage() {
     accounts,
     sliceable.map((a) => allocationFor(a, slices)),
   );
+  // Same ledger back-cast the sparklines below use, so the roll-up delta and the
+  // per-account ones can never tell different stories.
+  const cashDelta = balanceChange(accounts, NET_WORTH_KINDS.cash);
+  const investmentDelta = balanceChange(accounts, NET_WORTH_KINDS.investments);
+  const liabilityDelta = balanceChange(accounts, NET_WORTH_KINDS.liabilities, { magnitude: true });
   const banks = accounts.filter((a) => a.kind === "bank" || a.kind === "cash");
   const cards = accounts.filter((a) => a.kind === "credit_card");
   const investments = accounts.filter((a) => a.kind === "investment");
@@ -101,8 +108,9 @@ function AccountsPage() {
       subtitle="Everything you own, owe, and keep aside — in one place."
       signature="accounts"
     >
-      {/* TODO: Calculate real month-over-month change percentages for ownership, cash, investments, liabilities */}
       <div className="grid grid-cols-4 gap-5">
+        {/* No delta here on purpose: custodial history is not tracked, so any
+            month-over-month figure would be about a different number. */}
         <StatCard
           label="Yours after custodial"
           value={formatMoney(ownership.owned, { whole: true })}
@@ -113,18 +121,25 @@ function AccountsPage() {
         <StatCard
           label="Available cash"
           value={formatMoney(nw.cash, { whole: true })}
+          delta={cashDelta?.pct}
+          hint={balanceHint(cashDelta)}
           icon={<Wallet className="h-4 w-4" />}
           className="pattern-arcs"
         />
         <StatCard
           label="Investments"
           value={formatMoney(nw.investments, { whole: true })}
+          delta={investmentDelta?.pct}
+          hint={balanceHint(investmentDelta)}
           icon={<TrendingUp className="h-4 w-4" />}
           className="pattern-hatch"
         />
         <StatCard
           label="Liabilities"
           value={formatMoney(nw.liabilities, { whole: true })}
+          delta={liabilityDelta?.pct}
+          deltaTone="down-good"
+          hint={balanceHint(liabilityDelta)}
           icon={<Landmark className="h-4 w-4" />}
           className="pattern-steps"
         />

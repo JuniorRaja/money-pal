@@ -39,6 +39,7 @@ import {
   listTransactions,
 } from "@/data/repository";
 import type { Account, Goal, GoalContribution, Transaction } from "@/data/schema";
+import { pctChange } from "@/lib/compare";
 import { formatCompact, formatMoney } from "@/lib/money";
 import { monthsUntil } from "@/lib/period";
 
@@ -111,6 +112,14 @@ function GoalsPage() {
   const saved = goals.reduce((s, g) => s + g.saved, 0);
   const monthly = goals.reduce((s, g) => s + g.monthly_contribution, 0);
   const overallPct = target === 0 ? 0 : Math.round((saved / target) * 100);
+  // `saved` already includes this month, so last month's closing total is the
+  // difference — that is the only honest baseline for a delta here.
+  const savedThisMonth = goals.reduce((s, g) => s + g.saved_this_month, 0);
+  const savedDelta = pctChange(saved, saved - savedThisMonth);
+  const fundedThisMonth = goals.filter(
+    (g) => g.monthly_contribution > 0 && g.saved_this_month >= g.monthly_contribution,
+  ).length;
+  const planned = goals.filter((g) => g.monthly_contribution > 0).length;
 
   const linkedHeaderIds = useMemo(() => {
     const ids = new Set<string>();
@@ -166,17 +175,36 @@ function GoalsPage() {
         <StatCard
           label="Saved so far"
           value={formatMoney(saved, { whole: true })}
-          hint={target ? `${overallPct}% of target` : "No targets yet"}
+          delta={savedDelta}
+          hint={
+            savedDelta === null
+              ? target
+                ? `${overallPct}% of target`
+                : "No targets yet"
+              : `${formatMoney(savedThisMonth, { whole: true })} this month`
+          }
         />
         <StatCard
           label="Monthly plan"
           value={formatMoney(monthly, { whole: true })}
-          hint="planned, not automatic"
+          hint={
+            planned === 0
+              ? "planned, not automatic"
+              : `${fundedThisMonth} of ${planned} funded this month`
+          }
         />
         <StatCard
           label="Overall progress"
           value={target === 0 ? "—" : `${overallPct}%`}
-          hint="across every goal"
+          hint={
+            goals.length === 0
+              ? "across every goal"
+              : late.length > 0
+                ? `${late.length} behind schedule`
+                : behind.length > 0
+                  ? `${behind.length} short this month`
+                  : "every goal on pace"
+          }
         />
       </div>
 

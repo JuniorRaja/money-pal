@@ -16,8 +16,14 @@ import {
 
 import { AppShell } from "@/components/app-shell";
 import { Panel, StatCard } from "@/components/mm-ui";
-import { getCategories, getMonthlyRollups, listTransactions } from "@/data/repository";
+import {
+  CURRENT_PERIOD,
+  getCategories,
+  getMonthlyRollups,
+  listTransactions,
+} from "@/data/repository";
 import type { Category, MonthlyRollup, Transaction } from "@/data/schema";
+import { pctChange, rollupWindow, savingsRate } from "@/lib/compare";
 import { formatMoney } from "@/lib/money";
 
 export const Route = createFileRoute("/reports")({
@@ -45,6 +51,18 @@ export const Route = createFileRoute("/reports")({
   component: ReportsPage,
 });
 
+/** Keeps the null through, so a month with no income stays a gap in the line. */
+const round = (value: number | null) => (value === null ? null : Math.round(value));
+
+function EmptyChart({ note }: { note: string }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-border text-center">
+      <p className="text-sm text-foreground">Nothing to chart yet.</p>
+      <p className="mt-1 max-w-[15rem] text-xs text-muted-foreground">{note}</p>
+    </div>
+  );
+}
+
 function ReportsPage() {
   const { rollups, transactions, categories } = Route.useLoaderData() as {
     rollups: MonthlyRollup[];
@@ -56,12 +74,26 @@ function ReportsPage() {
     month: new Intl.DateTimeFormat("en-IN", { month: "short" }).format(new Date(`${r.period}-01`)),
     income: r.income / 100,
     expense: r.expense / 100,
-    savings: Math.round(((r.income - r.expense) / r.income) * 100),
+    // Null, not NaN: a month with no income has no savings rate at all, and the
+    // line breaks over the gap instead of dropping to an invented zero.
+    savings: round(savingsRate(r.income, r.expense)),
   }));
 
-  const income = rollups.reduce((s, r) => s + r.income, 0);
-  const expense = rollups.reduce((s, r) => s + r.expense, 0);
-  const rate = Math.round(((income - expense) / income) * 100);
+  // Six complete months, so the window is never half a running month wide. A
+  // first-month user has no complete months at all, so fall back to this one.
+  const sixMonths = rollupWindow(rollups, 6);
+  const thisMonth = rollups.find((r) => r.period === CURRENT_PERIOD);
+  const partial = sixMonths.covered === 0;
+  const scope = partial ? "this month" : `last ${sixMonths.size} months`;
+  const income = partial ? (thisMonth?.income ?? 0) : sixMonths.income;
+  const expense = partial ? (thisMonth?.expense ?? 0) : sixMonths.expense;
+  const prior = partial ? null : sixMonths.prior;
+
+  const rate = savingsRate(income, expense);
+  const priorRate = prior ? savingsRate(prior.income, prior.expense) : null;
+  // A rate gap is percentage points, never a percentage of a percentage.
+  const rateDelta = rate !== null && priorRate !== null ? rate - priorRate : null;
+  const priorHint = prior ? `vs prior ${sixMonths.size} months` : "no prior period yet";
 
   const byCategory = categories
     .map((c) => ({
@@ -74,6 +106,7 @@ function ReportsPage() {
     .sort((a, b) => b.value - a.value);
 
   const top = byCategory[0];
+  const categoryTotal = byCategory.reduce((s, r) => s + r.value, 0);
 
   return (
     <AppShell
@@ -91,100 +124,116 @@ function ReportsPage() {
         </>
       }
     >
-      {/* TODO: Calculate real period-over-period change percentages for income, expenses, and savings rate */}
       <div className="grid grid-cols-4 gap-5">
         <StatCard
-          label="Income (6 mo)"
+          label={`Income · ${scope}`}
           value={formatMoney(income, { whole: true })}
-          hint="vs prior period"
+          delta={prior ? pctChange(income, prior.income) : null}
+          hint={priorHint}
         />
         <StatCard
-          label="Expenses (6 mo)"
+          label={`Expenses · ${scope}`}
           value={formatMoney(expense, { whole: true })}
-          hint="vs prior period"
+          delta={prior ? pctChange(expense, prior.expense) : null}
+          deltaTone="down-good"
+          hint={priorHint}
         />
-        <StatCard label="Savings rate" value={`${rate}%`} hint="six month average" />
+        <StatCard
+          label={`Savings rate · ${scope}`}
+          value={rate === null ? "—" : `${Math.round(rate)}%`}
+          delta={rateDelta}
+          deltaUnit="pp"
+          hint={rate === null ? "no income recorded" : priorHint}
+        />
         <StatCard
           label="Largest category"
           value={top?.name ?? "—"}
-          hint={top ? formatMoney(top.value) : ""}
+          hint={top ? formatMoney(top.value) : "no spending recorded yet"}
         />
       </div>
 
       <div className="mt-5 grid grid-cols-12 gap-5">
         <Panel className="col-span-7" title="Income vs expense">
           <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={months} margin={{ left: -16, top: 8 }}>
-                <CartesianGrid stroke="var(--color-border)" vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
-                />
-                <Tooltip
-                  cursor={{ fill: "var(--color-accent)", opacity: 0.4 }}
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number | string) => `\u20B9${Number(v).toLocaleString("en-IN")}`}
-                />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <RBar dataKey="income" fill="var(--color-success)" radius={[6, 6, 0, 0]} />
-                <RBar dataKey="expense" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {months.length === 0 ? (
+              <EmptyChart note="Months appear here as soon as transactions land." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={months} margin={{ left: -16, top: 8 }}>
+                  <CartesianGrid stroke="var(--color-border)" vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    stroke="var(--color-muted-foreground)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--color-muted-foreground)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--color-accent)", opacity: 0.4 }}
+                    contentStyle={{
+                      background: "var(--color-card)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number | string) => `\u20B9${Number(v).toLocaleString("en-IN")}`}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <RBar dataKey="income" fill="var(--color-success)" radius={[6, 6, 0, 0]} />
+                  <RBar dataKey="expense" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
         <Panel className="col-span-5" title="Savings rate trend">
           <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={months} margin={{ left: -20, top: 8 }}>
-                <CartesianGrid stroke="var(--color-border)" vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                  unit="%"
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="savings"
-                  stroke="var(--color-primary)"
-                  strokeWidth={2.4}
-                  dot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {months.length === 0 ? (
+              <EmptyChart note="One point per month, once there are months to plot." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={months} margin={{ left: -20, top: 8 }}>
+                  <CartesianGrid stroke="var(--color-border)" vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    stroke="var(--color-muted-foreground)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--color-muted-foreground)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    unit="%"
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--color-card)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="savings"
+                    stroke="var(--color-primary)"
+                    strokeWidth={2.4}
+                    dot={{ r: 3 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
@@ -198,8 +247,15 @@ function ReportsPage() {
               </tr>
             </thead>
             <tbody>
+              {byCategory.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-5 py-10 text-center text-sm text-muted-foreground">
+                    No categorised spending yet. Import or add transactions and this table fills in.
+                  </td>
+                </tr>
+              )}
               {byCategory.map((r) => {
-                const share = (r.value / byCategory.reduce((s, x) => s + x.value, 0)) * 100;
+                const share = categoryTotal === 0 ? 0 : (r.value / categoryTotal) * 100;
                 return (
                   <tr
                     key={r.name}

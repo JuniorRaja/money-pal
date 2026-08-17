@@ -23,7 +23,6 @@ import { AppShell } from "@/components/app-shell";
 import { MaskedText } from "@/components/masked-text";
 import { Bar, Panel, Ring, StatCard } from "@/components/mm-ui";
 import {
-  CURRENT_PERIOD,
   getAccounts,
   getBudgets,
   getCategories,
@@ -50,6 +49,8 @@ import type {
   TimelineEvent,
   Transaction,
 } from "@/data/schema";
+import { ACCOUNT_KINDS, NET_WORTH_KINDS } from "@/data/schema";
+import { balanceChange, balanceHint, monthWindows, pctChange, windowLabel } from "@/lib/compare";
 import { dayKey, formatCompact, formatDay, formatMoney, formatPct } from "@/lib/money";
 import { dueLabel, upcomingBills } from "@/lib/timeline";
 
@@ -77,7 +78,9 @@ export const Route = createFileRoute("/")({
     const [accounts, transactions, rollups, budgets, goals, events, categories, cycles] =
       await Promise.all([
         getAccounts(),
-        listTransactions({ period: CURRENT_PERIOD }),
+        // Unfiltered: the month-over-month panel needs last month's entries too,
+        // and `listTransactions` filters in memory anyway — no extra round trip.
+        listTransactions(),
         getMonthlyRollups(),
         getBudgets(),
         getGoals(),
@@ -115,7 +118,23 @@ function OverviewPage() {
     accounts,
     accounts.filter((a) => isSliceable(a.kind)).map((a) => allocationFor(a, slices)),
   );
-  const cf = summariseCashflow(transactions);
+  // This month so far, against the same run of days last month — comparing a
+  // part month to a whole one would read as a crash every 1st.
+  const windows = monthWindows(transactions);
+  const cf = summariseCashflow(windows.current);
+  const priorCf = summariseCashflow(windows.prior);
+  const priorLabel = windowLabel(windows.priorPeriod, windows.priorThroughDay);
+  const incomeDelta = pctChange(cf.income, priorCf.income);
+  const expenseDelta = pctChange(cf.expense, priorCf.expense);
+  const netDelta = pctChange(cf.net, priorCf.net);
+
+  // Balance history comes from the ledger back-cast the sparklines already use,
+  // so these deltas and the account cards can never disagree.
+  const quarter = balanceChange(accounts, ACCOUNT_KINDS, { months: 3 });
+  const cashDelta = balanceChange(accounts, NET_WORTH_KINDS.cash);
+  const investmentDelta = balanceChange(accounts, NET_WORTH_KINDS.investments);
+  const liabilityDelta = balanceChange(accounts, NET_WORTH_KINDS.liabilities, { magnitude: true });
+
   const planned = budgets.reduce((s, b) => s + b.planned, 0);
   const spent = budgets.reduce((s, b) => s + b.spent, 0);
 
@@ -125,6 +144,13 @@ function OverviewPage() {
     expense: r.expense / 100,
   }));
 
+  const insight =
+    expenseDelta !== null
+      ? `Spending is ${expenseDelta < 0 ? "lower" : expenseDelta > 0 ? "higher" : "level with"} than the same stretch of last month — ${formatCompact(cf.expense)} so far against ${formatCompact(priorCf.expense)} over ${priorLabel}.`
+      : cf.count > 0
+        ? `${cf.count} entr${cf.count === 1 ? "y" : "ies"} recorded this month. Comparisons appear here once there is a month behind them.`
+        : "Nothing recorded this month yet. Import a statement and the numbers here fill themselves in.";
+
   return (
     <AppShell
       title="Overview"
@@ -132,104 +158,176 @@ function OverviewPage() {
       signature="overview"
     >
       <div className="grid grid-cols-12 gap-5">
-        {/* TODO: Calculate real quarter-over-quarter net worth change percentage */}
-        <Panel className="col-span-8" title="Net worth">
+        <Panel
+          className="col-span-8"
+          title="Net worth"
+          action={
+            quarter?.pct != null && (
+              // Measured across every account. Custodial money has no stored
+              // history, so the delta covers the full balance, not the owned figure.
+              <span
+                className="flex items-center gap-1.5 text-xs"
+                title="Change in total balance across all accounts over the past three months"
+              >
+                <span
+                  className={`numeric ${quarter.pct >= 0 ? "text-success" : "text-destructive"}`}
+                >
+                  {formatPct(quarter.pct)}
+                </span>
+                <span className="text-muted-foreground">past 3 months</span>
+              </span>
+            )
+          }
+        >
           <div>
             <p className="numeric maskable text-[46px] leading-none text-foreground">
               <MaskedText>{formatMoney(ownership.owned, { whole: true })}</MaskedText>
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Cash {formatCompact(nw.cash)} · Investments {formatCompact(nw.investments)} ·
-              Liabilities {formatCompact(nw.liabilities)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Truly yours. {formatCompact(ownership.custodial)} held for others is out of this
-              figure; {formatCompact(ownership.earmarked)} is earmarked.
-            </p>
+            {accounts.length === 0 ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                No accounts yet.{" "}
+                <Link to="/accounts" className="text-primary">
+                  Add your first one
+                </Link>{" "}
+                and this fills in.
+              </p>
+            ) : (
+              <>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Cash {formatCompact(nw.cash)} · Investments {formatCompact(nw.investments)} ·
+                  Liabilities {formatCompact(nw.liabilities)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Truly yours. {formatCompact(ownership.custodial)} held for others is out of this
+                  figure; {formatCompact(ownership.earmarked)} is earmarked.
+                </p>
+              </>
+            )}
           </div>
-          <div className="mt-6 h-[210px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chart} margin={{ left: -18, right: 8, top: 8 }}>
-                <defs>
-                  <linearGradient id="inc" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-success)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--color-success)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="exp" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="var(--color-border)" vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number | string) => `\u20B9${Number(v).toLocaleString("en-IN")}`}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="income"
-                  stroke="var(--color-success)"
-                  fill="url(#inc)"
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="expense"
-                  stroke="var(--color-primary)"
-                  fill="url(#exp)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {chart.length === 0 ? (
+            <div className="mt-6 flex h-[210px] flex-col items-center justify-center rounded-xl border border-dashed border-border text-center">
+              <p className="text-sm text-foreground">No cash flow to chart yet.</p>
+              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                Income and expenses appear here month by month as soon as your first transactions
+                land.
+              </p>
+              <Link
+                to="/imports"
+                className="mt-4 rounded-lg border border-border px-3 py-1.5 text-xs text-primary transition-colors hover:bg-accent"
+              >
+                Import a statement
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-6 h-[210px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chart} margin={{ left: -18, right: 8, top: 8 }}>
+                  <defs>
+                    <linearGradient id="inc" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-success)" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="var(--color-success)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="exp" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="var(--color-border)" vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    stroke="var(--color-muted-foreground)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--color-muted-foreground)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--color-card)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number | string) => `\u20B9${Number(v).toLocaleString("en-IN")}`}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="income"
+                    stroke="var(--color-success)"
+                    fill="url(#inc)"
+                    strokeWidth={2}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="expense"
+                    stroke="var(--color-primary)"
+                    fill="url(#exp)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Panel>
 
         <div className="col-span-4 grid gap-5">
-          {/* TODO: Calculate real month-over-month change percentages for cash, investments, liabilities */}
           <StatCard
             label="Available cash"
             value={formatMoney(nw.cash, { whole: true })}
+            delta={cashDelta?.pct}
+            hint={balanceHint(cashDelta)}
             icon={<Wallet className="h-4 w-4" />}
             className="pattern-arcs"
           />
           <StatCard
             label="Investments"
             value={formatMoney(nw.investments, { whole: true })}
+            delta={investmentDelta?.pct}
+            hint={balanceHint(investmentDelta)}
             icon={<TrendingUp className="h-4 w-4" />}
             className="pattern-hatch"
           />
           <StatCard
             label="Liabilities"
             value={formatMoney(nw.liabilities, { whole: true })}
+            delta={liabilityDelta?.pct}
+            deltaTone="down-good"
+            hint={balanceHint(liabilityDelta)}
             icon={<Landmark className="h-4 w-4" />}
             className="pattern-steps"
           />
         </div>
 
-        <Panel className="col-span-4" title="This month">
+        <Panel
+          className="col-span-4"
+          title="This month"
+          action={
+            <span className="text-xs text-muted-foreground">
+              {priorCf.count > 0 ? `vs ${priorLabel}` : `1–${windows.throughDay}`}
+            </span>
+          }
+        >
           <div className="space-y-4">
-            <Row label="Income" value={formatMoney(cf.income)} tone="success" />
-            <Row label="Expenses" value={formatMoney(cf.expense)} tone="destructive" />
-            <Row label="Net cash flow" value={formatMoney(cf.net)} tone="foreground" />
+            <Row label="Income" value={formatMoney(cf.income)} tone="success" delta={incomeDelta} />
+            <Row
+              label="Expenses"
+              value={formatMoney(cf.expense)}
+              tone="destructive"
+              delta={expenseDelta}
+              deltaTone="down-good"
+            />
+            <Row
+              label="Net cash flow"
+              value={formatMoney(cf.net)}
+              tone="foreground"
+              delta={netDelta}
+            />
             <div className="pt-2">
               <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                 <span>Budget used</span>
@@ -275,10 +373,7 @@ function OverviewPage() {
             <div className="flex gap-3">
               <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div>
-                <p className="text-sm leading-relaxed text-foreground">
-                  You are spending 9% less than your normal pace, mainly because Dining and
-                  Transport are lower than usual.
-                </p>
+                <p className="text-sm leading-relaxed text-foreground">{insight}</p>
                 <Link
                   to="/assistant"
                   className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-transform hover:scale-[1.02]"
@@ -398,11 +493,36 @@ function OverviewPage() {
   );
 }
 
-function Row({ label, value, tone }: { label: string; value: string; tone: string }) {
+function Row({
+  label,
+  value,
+  tone,
+  delta,
+  deltaTone = "up-good",
+}: {
+  label: string;
+  value: string;
+  tone: string;
+  /** Null when last month has nothing to compare against — the column stays empty. */
+  delta?: number | null;
+  deltaTone?: "up-good" | "down-good";
+}) {
+  const good = delta == null ? false : deltaTone === "down-good" ? delta < 0 : delta > 0;
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-3">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`numeric text-sm text-${tone}`}>{value}</span>
+      <span className="flex items-baseline gap-2">
+        {delta != null && (
+          <span
+            className={`numeric text-xs ${
+              delta === 0 ? "text-muted-foreground" : good ? "text-success" : "text-destructive"
+            }`}
+          >
+            {formatPct(delta)}
+          </span>
+        )}
+        <span className={`numeric text-sm text-${tone}`}>{value}</span>
+      </span>
     </div>
   );
 }

@@ -11,7 +11,19 @@ export type ISODate = string; // "2026-08-07"
 export type ISODateTime = string; // "2026-08-07T11:40:00+05:30"
 export type Paise = number; // 245680_00 = ₹2,45,680.00
 
-export type AccountKind = "bank" | "cash" | "credit_card" | "investment" | "loan";
+export const ACCOUNT_KINDS = ["bank", "cash", "credit_card", "investment", "loan"] as const;
+export type AccountKind = (typeof ACCOUNT_KINDS)[number];
+
+/**
+ * How account kinds roll into the three net worth buckets. Single source of
+ * truth — `summariseNetWorth` and the period comparisons both read it, so the
+ * headline figure and its delta can never drift apart.
+ */
+export const NET_WORTH_KINDS = {
+  cash: ["bank", "cash"],
+  investments: ["investment"],
+  liabilities: ["credit_card", "loan"],
+} as const satisfies Record<string, readonly AccountKind[]>;
 
 export interface Account {
   id: string;

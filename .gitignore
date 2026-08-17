@@ -41,7 +41,7 @@ dist-ssr
 .replit/
 
 # Plans / design docs
-# docs/plans/
+docs/plans/
 
 # Account statements
 docs/Acct_*
@@ -58,3 +58,5 @@ playwright-report/
 test-results/
 # Playwright MCP scratch (snapshots, console logs, screenshots)
 .playwright-mcp/
+.impeccable
+.vscode

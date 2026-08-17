@@ -17,6 +17,13 @@ export function periodMonthDate(period: string): string {
   return `${period}-01`;
 }
 
+/** Calendar length of a "YYYY-MM" month — day 0 of the next month. */
+export function daysInPeriod(period: string): number {
+  const y = Number(period.slice(0, 4));
+  const m = Number(period.slice(5, 7));
+  return new Date(y, m, 0).getDate();
+}
+
 export function formatPeriodLabel(period: string): string {
   const y = Number(period.slice(0, 4));
   const m = Number(period.slice(5, 7));
@@ -58,7 +65,7 @@ export function periodPace(
   const m = Number(period.slice(5, 7));
   const year = y;
   const month = m;
-  const days = new Date(year, month, 0).getDate();
+  const days = daysInPeriod(period);
   const isCurrent = now.getFullYear() === year && now.getMonth() + 1 === month;
   const isPast =
     now.getFullYear() > year || (now.getFullYear() === year && now.getMonth() + 1 > month);

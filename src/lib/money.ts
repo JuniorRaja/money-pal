@@ -26,7 +26,20 @@ export function formatCompact(value: Paise) {
 }
 
 export function formatPct(value: number, digits = 1) {
-  return `${value > 0 ? "+" : value < 0 ? "\u2212" : ""}${Math.abs(value).toFixed(digits)}%`;
+  const sign = value > 0 ? "+" : value < 0 ? "\u2212" : "";
+  // A near-zero baseline makes the ratio explode (\u20b91 \u2192 \u20b91,00,000 is +9,999,900%).
+  // The number stops meaning anything long before it stops fitting the card.
+  if (Math.abs(value) >= 1000) return `${sign}999%+`;
+  return `${sign}${Math.abs(value).toFixed(digits)}%`;
+}
+
+/**
+ * A percentage-point gap \u2014 "+3.2 pp". Deliberately not `formatPct`: a savings
+ * rate moving 40% \u2192 43% is +3 points, not +7.5%, and the two must not look alike.
+ */
+export function formatPoints(value: number, digits = 1) {
+  const sign = value > 0 ? "+" : value < 0 ? "\u2212" : "";
+  return `${sign}${Math.abs(value).toFixed(digits)} pp`;
 }
 
 const dayFmt = new Intl.DateTimeFormat("en-IN", {

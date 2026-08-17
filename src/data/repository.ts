@@ -57,6 +57,7 @@ import type {
   TransactionType,
   UserSettings,
 } from "@/data/schema";
+import { NET_WORTH_KINDS } from "@/data/schema";
 
 import { dayKey } from "@/lib/money";
 import { currentPeriod } from "@/lib/period";
@@ -133,7 +134,10 @@ export function filterTransactions(rows: Transaction[], filter: TransactionFilte
     if (filter.category_id && t.category_id !== filter.category_id) return false;
     if (filter.label_id && t.label_id !== filter.label_id) return false;
     if (filter.type && t.type !== filter.type) return false;
-    if (filter.period && !t.occurred_at.startsWith(filter.period)) return false;
+    // Compare the IST calendar day, never the raw string: Postgres hands back
+    // midnight IST as "…T18:30:00+00:00", so a prefix slice drops the 1st of
+    // the month into the month before.
+    if (filter.period && !dayKey(t.occurred_at).startsWith(filter.period)) return false;
     if (q) {
       const hay = `${t.merchant} ${t.descriptor} ${t.payment_method}`.toLowerCase();
       if (!hay.includes(q)) return false;
@@ -209,15 +213,11 @@ export interface NetWorthSummary {
 }
 
 export function summariseNetWorth(rows: Account[]): NetWorthSummary {
-  const cash = rows
-    .filter((a) => a.kind === "bank" || a.kind === "cash")
-    .reduce((s, a) => s + a.balance, 0);
-  const investments = rows
-    .filter((a) => a.kind === "investment")
-    .reduce((s, a) => s + a.balance, 0);
-  const liabilities = rows
-    .filter((a) => a.kind === "credit_card" || a.kind === "loan")
-    .reduce((s, a) => s + a.balance, 0);
+  const bucket = (kinds: readonly Account["kind"][]) =>
+    rows.filter((a) => kinds.includes(a.kind)).reduce((s, a) => s + a.balance, 0);
+  const cash = bucket(NET_WORTH_KINDS.cash);
+  const investments = bucket(NET_WORTH_KINDS.investments);
+  const liabilities = bucket(NET_WORTH_KINDS.liabilities);
   return { cash, investments, liabilities, net_worth: cash + investments + liabilities };
 }
 
