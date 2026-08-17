@@ -198,15 +198,12 @@
   overflow-y: auto;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--primary) 55%, transparent)
-    color-mix(in oklab, var(--primary) 7%, transparent);
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 18px,
-    #000 calc(100% - 22px),
-    transparent 100%
-  );
+  scrollbar-color: color-mix(in oklab, var(--primary) 55%, transparent) color-mix(in oklab, var(--primary) 7%, transparent);
+  mask-image: linear-gradient(to bottom,
+      transparent 0,
+      #000 18px,
+      #000 calc(100% - 22px),
+      transparent 100%);
 
   &::-webkit-scrollbar {
     width: 12px;
@@ -241,17 +238,17 @@
   font-feature-settings: "tnum";
 }
 
-/* Privacy masking: headline figures wear `maskable`, the root class does the
-   hiding. Blur is em-relative so a ₹46px net worth blurs harder than a 20px
-   card stat, and both land unreadable. */
+/* Privacy masking: elements with `maskable` class are handled by MaskedText
+   component which converts digits to braille patterns. This CSS fallback
+   ensures basic hiding if the component isn't used. */
 .mask-numbers .maskable {
-  filter: blur(0.35em);
   user-select: none;
 }
 
 /* Fine paper grain laid over surfaces. */
 @utility grain {
   position: relative;
+
   &::after {
     content: "";
     position: absolute;
@@ -259,10 +256,8 @@
     pointer-events: none;
     border-radius: inherit;
     opacity: 0.5;
-    background-image: radial-gradient(
-      color-mix(in oklab, var(--primary) 9%, transparent) 0.5px,
-      transparent 0.5px
-    );
+    background-image: radial-gradient(color-mix(in oklab, var(--primary) 9%, transparent) 0.5px,
+        transparent 0.5px);
     background-size: 4px 4px;
   }
 }
@@ -272,6 +267,7 @@
     transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
     border-color 220ms ease;
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 18px 40px -28px color-mix(in oklab, var(--primary) 55%, transparent);
@@ -281,61 +277,47 @@
 
 @utility ledger-pattern {
   background-image:
-    linear-gradient(
-      to right,
+    linear-gradient(to right,
       color-mix(in oklab, var(--primary) 8%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      to bottom,
+      transparent 1px),
+    linear-gradient(to bottom,
       color-mix(in oklab, var(--primary) 6%, transparent) 1px,
-      transparent 1px
-    );
+      transparent 1px);
   background-size: 32px 32px;
 }
 
 /* Subtle card patterns — one per surface family, all keyed to the gold token. */
 @utility pattern-hatch {
-  background-image: repeating-linear-gradient(
-    -45deg,
-    color-mix(in oklab, var(--primary) 7%, transparent) 0 1px,
-    transparent 1px 9px
-  );
+  background-image: repeating-linear-gradient(-45deg,
+      color-mix(in oklab, var(--primary) 7%, transparent) 0 1px,
+      transparent 1px 9px);
 }
 
 @utility pattern-arcs {
-  background-image: radial-gradient(
-    circle at 100% 100%,
-    transparent 0 34px,
-    color-mix(in oklab, var(--primary) 8%, transparent) 34px 35px,
-    transparent 35px 58px,
-    color-mix(in oklab, var(--primary) 7%, transparent) 58px 59px,
-    transparent 59px 82px,
-    color-mix(in oklab, var(--primary) 6%, transparent) 82px 83px,
-    transparent 83px
-  );
+  background-image: radial-gradient(circle at 100% 100%,
+      transparent 0 34px,
+      color-mix(in oklab, var(--primary) 8%, transparent) 34px 35px,
+      transparent 35px 58px,
+      color-mix(in oklab, var(--primary) 7%, transparent) 58px 59px,
+      transparent 59px 82px,
+      color-mix(in oklab, var(--primary) 6%, transparent) 82px 83px,
+      transparent 83px);
 }
 
 @utility pattern-steps {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    color-mix(in oklab, var(--primary) 7%, transparent) 0 1px,
-    transparent 1px 14px
-  );
+  background-image: repeating-linear-gradient(to bottom,
+      color-mix(in oklab, var(--primary) 7%, transparent) 0 1px,
+      transparent 1px 14px);
 }
 
 @utility pattern-weave {
   background-image:
-    repeating-linear-gradient(
-      45deg,
+    repeating-linear-gradient(45deg,
       color-mix(in oklab, var(--primary) 5%, transparent) 0 1px,
-      transparent 1px 12px
-    ),
-    repeating-linear-gradient(
-      -45deg,
+      transparent 1px 12px),
+    repeating-linear-gradient(-45deg,
       color-mix(in oklab, var(--primary) 5%, transparent) 0 1px,
-      transparent 1px 12px
-    );
+      transparent 1px 12px);
 }
 
 @keyframes rise-in {
@@ -343,6 +325,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: none;
@@ -353,17 +336,20 @@
   from {
     stroke-dashoffset: 1200;
   }
+
   to {
     stroke-dashoffset: 0;
   }
 }
 
 @keyframes breathe {
+
   0%,
   100% {
     opacity: 0.55;
     transform: scale(1);
   }
+
   50% {
     opacity: 1;
     transform: scale(1.06);

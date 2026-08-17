@@ -21,6 +21,7 @@ import {
   EditGoalDialog,
   GoalHistoryDialog,
 } from "@/components/goal-dialogs";
+import { MaskedText } from "@/components/masked-text";
 import { Bar, Panel, Ring, StatCard } from "@/components/mm-ui";
 import {
   DropdownMenu,
@@ -242,7 +243,7 @@ function GoalsPage() {
                   </div>
                 </div>
                 <p className="numeric maskable mt-5 text-2xl text-foreground">
-                  {formatMoney(g.saved, { whole: true })}
+                  <MaskedText>{formatMoney(g.saved, { whole: true })}</MaskedText>
                 </p>
                 <p className="text-xs text-muted-foreground">of {formatCompact(g.target)} target</p>
                 <div className="mt-4">

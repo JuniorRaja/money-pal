@@ -19,6 +19,7 @@ import {
 } from "recharts";
 
 import { AppShell } from "@/components/app-shell";
+import { MaskedText } from "@/components/masked-text";
 import { Bar, Panel, Ring, StatCard } from "@/components/mm-ui";
 import {
   CURRENT_PERIOD,
@@ -138,7 +139,7 @@ function OverviewPage() {
         >
           <div>
             <p className="numeric maskable text-[46px] leading-none text-foreground">
-              {formatMoney(ownership.owned, { whole: true })}
+              <MaskedText>{formatMoney(ownership.owned, { whole: true })}</MaskedText>
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
               Cash {formatCompact(nw.cash)} · Investments {formatCompact(nw.investments)} ·

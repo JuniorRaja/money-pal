@@ -18,6 +18,7 @@ import { DeleteAccountDialog } from "@/components/delete-account-dialog";
 import { EditAccountDialog } from "@/components/edit-account-dialog";
 import { ManageCyclesDialog } from "@/components/manage-cycles-dialog";
 import { ManageSlicesDialog } from "@/components/manage-slices-dialog";
+import { MaskedText } from "@/components/masked-text";
 import { Panel, Ring, SliceBar, Sparkline, StatCard } from "@/components/mm-ui";
 import {
   DropdownMenu,
@@ -158,7 +159,7 @@ function AccountsPage() {
               </div>
             </div>
             <p className="numeric maskable mt-4 text-2xl text-foreground">
-              {formatMoney(a.balance, { whole: true })}
+              <MaskedText>{formatMoney(a.balance, { whole: true })}</MaskedText>
             </p>
             <div className="mt-3 flex items-end justify-between">
               <span
@@ -217,7 +218,7 @@ function AccountsPage() {
                     Used
                   </p>
                   <p className="numeric maskable text-2xl text-foreground">
-                    {formatMoney(used, { whole: true })}
+                    <MaskedText>{formatMoney(used, { whole: true })}</MaskedText>
                   </p>
                 </div>
                 <div className="text-right">
@@ -276,7 +277,7 @@ function AccountsPage() {
               <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
             </div>
             <p className="numeric maskable mt-4 text-2xl text-foreground">
-              {formatMoney(a.balance, { whole: true })}
+              <MaskedText>{formatMoney(a.balance, { whole: true })}</MaskedText>
             </p>
             <div className="mt-3 flex items-end justify-between">
               <span className="text-xs text-success">{formatPct(a.change_pct)} vs last month</span>
@@ -309,7 +310,7 @@ function AccountsPage() {
               <AccountMenu onEdit={() => setEditing(a)} onDelete={() => setDeleting(a)} />
             </div>
             <p className="numeric maskable mt-4 text-2xl text-foreground">
-              {formatMoney(Math.abs(a.balance), { whole: true })}
+              <MaskedText>{formatMoney(Math.abs(a.balance), { whole: true })}</MaskedText>
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
               <p>EMI {a.emi_amount !== null ? formatMoney(a.emi_amount, { whole: true }) : "—"}</p>

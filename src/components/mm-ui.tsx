@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { MaskedText } from "@/components/masked-text";
 import { cn } from "@/lib/utils";
 import { formatPct } from "@/lib/money";
 
@@ -61,7 +62,9 @@ export function StatCard({
           </span>
         )}
       </div>
-      <p className="numeric maskable mt-3 text-[28px] leading-none text-foreground">{value}</p>
+      <p className="numeric maskable mt-3 text-[28px] leading-none text-foreground">
+        <MaskedText>{value}</MaskedText>
+      </p>
       <div className="mt-3 flex items-center gap-2 text-xs">
         {typeof delta === "number" && (
           <span className={delta >= 0 ? "text-success" : "text-destructive"}>

@@ -16,6 +16,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { MaskedText } from "@/components/masked-text";
 import { Chip, Dot, Panel, Sparkline } from "@/components/mm-ui";
 import {
   AlertDialog,
@@ -274,9 +275,8 @@ function TransactionsPage() {
                         <tr
                           key={t.transaction_id}
                           onClick={() => setSelectedId(t.transaction_id)}
-                          className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/40 ${
-                            selectedId === t.transaction_id ? "bg-accent/50" : ""
-                          }`}
+                          className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/40 ${selectedId === t.transaction_id ? "bg-accent/50" : ""
+                            }`}
                         >
                           <td className="numeric px-5 py-3 text-xs text-muted-foreground">
                             {formatTime(t.occurred_at)}
@@ -471,7 +471,7 @@ function DetailPanel({
         <p
           className={`numeric maskable mt-5 text-3xl ${transaction.amount > 0 ? "text-success" : "text-destructive"}`}
         >
-          {formatMoney(transaction.amount, { sign: true })}
+          <MaskedText>{formatMoney(transaction.amount, { sign: true })}</MaskedText>
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {formatTime(transaction.occurred_at)} · {formatDay(transaction.occurred_at)}
@@ -532,9 +532,8 @@ function DetailPanel({
                   <button
                     key={l.id}
                     onClick={() => handleLabelChange(l.id)}
-                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
-                      l.id === transaction.label_id ? "bg-accent/60 font-medium" : ""
-                    }`}
+                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${l.id === transaction.label_id ? "bg-accent/60 font-medium" : ""
+                      }`}
                   >
                     <Dot token={l.color_token} /> {l.name}
                   </button>
@@ -969,7 +968,7 @@ function Stat({
     <div className="px-6 py-4">
       <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       <p className={`numeric maskable mt-1 text-xl ${tone ? `text-${tone}` : "text-foreground"}`}>
-        {value}
+        <MaskedText>{value}</MaskedText>
       </p>
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
