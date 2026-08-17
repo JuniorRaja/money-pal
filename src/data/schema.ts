@@ -184,7 +184,8 @@ export interface GoalContribution {
   descriptor: string | null;
 }
 
-export type HoldingClass = "equity" | "mutual_fund" | "gold" | "fixed_income" | "crypto";
+export type HoldingClass =
+  "equity" | "mutual_fund" | "gold" | "fixed_income" | "crypto" | "property";
 
 export interface Holding {
   id: string;
@@ -193,7 +194,14 @@ export interface Holding {
   units: number;
   invested: Paise;
   current_value: Paise;
+  /** Change against the previous close. 0 until two price dates are known. */
   day_change_pct: number;
+  /** Previous close in paise. 0 means no day change is known yet — not a flat day. */
+  prev_price: Paise;
+  /** AMFI scheme code or Yahoo ticker. Null means priced by hand. */
+  symbol: string | null;
+  /** When `current_value` was last set — by the price job or by hand. */
+  priced_at: ISODateTime | null;
   account_id: string;
 }
 

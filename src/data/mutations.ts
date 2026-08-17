@@ -547,9 +547,11 @@ export interface NewHoldingInput {
   invested: Paise;
   current_value: Paise;
   account_id: string;
+  symbol?: string | null;
 }
 
 export async function createHolding(input: NewHoldingInput): Promise<Holding> {
+  const symbol = input.symbol?.trim() || null;
   const serverInput: CreateHoldingInput = {
     name: input.name,
     asset_class: input.asset_class,
@@ -557,6 +559,7 @@ export async function createHolding(input: NewHoldingInput): Promise<Holding> {
     invested: input.invested,
     current_value: input.current_value,
     account_id: input.account_id,
+    symbol,
   };
   const result = await createHoldingFn({ data: serverInput });
   return {
@@ -567,7 +570,12 @@ export async function createHolding(input: NewHoldingInput): Promise<Holding> {
     invested: input.invested,
     current_value: input.current_value,
     account_id: input.account_id,
+    // A brand-new holding has one price and no previous close, so there is no
+    // day change to show until the job has run on a second day.
     day_change_pct: 0,
+    prev_price: 0,
+    symbol,
+    priced_at: new Date().toISOString(),
   };
 }
 

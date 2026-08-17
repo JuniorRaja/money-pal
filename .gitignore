@@ -56,3 +56,5 @@ docs/*.qfx
 .playwright-cli/
 playwright-report/
 test-results/
+# Playwright MCP scratch (snapshots, console logs, screenshots)
+.playwright-mcp/

@@ -19,7 +19,7 @@ import {
   createHolding,
   createTransaction,
 } from "@/data/mutations";
-import type { Account, Category, Slice } from "@/data/schema";
+import type { Account, Category, HoldingClass, Slice } from "@/data/schema";
 import { BUDGETABLE_GROUPS } from "@/data/schema";
 import { cn } from "@/lib/utils";
 
@@ -131,7 +131,11 @@ const schemas = {
   }),
   investment: z.object({
     name: text(60),
-    asset_class: z.enum(["equity", "mutual_fund", "gold", "fixed_income", "crypto"]),
+    asset_class: z.enum(["equity", "mutual_fund", "gold", "fixed_income", "crypto", "property"]),
+    // Optional: blank means "price this by hand". Must be listed even so —
+    // safeParse strips keys the schema does not mention, so an absent `symbol`
+    // here silently drops whatever the user typed.
+    symbol: z.string().trim().max(40).optional(),
     units: z
       .string()
       .trim()
@@ -184,6 +188,7 @@ const defaults: Record<RecordKind, Record<string, string>> = {
   investment: {
     name: "",
     asset_class: "equity",
+    symbol: "",
     units: "",
     invested: "",
     current_value: "",
@@ -373,12 +378,12 @@ export function AddRecordDialog({
       } else {
         await createHolding({
           name: v["name"]!,
-          asset_class: v["asset_class"] as
-            "equity" | "mutual_fund" | "gold" | "fixed_income" | "crypto",
+          asset_class: v["asset_class"] as HoldingClass,
           units: Number(v["units"]),
           invested: paise(v["invested"]),
           current_value: paise(v["current_value"]),
           account_id: v["account_id"]!,
+          symbol: v["symbol"] ?? null,
         });
       }
 
@@ -839,9 +844,43 @@ export function AddRecordDialog({
                     <option value="gold">Gold</option>
                     <option value="fixed_income">Fixed income</option>
                     <option value="crypto">Crypto</option>
+                    <option value="property">Property</option>
                   </select>
                 </Field>
               </div>
+
+              {/* Only the two fed classes get a symbol field. Asking for a ticker
+                  on a flat or an FD would collect something nothing can price. */}
+              {(() => {
+                const assetClass = values["asset_class"] ?? "equity";
+                if (assetClass === "mutual_fund")
+                  return (
+                    <Field label="AMFI scheme code" error={errors["symbol"]}>
+                      <input
+                        className={fieldBase}
+                        placeholder="122639 — leave blank to value by hand"
+                        value={values["symbol"] ?? ""}
+                        onChange={(e) => set("symbol", e.target.value)}
+                      />
+                    </Field>
+                  );
+                if (assetClass === "equity" || assetClass === "gold")
+                  return (
+                    <Field label="Ticker" error={errors["symbol"]}>
+                      <input
+                        className={fieldBase}
+                        placeholder={
+                          assetClass === "gold"
+                            ? "GOLDBEES.NS — leave blank to value by hand"
+                            : "RELIANCE.NS — leave blank to value by hand"
+                        }
+                        value={values["symbol"] ?? ""}
+                        onChange={(e) => set("symbol", e.target.value)}
+                      />
+                    </Field>
+                  );
+                return null;
+              })()}
               <div className="grid grid-cols-3 gap-4">
                 <Field label="Units" error={errors["units"]}>
                   <input

@@ -3,9 +3,9 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { AppShell } from "@/components/app-shell";
 import { Panel, Sparkline, StatCard } from "@/components/mm-ui";
-import { getHoldings } from "@/data/repository";
+import { TODAY, getHoldings } from "@/data/repository";
 import type { Holding, HoldingClass } from "@/data/schema";
-import { formatMoney, formatPct } from "@/lib/money";
+import { formatDay, formatMoney, formatPct } from "@/lib/money";
 
 export const Route = createFileRoute("/investments")({
   head: () => ({
@@ -29,7 +29,23 @@ const classLabel: Record<HoldingClass, string> = {
   gold: "Gold",
   fixed_income: "Fixed Income",
   crypto: "Crypto",
+  property: "Property",
 };
+
+/**
+ * How old a price may get before it is called out. A fed holding should be
+ * repriced nightly, so three days means the feed is down. A hand-valued one —
+ * property, fixed income — is only worth nagging about after six months.
+ */
+function daysStale(holding: Holding): number {
+  if (!holding.priced_at) return Infinity;
+  const age = Date.parse(`${TODAY}T00:00:00+05:30`) - Date.parse(holding.priced_at);
+  return Math.floor(age / 86_400_000);
+}
+
+function isStale(holding: Holding): boolean {
+  return daysStale(holding) > (holding.symbol ? 3 : 180);
+}
 
 const slices = [
   "var(--color-primary)",
@@ -44,7 +60,11 @@ function InvestmentsPage() {
   const invested = holdings.reduce((s, h) => s + h.invested, 0);
   const current = holdings.reduce((s, h) => s + h.current_value, 0);
   const gain = current - invested;
+  const totalReturnPct = invested === 0 ? 0 : (gain / invested) * 100;
+  // Now a real day movement: day_change_pct is last close vs previous close,
+  // computed by v_holdings_valuation rather than derived from `invested`.
   const dayChange = holdings.reduce((s, h) => s + (h.current_value * h.day_change_pct) / 100, 0);
+  const staleCount = holdings.filter(isStale).length;
 
   const byClass = new Map<HoldingClass, number>();
   for (const h of holdings)
@@ -61,7 +81,7 @@ function InvestmentsPage() {
         <StatCard
           label="Current value"
           value={formatMoney(current, { whole: true })}
-          delta={14.7}
+          delta={totalReturnPct}
           hint="since inception"
         />
         <StatCard
@@ -72,13 +92,17 @@ function InvestmentsPage() {
         <StatCard
           label="Unrealised gain"
           value={formatMoney(gain, { whole: true })}
-          delta={(gain / invested) * 100}
+          delta={totalReturnPct}
           hint="absolute return"
         />
         <StatCard
           label="Today"
           value={formatMoney(Math.round(dayChange), { sign: true })}
-          hint="market movement"
+          hint={
+            staleCount > 0
+              ? `${staleCount} price${staleCount > 1 ? "s" : ""} out of date`
+              : "market movement"
+          }
         />
       </div>
 
@@ -109,13 +133,29 @@ function InvestmentsPage() {
                   <td className="numeric px-2 py-3 text-right text-muted-foreground">
                     {formatMoney(h.invested, { whole: true })}
                   </td>
-                  <td className="numeric px-2 py-3 text-right text-foreground">
-                    {formatMoney(h.current_value, { whole: true })}
+                  <td className="px-2 py-3 text-right">
+                    <span className="numeric text-foreground">
+                      {formatMoney(h.current_value, { whole: true })}
+                    </span>
+                    {/* The valuation date always shows. A price with no date beside
+                        it reads as current even when the feed died a week ago. */}
+                    <span
+                      className={`block text-[11px] ${isStale(h) ? "text-warning" : "text-muted-foreground"}`}
+                    >
+                      {h.priced_at ? `as of ${formatDay(h.priced_at)}` : "never valued"}
+                    </span>
                   </td>
                   <td
-                    className={`numeric px-5 py-3 text-right ${h.day_change_pct >= 0 ? "text-success" : "text-destructive"}`}
+                    className={`numeric px-5 py-3 text-right ${
+                      h.day_change_pct === 0
+                        ? "text-muted-foreground"
+                        : h.day_change_pct > 0
+                          ? "text-success"
+                          : "text-destructive"
+                    }`}
                   >
-                    {formatPct(h.day_change_pct)}
+                    {/* No previous close stored yet — an em dash, not a green 0.0%. */}
+                    {h.prev_price > 0 ? formatPct(h.day_change_pct) : "—"}
                   </td>
                 </tr>
               ))}

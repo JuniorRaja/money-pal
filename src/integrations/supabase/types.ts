@@ -672,7 +672,9 @@ export type Database = {
           modified_at: string;
           modified_by: string | null;
           name: string;
+          prev_price: number;
           priced_at: string | null;
+          symbol: string | null;
           units: number;
           user_id: string;
         };
@@ -690,7 +692,9 @@ export type Database = {
           modified_at?: string;
           modified_by?: string | null;
           name: string;
+          prev_price?: number;
           priced_at?: string | null;
+          symbol?: string | null;
           units: number;
           user_id: string;
         };
@@ -708,7 +712,9 @@ export type Database = {
           modified_at?: string;
           modified_by?: string | null;
           name?: string;
+          prev_price?: number;
           priced_at?: string | null;
+          symbol?: string | null;
           units?: number;
           user_id?: string;
         };
@@ -1978,11 +1984,14 @@ export type Database = {
           asset_class: Database["public"]["Enums"]["holding_class"] | null;
           currency_code: string | null;
           current_value: number | null;
+          day_change_pct: number | null;
           id: string | null;
           invested: number | null;
           last_price: number | null;
           name: string | null;
+          prev_price: number | null;
           priced_at: string | null;
+          symbol: string | null;
           units: number | null;
           unrealised_gain: number | null;
           user_id: string | null;
@@ -1992,11 +2001,14 @@ export type Database = {
           asset_class?: Database["public"]["Enums"]["holding_class"] | null;
           currency_code?: string | null;
           current_value?: never;
+          day_change_pct?: never;
           id?: string | null;
           invested?: number | null;
           last_price?: number | null;
           name?: string | null;
+          prev_price?: number | null;
           priced_at?: string | null;
+          symbol?: string | null;
           units?: number | null;
           unrealised_gain?: never;
           user_id?: string | null;
@@ -2006,11 +2018,14 @@ export type Database = {
           asset_class?: Database["public"]["Enums"]["holding_class"] | null;
           currency_code?: string | null;
           current_value?: never;
+          day_change_pct?: never;
           id?: string | null;
           invested?: number | null;
           last_price?: number | null;
           name?: string | null;
+          prev_price?: number | null;
           priced_at?: string | null;
+          symbol?: string | null;
           units?: number | null;
           unrealised_gain?: never;
           user_id?: string | null;
@@ -2266,7 +2281,7 @@ export type Database = {
       account_kind: "bank" | "cash" | "credit_card" | "investment" | "loan";
       bank_preset: "hdfc_savings" | "hdfc_cc" | "dbs" | "custom";
       category_kind: "income" | "essentials" | "lifestyle" | "transfer" | "investment";
-      holding_class: "equity" | "mutual_fund" | "gold" | "fixed_income" | "crypto";
+      holding_class: "equity" | "mutual_fund" | "gold" | "fixed_income" | "crypto" | "property";
       import_kind: "gmail" | "pdf" | "csv" | "manual";
       import_row_status: "pending" | "imported" | "skipped_duplicate" | "skipped" | "held";
       review_kind: "duplicate" | "unknown_merchant" | "large_transfer";
@@ -2397,7 +2412,7 @@ export const Constants = {
       account_kind: ["bank", "cash", "credit_card", "investment", "loan"],
       bank_preset: ["hdfc_savings", "hdfc_cc", "dbs", "custom"],
       category_kind: ["income", "essentials", "lifestyle", "transfer", "investment"],
-      holding_class: ["equity", "mutual_fund", "gold", "fixed_income", "crypto"],
+      holding_class: ["equity", "mutual_fund", "gold", "fixed_income", "crypto", "property"],
       import_kind: ["gmail", "pdf", "csv", "manual"],
       import_row_status: ["pending", "imported", "skipped_duplicate", "skipped", "held"],
       review_kind: ["duplicate", "unknown_merchant", "large_transfer"],

@@ -147,3 +147,35 @@ Row status transitions between `pending` / `skipped` / `held` go through `fn_set
 ## Import — live model vs PRD
 
 Category lives on `transactions`. Staging is `import_job_rows`, not uploaded files. Hub tables `import_sources` / `import_jobs` / `import_review_items` remain; profiles, staged rows, and rules are additive. Do not rewrite PRD history.
+
+## Investments — holdings do not enter net worth
+
+Overview's `investments` figure is the ledger balance of `investment` accounts (`summariseNetWorth`
+in `data/repository.ts`), and it stays that way. Buying a fund is a transfer from bank into the
+investment account, so the **principal is already counted there**. Adding `v_holdings_valuation`'s
+`current_value` on top would count every rupee invested twice.
+
+If market value is ever wanted on Overview, the only correct addition is the **unrealised gain**
+(`current_value - invested`), never `current_value`. Market prices affect the Investments page only.
+
+## Investments — a stale price is never a zero
+
+`holdings.last_price` (paise) is written by the daily price task, and a hand-entered value goes into
+the same column — there is no separate "manual" field and no fallback chain. When a feed fails, is
+rate-limited, or returns a shape the parser does not recognise, the row is **left exactly as it
+was**: old price, old `priced_at`. Nothing writes a zero, and nothing throws away the batch because
+one symbol died.
+
+A zeroed holding silently understates the portfolio and looks like a real number. An old price with
+its date beside it is visibly old, so the UI always renders `priced_at` next to the value and flags
+it past 3 days for fed holdings, 180 for hand-valued ones.
+
+## Investments — day change needs two price dates
+
+`holdings.prev_price` holds the previous close. `v_holdings_valuation.day_change_pct` is `0` while
+`prev_price` is `0`, which means **"not known yet"**, not "flat" — the UI shows an em dash, not
+`0.0%`. The price task only rolls `last_price` into `prev_price` when the stored `priced_at` is from
+an earlier day, so re-running it twice in one day cannot flatten the day change to zero.
+
+There is no price history table. Only yesterday is kept, which is all a day change needs; the
+Portfolio-trend sparkline is still mock data and is what would justify real history.

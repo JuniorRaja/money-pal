@@ -1104,6 +1104,8 @@ export interface CreateHoldingInput {
   invested: number; // invested amount in paise
   current_value: number; // current value in paise
   account_id: string;
+  /** AMFI scheme code or Yahoo ticker. Null/blank means priced by hand. */
+  symbol?: string | null;
 }
 
 export const createHoldingFn = createServerFn({ method: "POST" })
@@ -1132,6 +1134,9 @@ export const createHoldingFn = createServerFn({ method: "POST" })
         invested: data.invested,
         last_price: lastPrice,
         priced_at: new Date().toISOString(),
+        // Blank is stored as null so the price job's `symbol is not null` filter
+        // doesn't pick up an empty string and fetch nothing forever.
+        symbol: data.symbol?.trim() || null,
         currency_code: "INR",
       })
       .select("id")

@@ -498,17 +498,20 @@ export const liveHoldings = (): Promise<Holding[]> =>
     const { data, error } = await supabase.from("v_holdings_valuation").select("*");
     if (error) throw error;
     return (data ?? []).map((row): Holding => {
-      const invested = Number(row.invested ?? 0);
-      const current = Number(row.current_value ?? 0);
       return {
         id: row.id as string,
         name: row.name as string,
         asset_class: row.asset_class as Holding["asset_class"],
         units: Number(row.units ?? 0),
-        invested,
-        current_value: current,
-        day_change_pct:
-          invested === 0 ? 0 : Math.round(((current - invested) / invested) * 1000) / 10,
+        invested: Number(row.invested ?? 0),
+        current_value: Number(row.current_value ?? 0),
+        // Real change against the previous close, computed by the view. This used
+        // to be since-inception return derived from `invested` and rendered under
+        // a "Day" header — a different number wearing the same label.
+        day_change_pct: Number(row.day_change_pct ?? 0),
+        prev_price: Number(row.prev_price ?? 0),
+        symbol: (row.symbol as string | null) ?? null,
+        priced_at: (row.priced_at as string | null) ?? null,
         account_id: row.account_id as string,
       };
     });
