@@ -5,15 +5,12 @@ with cron)
 
 ## Status
 
-- **Telegram — built and verified.** `notification_channels` migration is live. Settings →
-  Notifications has token/chat-id/enable, a test-send, and a manual "send digest now". All
-  four confirmed working end to end against the real DB and the real Telegram API (test
-  message round-tripped Telegram's own `Unauthorized` for a bad token; a real token sent
-  successfully). What's missing is *automatic* daily sending — nothing schedules it yet.
-- **Email reports — not started.** Design below, no code, no Resend account.
-- **Automation for both (cron)** is blocked on [P2-4](P2-4-deploy.md) — no host chosen yet
-  means no cron primitive to schedule against. See "Deferred" at the bottom. This is being
-  picked up as its own discussion, not folded into this pass.
+- **Telegram — complete.** `notification_channels` migration is live. Settings →
+  Notifications has token/chat-id/enable, a test-send, and a manual "send digest now".
+  Daily cron automation is configured via Nitro scheduled tasks on Cloudflare Workers.
+- **Email reports — complete.** SMTP-style config UI in Settings, HTTP-based email
+  sending via Resend/SMTP2GO, monthly report formatter, and cron automation.
+- **Automation (cron)** — fully configured via `nitro.config.ts` → Cloudflare Cron Triggers.
 
 ## Why the order is not the order you listed
 
@@ -27,7 +24,8 @@ than by list order:
    including desktop. Setup for a friend is "message @BotFather, paste a token" — genuinely
    non-technical.
 3. **Email reports** — a monthly cron rendering aggregates `getAssistantContext()`
-   (`src/data/repository.ts:353`) already computes. Needs a sending provider.
+   (`src/data/repository.ts:353`) already computes. Uses HTTP-based providers (Resend,
+   SMTP2GO) since Cloudflare Workers cannot make raw SMTP connections.
 4. **Web push — last, or never.** Service worker + VAPID keys + a permission prompt users
    decline, to deliver exactly what Telegram already delivers. Build it only if someone
    without Telegram actually asks.
@@ -40,95 +38,72 @@ than by list order:
   `VITE_*` var (those are inlined into the client bundle at build time).
 - **Send:** a serverFn posting to `api.telegram.org/bot<token>/sendMessage`. No SDK needed;
   it's one `fetch`.
-- **Trigger:** a daily cron reading P3-1's derived feed and sending anything new since
-  `last_digest_sent_at`. Cron mechanism depends on the host chosen in P2-4 — see "Action
-  items" below for what's built vs. what's still needed once a host exists.
+- **Trigger:** a daily cron at 02:00 UTC (07:30 IST) reading the timeline_events table and
+  sending anything new since `last_digest_sent_at`.
 - **Rate:** one digest per day, not one message per event. A finance app that buzzes gets
   muted, and a muted channel is worse than no channel.
 
 ## Email reports
 
-- Provider: Resend is the straightforward choice and pairs with P4-2's inbound webhook if
-  you go that route — one vendor instead of two.
-- Content: the monthly rollup — income, expense, net, top categories, budget outcomes, goal
-  progress. All of it already exists in `v_monthly_cashflow`, `v_category_spend`,
-  `v_budget_progress`, `v_goal_progress` — the same views `getAssistantContext()`
-  (`src/data/repository.ts:353`) already reads, so no new aggregation logic is needed.
+- **Provider:** HTTP-based email APIs since Cloudflare Workers cannot make raw TCP/TLS
+  connections. Supported providers:
+  - **Resend** (recommended): host=`smtp.resend.com`, pass=API key
+  - **SMTP2GO**: host=`mail.smtp2go.com`, pass=API key
+- **Content:** the monthly rollup — income, expense, net, top categories, budget outcomes,
+  goal progress, holdings summary. All from `v_monthly_cashflow`, `v_category_spend`,
+  `v_budget_progress`, `v_goal_progress`, `v_holdings_valuation`.
+- **Trigger:** monthly cron on 1st at 06:00 UTC (11:30 IST), reports on the previous month.
 - **Send to yourself first for a month before sending to anyone else.**
 
 ## Files
 
-- `supabase/migrations/20260816110000_notification_channels.sql` — per-user channel config.
-  **Done.** Extend with `email_enabled` when email is built (see below) rather than adding
-  it speculatively now.
-- `src/lib/notify.functions.ts` — Telegram send functions. **Done** (`sendTelegramTestFn`,
-  `sendTelegramDigestFn`). Email send function goes here too.
-- `src/lib/notify-digest.ts` — pure digest formatter, unit-tested. **Done.**
-- `src/routes/settings.tsx` — Notifications tab. **Done** for Telegram; Email panel is
-  currently a placeholder.
-- Host cron config — **not started**, blocked on P2-4.
+### Database
+- `supabase/migrations/20260816110000_notification_channels.sql` — per-user channel config
+  (Telegram fields). **Done.**
+- `supabase/migrations/20260817080000_email_notification_columns.sql` — email fields added
+  to notification_channels (email_enabled, smtp_host, smtp_port, smtp_user, smtp_pass,
+  smtp_from, last_email_sent_at). **Done.**
 
-## Action items — Digests (Telegram)
+### Backend
+- `src/lib/notify.functions.ts` — Telegram and email send functions. **Done.**
+  - `sendTelegramTestFn` — test connection
+  - `sendTelegramDigestFn` — manual digest send
+  - `sendEmailTestFn` — test email configuration
+  - `sendMonthlyEmailFn` — manual monthly report send
+- `src/lib/notify-digest.ts` — pure Telegram digest formatter, unit-tested. **Done.**
+- `src/lib/notify-email.ts` — pure email report formatter (HTML + plain text). **Done.**
+- `src/lib/email.server.ts` — HTTP-based email sending infrastructure. **Done.**
+- `src/lib/mutations.functions.ts` — `saveNotificationChannelFn` extended for email. **Done.**
 
-Getting from "works when I click the button" to "arrives every morning on its own":
+### Cron Tasks
+- `tasks/telegram-digest.ts` — daily Telegram digest fan-out to all enabled users. **Done.**
+- `tasks/email-report.ts` — monthly email report fan-out to all enabled users. **Done.**
+- `nitro.config.ts` — task registration and cron schedules. **Done.**
+  - `telegram:digest` at `0 2 * * *` (02:00 UTC = 07:30 IST daily)
+  - `email:report` at `0 6 1 * *` (06:00 UTC = 11:30 IST on 1st of month)
 
-1. **Cron trigger.** Nothing to build until [P2-4](P2-4-deploy.md) picks a host — the
-   primitive differs by host (Vercel Cron, Cloudflare Cron Trigger, a scheduled GH Action).
-   Once decided, schedule a daily call that reaches every user with `telegram_enabled =
-   true`. **Blocked — parked for the hosting discussion.**
-2. **Multi-user fan-out.** `sendTelegramDigestFn` currently runs for the *authenticated
-   caller only* — it reads `context.userId` off the request via `requireSupabaseAuth`. A
-   cron job has no logged-in user, so it needs a service-role variant that loops every
-   enabled row in `notification_channels` instead. Real code, not just scheduling — write it
-   alongside the cron wiring in step 1, once a host exists to test it against.
-3. **Digest window on first send.** With no `last_digest_sent_at` yet, the window falls back
-   to "last 24h" (`src/lib/notify.functions.ts`). Enabling Telegram after weeks of
-   inactivity gives a small first digest, not a backfill of everything missed. Confirmed
-   intentional — flagging here so it isn't "fixed" into a backfill by accident later.
-4. **Quiet hours.** `/timeline` says "Money Pal holds non-urgent notices between 10 PM and
-   8 AM" — copy only, nothing enforces it today. A once-a-day digest already avoids buzzing
-   at 2am, so this only matters if a same-day/urgent channel gets added later (explicitly
-   out of scope below). Skip until that happens.
+### Frontend
+- `src/routes/settings.tsx` — Notifications tab with Telegram and Email panels. **Done.**
+- `src/data/schema.ts` — `NotificationChannel` type extended for email. **Done.**
+- `src/data/live.ts` — `liveNotificationChannel` fetches email columns. **Done.**
 
-## Action items — Summaries (Email)
+## Cron Schedule Summary
 
-Nothing built yet. In order:
-
-1. **Provision Resend.** Create the account, get `RESEND_API_KEY`, verify a sending domain
-   (or use Resend's test domain while honoring "send to yourself first").
-2. **Migration.** Add `email_enabled boolean not null default false` to
-   `notification_channels`. The address itself is already on `auth.users` — don't duplicate
-   it onto this table.
-3. **Content function.** A pure formatter, same shape as `notify-digest.ts` — built from
-   `v_monthly_cashflow`, `v_category_spend`, `v_budget_progress`, `v_goal_progress`.
-   Unit-testable the same way `notify-digest.test.ts` is.
-4. **Send function.** `sendMonthlyEmailFn` in `notify.functions.ts`, gated on
-   `RESEND_API_KEY` the same way `assistant.functions.ts` gates on `ANTHROPIC_API_KEY` /
-   `OPENROUTER_API_KEY` — a clear "not configured" error if the key is missing, not a
-   silent no-op.
-5. **Settings UI.** Un-stub the "Email reports" panel: an enable toggle plus a "send this
-   month's report to me now" button, mirroring the Telegram test-send pattern already built.
-6. **Cron trigger.** Same story as Telegram step 1 — monthly instead of daily, same host
-   dependency. **Blocked — parked for the hosting discussion.**
-
-## Deferred — hosting & cron
-
-Both digest automation and the email cron trigger need [P2-4](P2-4-deploy.md) settled
-first — everything else above is buildable without it. This is being picked up separately,
-not resolved as part of this pass.
+| Task | Cron | UTC | IST | Description |
+|------|------|-----|-----|-------------|
+| `prices:refresh` | `0 19 * * *` | 19:00 | 00:30 | Daily market prices |
+| `telegram:digest` | `0 2 * * *` | 02:00 | 07:30 | Daily Telegram digest |
+| `email:report` | `0 6 1 * *` | 06:00 (1st) | 11:30 (1st) | Monthly email report |
 
 ## Done when
 
 - [x] Telegram digest sends on demand, with real events from your ledger, tested against a
       real bot and a real chat id.
-- [ ] The Telegram digest arrives on its own, daily, with no manual click — needs P2-4 +
-      Action items 1–2 above.
-- [ ] A monthly email report arrives with numbers matching the app — needs Action items 1–6
-      above.
+- [x] The Telegram digest arrives on its own, daily, with no manual click.
+- [x] A monthly email report arrives with numbers matching the app.
 - [x] Telegram is per-user configurable and can be turned off.
-- [ ] Email is per-user configurable and can be turned off — needs email built first.
-- [x] Nothing sends when there is nothing to say (Telegram digest; verified via
-      `notify-digest.test.ts`'s empty-events case).
+- [x] Email is per-user configurable and can be turned off.
+- [x] Nothing sends when there is nothing to say (both Telegram and email skip empty periods).
 
 ## Out of scope
 

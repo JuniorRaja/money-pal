@@ -330,6 +330,14 @@ export interface NotificationChannel {
   telegram_chat_id: string | null;
   telegram_enabled: boolean;
   last_digest_sent_at: ISODateTime | null;
+  // Email fields
+  email_enabled: boolean;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_user: string | null;
+  smtp_pass: string | null;
+  smtp_from: string | null;
+  last_email_sent_at: ISODateTime | null;
 }
 
 export interface MonthlyRollup {

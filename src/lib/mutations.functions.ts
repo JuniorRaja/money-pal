@@ -602,6 +602,13 @@ export interface SaveNotificationChannelInput {
   telegram_bot_token: string | null;
   telegram_chat_id: string | null;
   telegram_enabled: boolean;
+  // Email fields (optional for backward compatibility)
+  email_enabled?: boolean;
+  smtp_host?: string | null;
+  smtp_port?: number | null;
+  smtp_user?: string | null;
+  smtp_pass?: string | null;
+  smtp_from?: string | null;
 }
 
 export const saveNotificationChannelFn = createServerFn({ method: "POST" })
@@ -611,6 +618,12 @@ export const saveNotificationChannelFn = createServerFn({ method: "POST" })
       (!input.telegram_bot_token?.trim() || !input.telegram_chat_id?.trim())
     ) {
       throw new Error("Bot token and chat id are required to enable Telegram");
+    }
+    if (
+      input.email_enabled &&
+      (!input.smtp_host?.trim() || !input.smtp_pass?.trim() || !input.smtp_from?.trim())
+    ) {
+      throw new Error("SMTP host, password/API key, and from address are required to enable email");
     }
     return input;
   })
@@ -623,6 +636,15 @@ export const saveNotificationChannelFn = createServerFn({ method: "POST" })
         telegram_bot_token: data.telegram_bot_token?.trim() || null,
         telegram_chat_id: data.telegram_chat_id?.trim() || null,
         telegram_enabled: data.telegram_enabled,
+        // Email fields - only include if provided
+        ...(data.email_enabled !== undefined && {
+          email_enabled: data.email_enabled,
+          smtp_host: data.smtp_host?.trim() || null,
+          smtp_port: data.smtp_port || null,
+          smtp_user: data.smtp_user?.trim() || null,
+          smtp_pass: data.smtp_pass?.trim() || null,
+          smtp_from: data.smtp_from?.trim() || null,
+        }),
         modified_at: new Date().toISOString(),
       },
       { onConflict: "user_id" },

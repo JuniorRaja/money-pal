@@ -31,7 +31,7 @@ import {
   getSettings,
 } from "@/data/repository";
 import type { Account, Category, ImportRule, NotificationChannel } from "@/data/schema";
-import { sendTelegramDigestFn, sendTelegramTestFn } from "@/lib/notify.functions";
+import { sendEmailTestFn, sendMonthlyEmailFn, sendTelegramDigestFn, sendTelegramTestFn } from "@/lib/notify.functions";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -91,11 +91,10 @@ function SettingsPage() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`w-full rounded-lg px-3 py-1.5 text-left text-[13px] transition-colors ${
-                tab === t
-                  ? "bg-accent font-medium text-foreground"
-                  : "text-muted-foreground hover:bg-accent/60"
-              }`}
+              className={`w-full rounded-lg px-3 py-1.5 text-left text-[13px] transition-colors ${tab === t
+                ? "bg-accent font-medium text-foreground"
+                : "text-muted-foreground hover:bg-accent/60"
+                }`}
             >
               {t}
             </button>
@@ -122,18 +121,16 @@ function SettingsPage() {
                     <button
                       key={mode}
                       onClick={() => setPrefs({ theme: mode })}
-                      className={`rounded-2xl border p-4 text-left transition-colors ${
-                        prefs.theme === mode
-                          ? "border-primary bg-accent/50"
-                          : "border-border hover:bg-accent/40"
-                      }`}
+                      className={`rounded-2xl border p-4 text-left transition-colors ${prefs.theme === mode
+                        ? "border-primary bg-accent/50"
+                        : "border-border hover:bg-accent/40"
+                        }`}
                     >
                       <div
-                        className={`mb-3 h-14 rounded-xl border border-border ${
-                          mode === "light"
-                            ? "bg-[oklch(0.98_0.008_84)]"
-                            : "bg-[oklch(0.22_0.012_84)]"
-                        }`}
+                        className={`mb-3 h-14 rounded-xl border border-border ${mode === "light"
+                          ? "bg-[oklch(0.98_0.008_84)]"
+                          : "bg-[oklch(0.22_0.012_84)]"
+                          }`}
                       />
                       <p className="text-sm capitalize text-foreground">{mode} mode</p>
                       <p className="text-xs text-muted-foreground">
@@ -149,11 +146,10 @@ function SettingsPage() {
                     <button
                       key={a.name}
                       onClick={() => setPrefs({ accent: a.name })}
-                      className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors ${
-                        prefs.accent === a.name
-                          ? "border-primary text-foreground"
-                          : "border-border text-muted-foreground"
-                      }`}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors ${prefs.accent === a.name
+                        ? "border-primary text-foreground"
+                        : "border-border text-muted-foreground"
+                        }`}
                     >
                       <span className="h-4 w-4 rounded-full" style={{ background: a.token }} />
                       {a.name}
@@ -243,11 +239,20 @@ function SettingsPage() {
 }
 
 /**
- * Telegram digest config. Bot token and chat id live server-side only
+ * Telegram and Email notification config. Credentials live server-side only
  * (`notification_channels`, RLS-scoped to the owner) — nothing is inlined into
- * the client bundle. Email reports are a separate, not-yet-built channel.
+ * the client bundle.
  */
 function NotificationsTab({ channel }: { channel: NotificationChannel }) {
+  return (
+    <>
+      <TelegramPanel channel={channel} />
+      <EmailPanel channel={channel} />
+    </>
+  );
+}
+
+function TelegramPanel({ channel }: { channel: NotificationChannel }) {
   const router = useRouter();
   const sendTest = useServerFn(sendTelegramTestFn);
   const sendDigest = useServerFn(sendTelegramDigestFn);
@@ -308,83 +313,256 @@ function NotificationsTab({ channel }: { channel: NotificationChannel }) {
   }
 
   return (
-    <>
-      <Panel title="Telegram">
-        <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-          Message <span className="text-foreground">@BotFather</span> on Telegram, create a bot, and
-          paste the token below. Message your new bot once so it can resolve your chat id, then
-          paste that in too. One daily digest, nothing sends when there is nothing to say.
-        </p>
-        <div className="grid grid-cols-2 gap-4">
-          <label className="block">
-            <span className="text-xs text-muted-foreground">Bot token</span>
-            <input
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="123456:ABC-DEF..."
-              className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs text-muted-foreground">Chat id</span>
-            <input
-              value={chatId}
-              onChange={(e) => setChatId(e.target.value)}
-              placeholder="123456789"
-              className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
-            />
-          </label>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
-          <div>
-            <p className="text-sm text-foreground">Daily digest</p>
-            <p className="text-xs text-muted-foreground">
-              {channel.last_digest_sent_at
-                ? `Last sent ${new Date(channel.last_digest_sent_at).toLocaleString()}`
-                : "Never sent yet"}
-            </p>
-          </div>
-          <Switch
-            checked={enabled}
-            disabled={busy !== null}
-            aria-label="Enable Telegram digest"
-            onCheckedChange={(next) => void save({ enabled: next })}
+    <Panel title="Telegram">
+      <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+        Message <span className="text-foreground">@BotFather</span> on Telegram, create a bot, and
+        paste the token below. Message your new bot once so it can resolve your chat id, then paste
+        that in too. One daily digest, nothing sends when there is nothing to say.
+      </p>
+      <div className="grid grid-cols-2 gap-4">
+        <label className="block">
+          <span className="text-xs text-muted-foreground">Bot token</span>
+          <input
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="123456:ABC-DEF..."
+            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
           />
-        </div>
+        </label>
+        <label className="block">
+          <span className="text-xs text-muted-foreground">Chat id</span>
+          <input
+            value={chatId}
+            onChange={(e) => setChatId(e.target.value)}
+            placeholder="123456789"
+            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+          />
+        </label>
+      </div>
 
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={() => void test()}
-            disabled={busy !== null}
-            className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-          >
-            {busy === "test" ? "Sending…" : "Send test message"}
-          </button>
-          <button
-            onClick={() => void save({})}
-            disabled={busy !== null}
-            className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-          >
-            {busy === "save" ? "Saving…" : "Save"}
-          </button>
-          <button
-            onClick={() => void digestNow()}
-            disabled={busy !== null || !enabled}
-            className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-          >
-            {busy === "digest" ? "Sending…" : "Send digest now"}
-          </button>
+      <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
+        <div>
+          <p className="text-sm text-foreground">Daily digest</p>
+          <p className="text-xs text-muted-foreground">
+            {channel.last_digest_sent_at
+              ? `Last sent ${new Date(channel.last_digest_sent_at).toLocaleString()}`
+              : "Never sent yet"}
+          </p>
         </div>
-      </Panel>
+        <Switch
+          checked={enabled}
+          disabled={busy !== null}
+          aria-label="Enable Telegram digest"
+          onCheckedChange={(next) => void save({ enabled: next })}
+        />
+      </div>
 
-      <Panel title="Email reports">
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Not built yet — a monthly rollup by email is next up after Telegram. See{" "}
-          <span className="text-foreground">docs/plans/P3-3-notifications.md</span>.
-        </p>
-      </Panel>
-    </>
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={() => void test()}
+          disabled={busy !== null}
+          className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          {busy === "test" ? "Sending…" : "Send test message"}
+        </button>
+        <button
+          onClick={() => void save({})}
+          disabled={busy !== null}
+          className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          {busy === "save" ? "Saving…" : "Save"}
+        </button>
+        <button
+          onClick={() => void digestNow()}
+          disabled={busy !== null || !enabled}
+          className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          {busy === "digest" ? "Sending…" : "Send digest now"}
+        </button>
+      </div>
+    </Panel>
+  );
+}
+
+function EmailPanel({ channel }: { channel: NotificationChannel }) {
+  const router = useRouter();
+  const sendTest = useServerFn(sendEmailTestFn);
+  const sendReport = useServerFn(sendMonthlyEmailFn);
+
+  const [host, setHost] = useState(channel.smtp_host ?? "");
+  const [port, setPort] = useState(channel.smtp_port ?? 587);
+  const [user, setUser] = useState(channel.smtp_user ?? "");
+  const [pass, setPass] = useState(channel.smtp_pass ?? "");
+  const [from, setFrom] = useState(channel.smtp_from ?? "");
+  const [enabled, setEnabled] = useState(channel.email_enabled);
+  const [busy, setBusy] = useState<"save" | "test" | "report" | null>(null);
+
+  async function save(next: { enabled?: boolean } = {}) {
+    const nextEnabled = next.enabled ?? enabled;
+    setBusy("save");
+    try {
+      await saveNotificationChannel({
+        // Keep telegram settings unchanged
+        telegram_bot_token: channel.telegram_bot_token,
+        telegram_chat_id: channel.telegram_chat_id,
+        telegram_enabled: channel.telegram_enabled,
+        // Email settings
+        email_enabled: nextEnabled,
+        smtp_host: host || null,
+        smtp_port: port || null,
+        smtp_user: user || null,
+        smtp_pass: pass || null,
+        smtp_from: from || null,
+      });
+      setEnabled(nextEnabled);
+      toast.success("Email settings saved");
+      await router.invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save email settings");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function test() {
+    if (!host.trim() || !pass.trim() || !from.trim()) {
+      toast.error("Fill in host, API key/password, and from address first");
+      return;
+    }
+    setBusy("test");
+    try {
+      await sendTest({
+        data: {
+          smtp_host: host.trim(),
+          smtp_port: port,
+          smtp_user: user.trim(),
+          smtp_pass: pass.trim(),
+          smtp_from: from.trim(),
+        },
+      });
+      toast.success("Test email sent — check your inbox");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send test email");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function reportNow() {
+    setBusy("report");
+    try {
+      const result = await sendReport();
+      toast.success(
+        result.sent ? "Monthly report sent — check your inbox" : result.reason || "Nothing to send"
+      );
+      await router.invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send the report");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Panel title="Email reports">
+      <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+        Monthly financial summaries delivered to your inbox. Uses HTTP-based email providers —
+        supported: <span className="text-foreground">smtp.resend.com</span> (Resend),{" "}
+        <span className="text-foreground">mail.smtp2go.com</span> (SMTP2GO).
+      </p>
+
+      <div className="grid grid-cols-2 gap-4">
+        <label className="block">
+          <span className="text-xs text-muted-foreground">Provider host</span>
+          <input
+            value={host}
+            onChange={(e) => setHost(e.target.value)}
+            placeholder="smtp.resend.com"
+            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs text-muted-foreground">Port (optional)</span>
+          <input
+            type="number"
+            value={port}
+            onChange={(e) => setPort(Number(e.target.value) || 587)}
+            placeholder="587"
+            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs text-muted-foreground">Username (optional)</span>
+          <input
+            value={user}
+            onChange={(e) => setUser(e.target.value)}
+            placeholder="resend"
+            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs text-muted-foreground">API key / Password</span>
+          <input
+            type="password"
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            placeholder="re_xxxxx..."
+            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+          />
+        </label>
+        <label className="col-span-2 block">
+          <span className="text-xs text-muted-foreground">From address</span>
+          <input
+            type="email"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            placeholder="reports@yourdomain.com"
+            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
+        <div>
+          <p className="text-sm text-foreground">Monthly report</p>
+          <p className="text-xs text-muted-foreground">
+            {channel.last_email_sent_at
+              ? `Last sent ${new Date(channel.last_email_sent_at).toLocaleString()}`
+              : "Never sent yet"}
+          </p>
+        </div>
+        <Switch
+          checked={enabled}
+          disabled={busy !== null}
+          aria-label="Enable email reports"
+          onCheckedChange={(next) => void save({ enabled: next })}
+        />
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={() => void test()}
+          disabled={busy !== null}
+          className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          {busy === "test" ? "Sending…" : "Send test email"}
+        </button>
+        <button
+          onClick={() => void save()}
+          disabled={busy !== null}
+          className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          {busy === "save" ? "Saving…" : "Save"}
+        </button>
+        <button
+          onClick={() => void reportNow()}
+          disabled={busy !== null || !enabled}
+          className="rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          {busy === "report" ? "Sending…" : "Send report now"}
+        </button>
+      </div>
+    </Panel>
   );
 }
 
@@ -587,9 +765,8 @@ function Toggle({
         className={`h-6 w-11 rounded-full p-0.5 transition-colors ${value ? "bg-primary" : "bg-muted"}`}
       >
         <span
-          className={`block h-5 w-5 rounded-full bg-card shadow transition-transform duration-300 ${
-            value ? "translate-x-5" : "translate-x-0"
-          }`}
+          className={`block h-5 w-5 rounded-full bg-card shadow transition-transform duration-300 ${value ? "translate-x-5" : "translate-x-0"
+            }`}
         />
       </button>
     </div>
@@ -615,11 +792,10 @@ function Choice({
           <button
             key={o}
             onClick={() => onChange(o)}
-            className={`rounded-md px-3 py-1 text-xs capitalize transition-colors ${
-              value === o
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={`rounded-md px-3 py-1 text-xs capitalize transition-colors ${value === o
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
           >
             {o}
           </button>

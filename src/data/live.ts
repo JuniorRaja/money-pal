@@ -226,17 +226,25 @@ const NO_NOTIFICATION_CHANNEL: NotificationChannel = {
   telegram_chat_id: null,
   telegram_enabled: false,
   last_digest_sent_at: null,
+  email_enabled: false,
+  smtp_host: null,
+  smtp_port: null,
+  smtp_user: null,
+  smtp_pass: null,
+  smtp_from: null,
+  last_email_sent_at: null,
 };
 
 export const liveNotificationChannel = (): Promise<NotificationChannel> =>
   live<NotificationChannel>(async (supabase) => {
     const { data, error } = await supabase
       .from("notification_channels")
-      .select("telegram_bot_token, telegram_chat_id, telegram_enabled, last_digest_sent_at")
+      .select("telegram_bot_token, telegram_chat_id, telegram_enabled, last_digest_sent_at, email_enabled, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, last_email_sent_at")
       .is("deleted_at", null)
       .maybeSingle();
     if (error) throw error;
-    return data ?? NO_NOTIFICATION_CHANNEL;
+    // Merge with defaults for any missing fields (handles migration transition)
+    return data ? { ...NO_NOTIFICATION_CHANNEL, ...data } : NO_NOTIFICATION_CHANNEL;
   }, NO_NOTIFICATION_CHANNEL);
 
 export const liveLabels = (): Promise<Label[]> =>
@@ -316,7 +324,7 @@ export const liveTransactions = (): Promise<Transaction[]> =>
       const counterparty =
         row.type === "transfer"
           ? ((siblings.find((s) => s.entry_id !== row.entry_id)?.account_id as
-              string | undefined) ?? null)
+            string | undefined) ?? null)
           : null;
       return {
         id: row.entry_id as string,

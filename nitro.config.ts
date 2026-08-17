@@ -23,12 +23,25 @@ export default defineConfig({
       handler: fileURLToPath(new URL("./tasks/prices.ts", import.meta.url)),
       description: "P3-4 daily market price refresh",
     },
+    "telegram:digest": {
+      handler: fileURLToPath(new URL("./tasks/telegram-digest.ts", import.meta.url)),
+      description: "P3-3 daily Telegram digest",
+    },
+    "email:report": {
+      handler: fileURLToPath(new URL("./tasks/email-report.ts", import.meta.url)),
+      description: "P3-3 monthly email report",
+    },
   },
 
-  // 19:00 UTC = 00:30 IST — after NSE close and after AMFI publishes NAVs
-  // (~23:00 IST). Nitro turns this into a Cloudflare Cron Trigger in the
-  // generated wrangler config at build time; no manual wrangler setup.
-  scheduledTasks: { "0 19 * * *": "prices:refresh" },
+  // Cron schedules (Cloudflare Cron Triggers, generated at build time):
+  // - 19:00 UTC = 00:30 IST — prices after NSE close and AMFI NAV publish
+  // - 02:00 UTC = 07:30 IST — morning Telegram digest
+  // - 06:00 UTC on 1st = 11:30 IST — monthly email report (reports previous month)
+  scheduledTasks: {
+    "0 19 * * *": "prices:refresh",
+    "0 2 * * *": "telegram:digest",
+    "0 6 1 * *": "email:report",
+  },
   cloudflare: {
     deployConfig: true,
     wrangler: {
