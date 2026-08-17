@@ -43,6 +43,23 @@ aggregates — never raw transaction rows.
 Apply `supabase/migrations/` in filename order to your project. Budget, goal, and category progress
 are served from SQL views, not stored columns.
 
+### User signup (invite-only)
+
+Signup is invite-only by default. Before someone can create an account, add their email to the allowlist:
+
+```sql
+INSERT INTO public.allowed_emails (email, note) 
+VALUES ('friend@example.com', 'Invited by admin');
+```
+
+Run this in the Supabase SQL Editor (or via `psql`). The user can then sign up and will receive an email confirmation link.
+
+To disable invite-only and allow open signups (email confirmation still required):
+
+```sql
+DROP TRIGGER IF EXISTS on_auth_user_check_allowlist ON auth.users;
+```
+
 ## Deploy
 
 `.github/workflows/deploy.yml` pushes migrations, builds, and deploys to Cloudflare Workers on every

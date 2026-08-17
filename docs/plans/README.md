@@ -33,13 +33,12 @@ and "no data" look identical. That is the bug class that hides other bugs.
 - [P2-4](P2-4-deploy.md) — Hosting-agnostic build and deploy
 
 ### Phase 3 — daily-use layer
-- [P3-3](P3-3-notifications.md) — Telegram notifications + monthly email report
+- [P3-5](P3-5-period-comparison-stats.md) — Period comparison statistics (real delta percentages for StatCards)
 
 ### Phase 4 — let people in
-- [P4-1](P4-1-multi-user-hardening.md) — Multi-user hardening (before any invite)
+- [P4-1](P4-1-multi-user-hardening.md) — Multi-user hardening (invite-only signup, server-side guards, RLS tests) ✅
 - [P4-2](P4-2-gmail-inbound.md) — Gmail via inbound webhook
 - [P4-3](P4-3-self-host.md) — Self-host path (fork → actions → live)
-- [P4-4](P4-4-docs-page.md) — User docs page with screenshots
 
 ### Phase 5 — ongoing
 - [P5-0](P5-0-ai-roadmap.md) — **AI roadmap**: staged plan, gates, and what never gets built
