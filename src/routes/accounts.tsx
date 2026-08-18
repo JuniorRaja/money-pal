@@ -20,7 +20,7 @@ import { EditAccountDialog } from "@/components/edit-account-dialog";
 import { ManageCyclesDialog } from "@/components/manage-cycles-dialog";
 import { ManageSlicesDialog } from "@/components/manage-slices-dialog";
 import { MaskedText } from "@/components/masked-text";
-import { Panel, Ring, SliceBar, Sparkline, StatCard } from "@/components/mm-ui";
+import { EmptyState, Panel, Ring, SliceBar, Sparkline, StatCard } from "@/components/mm-ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -149,6 +149,9 @@ function AccountsPage() {
         title="Cash & Bank Accounts"
         count={banks.length}
         icon={<Landmark className="h-4 w-4 text-primary" />}
+        emptyIcon={<Landmark className="h-5 w-5" />}
+        emptyTitle="No bank accounts yet."
+        emptyDescription="Add your savings or checking accounts to track your available cash."
       >
         {banks.map((a) => (
           <div
@@ -194,6 +197,9 @@ function AccountsPage() {
         title="Credit Cards"
         count={cards.length}
         icon={<CreditCard className="h-4 w-4 text-primary" />}
+        emptyIcon={<CreditCard className="h-5 w-5" />}
+        emptyTitle="No credit cards yet."
+        emptyDescription="Add your cards to track utilisation, due dates, and billing cycles."
       >
         {cards.map((a) => {
           const used = a.used_amount ?? Math.abs(a.balance);
@@ -274,6 +280,9 @@ function AccountsPage() {
         title="Investments"
         count={investments.length}
         icon={<TrendingUp className="h-4 w-4 text-primary" />}
+        emptyIcon={<TrendingUp className="h-5 w-5" />}
+        emptyTitle="No investment accounts yet."
+        emptyDescription="Add your demat, mutual fund, or brokerage accounts."
       >
         {investments.map((a) => (
           <div
@@ -302,6 +311,9 @@ function AccountsPage() {
         title="Loans"
         count={loans.length}
         icon={<Landmark className="h-4 w-4 text-primary" />}
+        emptyIcon={<Landmark className="h-5 w-5" />}
+        emptyTitle="No loans yet."
+        emptyDescription="Add home loans, car loans, or personal loans to track payoff progress."
       >
         {loans.map((a) => (
           <div
@@ -438,13 +450,20 @@ function Group({
   title,
   count,
   icon,
+  emptyIcon,
+  emptyTitle,
+  emptyDescription,
   children,
 }: {
   title: string;
   count: number;
   icon: React.ReactNode;
+  emptyIcon?: React.ReactNode;
+  emptyTitle?: string;
+  emptyDescription?: string;
   children: React.ReactNode;
 }) {
+  const isEmpty = count === 0;
   return (
     <Panel
       className="mt-6"
@@ -458,7 +477,16 @@ function Group({
       }
       action={<span className="text-xs text-muted-foreground">{count} accounts</span>}
     >
-      <div className="grid grid-cols-4 gap-5">{children}</div>
+      {isEmpty ? (
+        <EmptyState
+          icon={emptyIcon}
+          title={emptyTitle || `No ${title.toLowerCase()} yet.`}
+          description={emptyDescription || "Add an account to start tracking."}
+          compact
+        />
+      ) : (
+        <div className="grid grid-cols-4 gap-5">{children}</div>
+      )}
     </Panel>
   );
 }

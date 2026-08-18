@@ -4,7 +4,6 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "predev": "supabase start",
     "dev": "vite dev",
     "db:reset": "supabase db reset",
     "build": "vite build",

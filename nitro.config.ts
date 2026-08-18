@@ -7,7 +7,8 @@ import { defineConfig } from "nitro";
 // The preset itself is pinned via NITRO_PRESET=cloudflare_module in CI.
 export default defineConfig({
   // Minimum required for Workers Static Assets (serves the client bundle).
-  compatibilityDate: "2024-09-19",
+  // Updated to 2025-04-01 so process.env is auto-populated from Cloudflare vars/secrets.
+  compatibilityDate: "2025-04-01",
 
   // Tasks are still experimental in Nitro 3 — this flag is what registers them.
   experimental: { tasks: true },

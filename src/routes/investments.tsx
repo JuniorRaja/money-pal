@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@/lib/auth-guard";
+import { Briefcase } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { AppShell } from "@/components/app-shell";
-import { Panel, Sparkline, StatCard } from "@/components/mm-ui";
+import { EmptyState, Panel, Sparkline, StatCard, TableEmptyState } from "@/components/mm-ui";
 import { TODAY, getHoldings } from "@/data/repository";
 import type { Holding, HoldingClass } from "@/data/schema";
 import { formatDay, formatMoney, formatPct } from "@/lib/money";
@@ -122,93 +123,112 @@ function InvestmentsPage() {
               </tr>
             </thead>
             <tbody>
-              {holdings.map((h) => (
-                <tr
-                  key={h.id}
-                  className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40"
-                >
-                  <td className="px-5 py-3 text-foreground">{h.name}</td>
-                  <td className="px-2 py-3 text-xs text-muted-foreground">
-                    {classLabel[h.asset_class]}
-                  </td>
-                  <td className="numeric px-2 py-3 text-right text-muted-foreground">{h.units}</td>
-                  <td className="numeric px-2 py-3 text-right text-muted-foreground">
-                    {formatMoney(h.invested, { whole: true })}
-                  </td>
-                  <td className="px-2 py-3 text-right">
-                    <span className="numeric text-foreground">
-                      {formatMoney(h.current_value, { whole: true })}
-                    </span>
-                    {/* The valuation date always shows. A price with no date beside
-                        it reads as current even when the feed died a week ago. */}
-                    <span
-                      className={`block text-[11px] ${isStale(h) ? "text-warning" : "text-muted-foreground"}`}
-                    >
-                      {h.priced_at ? `as of ${formatDay(h.priced_at)}` : "never valued"}
-                    </span>
-                  </td>
-                  <td
-                    className={`numeric px-5 py-3 text-right ${h.day_change_pct === 0
-                      ? "text-muted-foreground"
-                      : h.day_change_pct > 0
-                        ? "text-success"
-                        : "text-destructive"
-                      }`}
+              {holdings.length === 0 ? (
+                <TableEmptyState
+                  colSpan={6}
+                  icon={<Briefcase className="h-5 w-5" />}
+                  title="No holdings yet."
+                  description="Add your stocks, mutual funds, or other investments to track your portfolio."
+                />
+              ) : (
+                holdings.map((h) => (
+                  <tr
+                    key={h.id}
+                    className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40"
                   >
-                    {/* No previous close stored yet — an em dash, not a green 0.0%. */}
-                    {h.prev_price > 0 ? formatPct(h.day_change_pct) : "—"}
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-5 py-3 text-foreground">{h.name}</td>
+                    <td className="px-2 py-3 text-xs text-muted-foreground">
+                      {classLabel[h.asset_class]}
+                    </td>
+                    <td className="numeric px-2 py-3 text-right text-muted-foreground">{h.units}</td>
+                    <td className="numeric px-2 py-3 text-right text-muted-foreground">
+                      {formatMoney(h.invested, { whole: true })}
+                    </td>
+                    <td className="px-2 py-3 text-right">
+                      <span className="numeric text-foreground">
+                        {formatMoney(h.current_value, { whole: true })}
+                      </span>
+                      {/* The valuation date always shows. A price with no date beside
+                          it reads as current even when the feed died a week ago. */}
+                      <span
+                        className={`block text-[11px] ${isStale(h) ? "text-warning" : "text-muted-foreground"}`}
+                      >
+                        {h.priced_at ? `as of ${formatDay(h.priced_at)}` : "never valued"}
+                      </span>
+                    </td>
+                    <td
+                      className={`numeric px-5 py-3 text-right ${h.day_change_pct === 0
+                        ? "text-muted-foreground"
+                        : h.day_change_pct > 0
+                          ? "text-success"
+                          : "text-destructive"
+                        }`}
+                    >
+                      {/* No previous close stored yet — an em dash, not a green 0.0%. */}
+                      {h.prev_price > 0 ? formatPct(h.day_change_pct) : "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </Panel>
 
         <div className="col-span-4 space-y-5">
           <Panel title="Allocation">
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pie}
-                    dataKey="value"
-                    innerRadius={54}
-                    outerRadius={88}
-                    paddingAngle={2}
-                    stroke="none"
-                  >
-                    {pie.map((_, i) => (
-                      <Cell key={i} fill={slices[i % slices.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--color-card)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 12,
-                      fontSize: 12,
-                    }}
-                    formatter={(v: number | string) => `\u20B9${Number(v).toLocaleString("en-IN")}`}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <ul className="mt-3 space-y-2 text-xs">
-              {pie.map((p, i) => (
-                <li key={p.name} className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ background: slices[i % slices.length] }}
-                    />
-                    {p.name}
-                  </span>
-                  <span className="numeric text-foreground">
-                    {Math.round((p.value / (current / 100)) * 100)}%
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {pie.length === 0 ? (
+              <EmptyState
+                title="No allocation data."
+                description="Add holdings to see your portfolio allocation breakdown."
+                compact
+              />
+            ) : (
+              <>
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pie}
+                        dataKey="value"
+                        innerRadius={54}
+                        outerRadius={88}
+                        paddingAngle={2}
+                        stroke="none"
+                      >
+                        {pie.map((_, i) => (
+                          <Cell key={i} fill={slices[i % slices.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--color-card)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: 12,
+                          fontSize: 12,
+                        }}
+                        formatter={(v: number | string) => `\u20B9${Number(v).toLocaleString("en-IN")}`}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <ul className="mt-3 space-y-2 text-xs">
+                  {pie.map((p, i) => (
+                    <li key={p.name} className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ background: slices[i % slices.length] }}
+                        />
+                        {p.name}
+                      </span>
+                      <span className="numeric text-foreground">
+                        {Math.round((p.value / (current / 100)) * 100)}%
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </Panel>
           <Panel title="Portfolio trend">
             <Sparkline

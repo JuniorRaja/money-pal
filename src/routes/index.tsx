@@ -5,6 +5,7 @@ import {
   CalendarClock,
   Landmark,
   PiggyBank,
+  Receipt,
   Sparkles,
   TrendingUp,
   Wallet,
@@ -21,7 +22,7 @@ import {
 
 import { AppShell } from "@/components/app-shell";
 import { MaskedText } from "@/components/masked-text";
-import { Bar, Panel, Ring, StatCard } from "@/components/mm-ui";
+import { Bar, EmptyState, Panel, Ring, StatCard, TableEmptyState } from "@/components/mm-ui";
 import {
   getAccounts,
   getBudgets,
@@ -344,28 +345,41 @@ function OverviewPage() {
           className="col-span-4"
           title="Goals in motion"
           action={
-            <Link to="/goals" className="text-xs text-primary">
-              View all
-            </Link>
+            goals.length > 0 ? (
+              <Link to="/goals" className="text-xs text-primary">
+                View all
+              </Link>
+            ) : undefined
           }
         >
-          <ul className="space-y-4">
-            {goals.slice(0, 3).map((g) => {
-              const pct = g.target === 0 ? 0 : (g.saved / g.target) * 100;
-              return (
-                <li key={g.id} className="flex items-center gap-4">
-                  <Ring value={pct} label={`${Math.round(pct)}%`} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-foreground">{g.name}</p>
-                    <p className="numeric text-xs text-muted-foreground">
-                      {formatCompact(g.saved)} of {formatCompact(g.target)}
-                    </p>
-                  </div>
-                  <PiggyBank className="h-4 w-4 text-muted-foreground" />
-                </li>
-              );
-            })}
-          </ul>
+          {goals.length === 0 ? (
+            <EmptyState
+              icon={<PiggyBank className="h-5 w-5" />}
+              title="No savings goals yet."
+              description="Set a target, add a deadline, and watch your progress grow."
+              linkTo="/goals"
+              linkLabel="Create your first goal"
+              compact
+            />
+          ) : (
+            <ul className="space-y-4">
+              {goals.slice(0, 3).map((g) => {
+                const pct = g.target === 0 ? 0 : (g.saved / g.target) * 100;
+                return (
+                  <li key={g.id} className="flex items-center gap-4">
+                    <Ring value={pct} label={`${Math.round(pct)}%`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-foreground">{g.name}</p>
+                      <p className="numeric text-xs text-muted-foreground">
+                        {formatCompact(g.saved)} of {formatCompact(g.target)}
+                      </p>
+                    </div>
+                    <PiggyBank className="h-4 w-4 text-muted-foreground" />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </Panel>
 
         <div className="col-span-4 grid gap-5">
@@ -428,36 +442,47 @@ function OverviewPage() {
           className="col-span-8"
           title="Recent activity"
           action={
-            <Link to="/transactions" className="text-xs text-primary">
-              All transactions
-            </Link>
+            transactions.length > 0 ? (
+              <Link to="/transactions" className="text-xs text-primary">
+                All transactions
+              </Link>
+            ) : undefined
           }
           bodyClassName="p-0"
         >
           <table className="w-full text-sm">
             <tbody>
-              {transactions.slice(0, 7).map((t) => (
-                <tr
-                  key={t.id}
-                  className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40"
-                >
-                  <td className="px-5 py-3 text-xs text-muted-foreground">
-                    {formatDay(t.occurred_at)}
-                  </td>
-                  <td className="px-2 py-3">
-                    <p className="text-foreground">{t.merchant}</p>
-                    <p className="text-xs text-muted-foreground">{t.descriptor}</p>
-                  </td>
-                  <td className="px-2 py-3 text-xs text-muted-foreground">
-                    {categories.find((c) => c.id === t.category_id)?.name}
-                  </td>
-                  <td
-                    className={`numeric px-5 py-3 text-right ${t.amount > 0 ? "text-success" : "text-destructive"}`}
+              {transactions.length === 0 ? (
+                <TableEmptyState
+                  colSpan={4}
+                  icon={<Receipt className="h-5 w-5" />}
+                  title="No transactions yet."
+                  description="Import a statement or add your first transaction to see activity here."
+                />
+              ) : (
+                transactions.slice(0, 7).map((t) => (
+                  <tr
+                    key={t.id}
+                    className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40"
                   >
-                    {formatMoney(t.amount, { sign: true })}
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-5 py-3 text-xs text-muted-foreground">
+                      {formatDay(t.occurred_at)}
+                    </td>
+                    <td className="px-2 py-3">
+                      <p className="text-foreground">{t.merchant}</p>
+                      <p className="text-xs text-muted-foreground">{t.descriptor}</p>
+                    </td>
+                    <td className="px-2 py-3 text-xs text-muted-foreground">
+                      {categories.find((c) => c.id === t.category_id)?.name}
+                    </td>
+                    <td
+                      className={`numeric px-5 py-3 text-right ${t.amount > 0 ? "text-success" : "text-destructive"}`}
+                    >
+                      {formatMoney(t.amount, { sign: true })}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </Panel>
@@ -514,9 +539,8 @@ function Row({
       <span className="flex items-baseline gap-2">
         {delta != null && (
           <span
-            className={`numeric text-xs ${
-              delta === 0 ? "text-muted-foreground" : good ? "text-success" : "text-destructive"
-            }`}
+            className={`numeric text-xs ${delta === 0 ? "text-muted-foreground" : good ? "text-success" : "text-destructive"
+              }`}
           >
             {formatPct(delta)}
           </span>

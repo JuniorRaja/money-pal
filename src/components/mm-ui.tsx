@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 
 import { MaskedText } from "@/components/masked-text";
 import { cn } from "@/lib/utils";
@@ -325,5 +326,147 @@ export function SliceBar({
         </li>
       </ul>
     </div>
+  );
+}
+
+
+/**
+ * Empty state component for showing when there's no data.
+ * Provides consistent styling across the app with optional icon, action, and link.
+ */
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+  actionLabel,
+  linkTo,
+  linkLabel,
+  compact = false,
+  className,
+}: {
+  /** Icon to display above the title */
+  icon?: ReactNode;
+  /** Main title text */
+  title: string;
+  /** Supporting description text */
+  description?: string;
+  /** Callback for the primary action button */
+  action?: () => void;
+  /** Label for the action button */
+  actionLabel?: string;
+  /** Route path for a link action */
+  linkTo?: string;
+  /** Label for the link */
+  linkLabel?: string;
+  /** Use compact sizing (less padding) */
+  compact?: boolean;
+  /** Additional CSS classes */
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center text-center",
+        compact ? "py-8" : "py-12",
+        className,
+      )}
+    >
+      {icon && (
+        <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+          {icon}
+        </span>
+      )}
+      <p className="text-sm text-foreground">{title}</p>
+      {description && (
+        <p className="mt-1 max-w-xs text-xs text-muted-foreground">{description}</p>
+      )}
+      {action && actionLabel && (
+        <button
+          type="button"
+          onClick={action}
+          className="mt-4 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition-transform hover:scale-[1.02]"
+        >
+          {actionLabel}
+        </button>
+      )}
+      {linkTo && linkLabel && (
+        <Link
+          to={linkTo}
+          className="mt-4 rounded-lg border border-border px-4 py-2 text-xs text-primary transition-colors hover:bg-accent"
+        >
+          {linkLabel}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Empty state specifically designed for table bodies.
+ * Renders as a table row spanning all columns.
+ */
+export function TableEmptyState({
+  colSpan,
+  icon,
+  title,
+  description,
+}: {
+  /** Number of columns to span */
+  colSpan: number;
+  /** Icon to display */
+  icon?: ReactNode;
+  /** Main title text */
+  title: string;
+  /** Supporting description text */
+  description?: string;
+}) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-5 py-16 text-center">
+        {icon && (
+          <span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+            {icon}
+          </span>
+        )}
+        <p className="text-sm text-foreground">{title}</p>
+        {description && (
+          <p className="mx-auto mt-1 max-w-xs text-xs text-muted-foreground">{description}</p>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * Empty state card with dashed border, typically used for "Add new" actions.
+ */
+export function EmptyStateCard({
+  icon,
+  label,
+  onClick,
+  className,
+}: {
+  /** Icon to display */
+  icon?: ReactNode;
+  /** Label text */
+  label: string;
+  /** Click handler */
+  onClick?: () => void;
+  /** Additional CSS classes */
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex min-h-[150px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground",
+        className,
+      )}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
