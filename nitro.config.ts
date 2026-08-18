@@ -54,6 +54,21 @@ export default defineConfig({
         SUPABASE_PUBLISHABLE_KEY: process.env["SUPABASE_PUBLISHABLE_KEY"] ?? "",
         SUPABASE_PROJECT_ID: process.env["SUPABASE_PROJECT_ID"] ?? "",
       },
+      observability: {
+        enabled: false,
+        head_sampling_rate: 1,
+        logs: {
+          enabled: true,
+          head_sampling_rate: 1,
+          persist: true,
+          invocation_logs: true
+        },
+        traces: {
+          enabled: false,
+          persist: true,
+          head_sampling_rate: 1
+        }
+      }
     },
   },
 });
