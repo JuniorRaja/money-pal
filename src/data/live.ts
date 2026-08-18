@@ -50,6 +50,7 @@ import {
   type MatchableTransaction,
 } from "@/lib/import/near-duplicate";
 import { dayKey } from "@/lib/money";
+import { periodBounds } from "@/lib/period";
 
 /** Browser singleton in the browser; a fresh request-scoped client on the server. */
 async function getSupabase(): Promise<SupabaseClient<Database>> {
@@ -299,13 +300,20 @@ export const liveAllocations = (): Promise<AccountAllocation[]> =>
     }));
   }, []);
 
-export const liveTransactions = (): Promise<Transaction[]> =>
+export const liveTransactions = (period?: string): Promise<Transaction[]> =>
   live<Transaction[]>(async (supabase) => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("v_transactions_flat")
       .select("*")
       .order("occurred_at", { ascending: false })
       .limit(500);
+    // Server-side month filter: a scoped read returns one month (well under the
+    // 500 cap), so old months stay visible instead of being truncated away.
+    if (period) {
+      const { start, end } = periodBounds(period);
+      query = query.gte("occurred_at", start).lt("occurred_at", end);
+    }
+    const { data, error } = await query;
     if (error) throw error;
     const rows = data ?? [];
 

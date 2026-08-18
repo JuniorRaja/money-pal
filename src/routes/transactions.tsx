@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { requireAuth } from "@/lib/auth-guard";
 import {
   CircleDot,
@@ -58,14 +58,19 @@ import {
 import { deleteTransaction, updateTransaction } from "@/data/mutations";
 import type { Account, Category, Label, Transaction, TransactionType } from "@/data/schema";
 import { dayKey, formatDay, formatMoney, formatTime, relativeDayLabel } from "@/lib/money";
+import { shiftPeriod } from "@/lib/period";
 
-type TransactionsSearch = { q?: string };
+type TransactionsSearch = { q?: string; period?: string };
 
 export const Route = createFileRoute("/transactions")({
   // `q` is how the command palette hands free text to this page's search box.
+  // `period` ("YYYY-MM" or the "all" sentinel) scopes the loader's fetch to one
+  // month; absent = current month.
   validateSearch: (search: Record<string, unknown>): TransactionsSearch => {
     const q = typeof search["q"] === "string" ? search["q"].trim() : "";
-    return q ? { q } : {};
+    const p = typeof search["period"] === "string" ? search["period"] : "";
+    const period = /^\d{4}-\d{2}$/.test(p) || p === "all" ? p : undefined;
+    return { ...(q ? { q } : {}), ...(period ? { period } : {}) };
   },
   head: () => ({
     meta: [
@@ -80,9 +85,13 @@ export const Route = createFileRoute("/transactions")({
     ],
   }),
   beforeLoad: requireAuth,
-  loader: async () => {
+  loaderDeps: ({ search }) => ({ period: search.period, q: search.q }),
+  loader: async ({ deps }) => {
+    // Scope the DB fetch to the selected month (default: current). Search and
+    // the "all" sentinel need every month, so they fetch unscoped.
+    const period = deps.q || deps.period === "all" ? undefined : (deps.period ?? CURRENT_PERIOD);
     const [transactions, accounts, categories, labels] = await Promise.all([
-      listTransactions(),
+      listTransactions({ period }),
       getAccounts(),
       getCategories(),
       getLabels(),
@@ -100,8 +109,11 @@ function TransactionsPage() {
     categories: Category[];
     labels: Label[];
   };
-  const { q } = Route.useSearch();
-  const [filter, setFilter] = useState<TransactionFilter>({ period: CURRENT_PERIOD });
+  const navigate = useNavigate({ from: "/transactions" });
+  const { q, period } = Route.useSearch();
+  // Period is URL-driven and scopes the fetch; `filter` holds the client-side
+  // refinements applied to whatever month the loader returned.
+  const [filter, setFilter] = useState<TransactionFilter>({});
   const [sliceNameFilter, setSliceNameFilter] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -179,12 +191,16 @@ function TransactionsPage() {
             className="h-9 w-[300px] rounded-lg border border-border bg-card px-3 text-sm outline-none transition-colors focus:border-primary/60"
           />
           <Select
-            value={filter.period ?? ""}
-            onChange={(v) => setFilter({ ...filter, period: v || undefined })}
+            value={period ?? CURRENT_PERIOD}
+            onChange={(v) =>
+              navigate({
+                search: { ...(q ? { q } : {}), ...(v === CURRENT_PERIOD ? {} : { period: v }) },
+              })
+            }
             options={[
               { value: CURRENT_PERIOD, label: "Date: This Month" },
-              { value: "2026-07", label: "Date: Last Month" },
-              { value: "", label: "Date: All time" },
+              { value: shiftPeriod(CURRENT_PERIOD, -1), label: "Date: Last Month" },
+              { value: "all", label: "Date: All time" },
             ]}
           />
           <Select
@@ -277,8 +293,9 @@ function TransactionsPage() {
                         <tr
                           key={t.transaction_id}
                           onClick={() => setSelectedId(t.transaction_id)}
-                          className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/40 ${selectedId === t.transaction_id ? "bg-accent/50" : ""
-                            }`}
+                          className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/40 ${
+                            selectedId === t.transaction_id ? "bg-accent/50" : ""
+                          }`}
                         >
                           <td className="numeric px-5 py-3 text-xs text-muted-foreground">
                             {formatTime(t.occurred_at)}
@@ -534,8 +551,9 @@ function DetailPanel({
                   <button
                     key={l.id}
                     onClick={() => handleLabelChange(l.id)}
-                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${l.id === transaction.label_id ? "bg-accent/60 font-medium" : ""
-                      }`}
+                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                      l.id === transaction.label_id ? "bg-accent/60 font-medium" : ""
+                    }`}
                   >
                     <Dot token={l.color_token} /> {l.name}
                   </button>

@@ -147,7 +147,7 @@ export function filterTransactions(rows: Transaction[], filter: TransactionFilte
 }
 
 export const listTransactions = async (filter: TransactionFilter = {}): Promise<Transaction[]> => {
-  const rows = await liveTransactions();
+  const rows = await liveTransactions(filter.period);
   return filterTransactions(rows, filter).sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1));
 };
 

@@ -17,6 +17,18 @@ export function periodMonthDate(period: string): string {
   return `${period}-01`;
 }
 
+/**
+ * IST instant bounds `[start, end)` for a "YYYY-MM" period, for server-side
+ * `occurred_at` range queries. India is always +05:30 (no DST), so the offset
+ * is fixed. `end` is the first instant of the next month.
+ */
+export function periodBounds(period: string): { start: string; end: string } {
+  return {
+    start: `${period}-01T00:00:00+05:30`,
+    end: `${shiftPeriod(period, 1)}-01T00:00:00+05:30`,
+  };
+}
+
 /** Calendar length of a "YYYY-MM" month — day 0 of the next month. */
 export function daysInPeriod(period: string): number {
   const y = Number(period.slice(0, 4));
