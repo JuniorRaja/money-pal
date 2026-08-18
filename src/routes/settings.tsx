@@ -1,13 +1,14 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { requireAuth } from "@/lib/auth-guard";
 import { useServerFn } from "@tanstack/react-start";
-import { Trash2 } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { Panel } from "@/components/mm-ui";
-import { useSession, type AppPrefs } from "@/components/session";
+import { ACCENTS, useSession, type AppPrefs } from "@/components/session";
+import { Signature } from "@/components/signature";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +22,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import {
   saveNotificationChannel,
+  saveProfile,
   updateImportRule,
   type UpdateImportRuleInput,
 } from "@/data/mutations";
@@ -31,8 +33,22 @@ import {
   getNotificationChannel,
   getSettings,
 } from "@/data/repository";
-import type { Account, Category, ImportRule, NotificationChannel } from "@/data/schema";
-import { sendEmailTestFn, sendMonthlyEmailFn, sendTelegramDigestFn, sendTelegramTestFn } from "@/lib/notify.functions";
+import { THEME_PATTERNS } from "@/data/schema";
+import type {
+  Account,
+  Category,
+  ImportRule,
+  NotificationChannel,
+  ThemePattern,
+  UserSettings,
+} from "@/data/schema";
+import { DISPLAY_NAME_MAX } from "@/lib/mutations.functions";
+import {
+  sendEmailTestFn,
+  sendMonthlyEmailFn,
+  sendTelegramDigestFn,
+  sendTelegramTestFn,
+} from "@/lib/notify.functions";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -72,13 +88,11 @@ const tabs = [
 ] as const;
 type Tab = (typeof tabs)[number];
 
-const accents = [
-  { name: "Antique gold", token: "oklch(0.72 0.11 78)" },
-  { name: "Deep teal", token: "oklch(0.58 0.09 195)" },
-  { name: "Ink violet", token: "oklch(0.55 0.13 300)" },
-  { name: "Terracotta", token: "oklch(0.63 0.13 42)" },
-  { name: "Forest", token: "oklch(0.55 0.10 152)" },
-];
+const patternLabels: Record<ThemePattern, string> = {
+  mountain: "Mountain",
+  forest: "Forest",
+  ocean: "Ocean",
+};
 
 function SettingsPage() {
   const { settings, rules, categories, accounts, notificationChannel } = Route.useLoaderData();
@@ -93,10 +107,11 @@ function SettingsPage() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`w-full rounded-lg px-3 py-1.5 text-left text-[13px] transition-colors ${tab === t
-                ? "bg-accent font-medium text-foreground"
-                : "text-muted-foreground hover:bg-accent/60"
-                }`}
+              className={`w-full rounded-lg px-3 py-1.5 text-left text-[13px] transition-colors ${
+                tab === t
+                  ? "bg-accent font-medium text-foreground"
+                  : "text-muted-foreground hover:bg-accent/60"
+              }`}
             >
               {t}
             </button>
@@ -104,16 +119,7 @@ function SettingsPage() {
         </nav>
 
         <div className="space-y-4">
-          {tab === "Profile" && (
-            <Panel title="Profile">
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Display name" value={settings.display_name} />
-                <Field label="Email" value={settings.email} />
-                <Field label="Currency" value={settings.currency} />
-                <Field label="Week starts on" value={settings.week_starts_on} />
-              </div>
-            </Panel>
-          )}
+          {tab === "Profile" && <ProfileTab settings={settings} />}
 
           {tab === "Appearance" && (
             <>
@@ -123,16 +129,18 @@ function SettingsPage() {
                     <button
                       key={mode}
                       onClick={() => setPrefs({ theme: mode })}
-                      className={`rounded-2xl border p-4 text-left transition-colors ${prefs.theme === mode
-                        ? "border-primary bg-accent/50"
-                        : "border-border hover:bg-accent/40"
-                        }`}
+                      className={`rounded-2xl border p-4 text-left transition-colors ${
+                        prefs.theme === mode
+                          ? "border-primary bg-accent/50"
+                          : "border-border hover:bg-accent/40"
+                      }`}
                     >
                       <div
-                        className={`mb-3 h-14 rounded-xl border border-border ${mode === "light"
-                          ? "bg-[oklch(0.98_0.008_84)]"
-                          : "bg-[oklch(0.22_0.012_84)]"
-                          }`}
+                        className={`mb-3 h-14 rounded-xl border border-border ${
+                          mode === "light"
+                            ? "bg-[oklch(0.98_0.008_84)]"
+                            : "bg-[oklch(0.22_0.012_84)]"
+                        }`}
                       />
                       <p className="text-sm capitalize text-foreground">{mode} mode</p>
                       <p className="text-xs text-muted-foreground">
@@ -144,20 +152,31 @@ function SettingsPage() {
               </Panel>
               <Panel title="Accent colour">
                 <div className="flex flex-wrap gap-3">
-                  {accents.map((a) => (
+                  {ACCENTS.map((a) => (
                     <button
                       key={a.name}
                       onClick={() => setPrefs({ accent: a.name })}
-                      className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors ${prefs.accent === a.name
-                        ? "border-primary text-foreground"
-                        : "border-border text-muted-foreground"
-                        }`}
+                      aria-pressed={prefs.accent === a.name}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors ${
+                        prefs.accent === a.name
+                          ? "border-primary text-foreground"
+                          : "border-border text-muted-foreground"
+                      }`}
                     >
-                      <span className="h-4 w-4 rounded-full" style={{ background: a.token }} />
+                      <span className="h-4 w-4 rounded-full" style={{ background: a.swatch }} />
                       {a.name}
                     </button>
                   ))}
                 </div>
+              </Panel>
+              <Panel title="Background pattern">
+                <p className="mb-3 text-xs text-muted-foreground">
+                  The artwork behind every page header. Each family has its own scene per page.
+                </p>
+                <PatternPicker
+                  value={prefs.themePattern}
+                  onChange={(themePattern) => setPrefs({ themePattern })}
+                />
               </Panel>
               <Panel title="Motion & layout">
                 <Toggle
@@ -176,26 +195,16 @@ function SettingsPage() {
             </>
           )}
 
+          {/* Every control here is parked. `formatMoney` is a plain module
+              function with no route to preferences, and nothing in the app
+              computes a week boundary yet, so wiring the toggles would only
+              make them look functional. Marked rather than hidden so the
+              intent stays visible. */}
           {tab === "Formatting" && (
             <Panel title="Numbers">
-              <Choice
-                label="Number format"
-                options={["indian", "international"]}
-                value={prefs.numberFormat}
-                onChange={(v) => setPrefs({ numberFormat: v as AppPrefs["numberFormat"] })}
-              />
-              <Choice
-                label="Week starts on"
-                options={["Monday", "Sunday"]}
-                value={prefs.weekStartsOn}
-                onChange={(v) => setPrefs({ weekStartsOn: v as AppPrefs["weekStartsOn"] })}
-              />
-              <Toggle
-                label="Round to nearest rupee"
-                hint="Hides paise in lists and summaries."
-                value={prefs.roundToNearest}
-                onChange={(v) => setPrefs({ roundToNearest: v })}
-              />
+              <Soon label="Number format" detail="Indian or international digit grouping." />
+              <Soon label="Week starts on" detail="Monday or Sunday, once calendars land." />
+              <Soon label="Round to nearest rupee" detail="Hides paise in lists and summaries." />
             </Panel>
           )}
 
@@ -455,7 +464,7 @@ function EmailPanel({ channel }: { channel: NotificationChannel }) {
     try {
       const result = await sendReport();
       toast.success(
-        result.sent ? "Monthly report sent — check your inbox" : result.reason || "Nothing to send"
+        result.sent ? "Monthly report sent — check your inbox" : result.reason || "Nothing to send",
       );
       await router.invalidate();
     } catch (error) {
@@ -731,15 +740,135 @@ function ImportRulesTab({
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+/**
+ * Display name is the only editable profile field. `profiles.email` mirrors
+ * `auth.users.email`, so it is shown read-only: changing the address you sign
+ * in with is a confirmation-link flow through Supabase auth, not a column
+ * write, and editing it here would only desync the two.
+ */
+function ProfileTab({ settings }: { settings: UserSettings }) {
+  const router = useRouter();
+  const [name, setName] = useState(settings.display_name);
+  const [saving, setSaving] = useState(false);
+  const trimmed = name.trim();
+  const dirty = trimmed !== settings.display_name;
+  const tooLong = trimmed.length > DISPLAY_NAME_MAX;
+
+  async function save() {
+    setSaving(true);
+    try {
+      await saveProfile({ display_name: trimmed });
+      toast.success("Profile saved");
+      await router.invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save profile");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <label className="block">
+    <Panel title="Profile">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block">
+          <span className="text-xs text-muted-foreground">Display name</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={DISPLAY_NAME_MAX}
+            aria-invalid={tooLong}
+            className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+          />
+          <span className="mt-1 block text-[11px] text-muted-foreground">
+            {trimmed.length}/{DISPLAY_NAME_MAX}
+          </span>
+        </label>
+        <ReadOnlyField
+          label="Email"
+          value={settings.email}
+          note="Managed by your sign-in — contact support to change it."
+        />
+        <ReadOnlyField label="Currency" value={settings.currency} note="INR only for now." />
+        <ReadOnlyField
+          label="Week starts on"
+          value={settings.week_starts_on}
+          note="Editable once calendar views land."
+        />
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          onClick={save}
+          disabled={!dirty || !trimmed || tooLong || saving}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity disabled:opacity-50"
+        >
+          {saving ? "Saving\u2026" : "Save"}
+        </button>
+        {dirty && !saving && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
+      </div>
+    </Panel>
+  );
+}
+
+function ReadOnlyField({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <div className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <input
-        defaultValue={value}
-        className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
-      />
-    </label>
+      <p className="mt-1 flex h-10 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm text-muted-foreground">
+        {value || "\u2014"}
+      </p>
+      <span className="mt-1 block text-[11px] text-muted-foreground">{note}</span>
+    </div>
+  );
+}
+
+/**
+ * Previews render the real `Signature`, not a stand-in, so the swatch is
+ * exactly what the header will show — including the current theme, since the
+ * artwork inherits `currentColor` from the accent.
+ */
+function PatternPicker({
+  value,
+  onChange,
+}: {
+  value: ThemePattern;
+  onChange: (pattern: ThemePattern) => void;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      {THEME_PATTERNS.map((pattern) => (
+        <button
+          key={pattern}
+          onClick={() => onChange(pattern)}
+          aria-pressed={value === pattern}
+          className={`rounded-xl border p-2 text-left transition-colors ${
+            value === pattern ? "border-primary bg-accent/50" : "border-border hover:bg-accent/40"
+          }`}
+        >
+          <span className="relative block h-16 overflow-hidden rounded-lg border border-border bg-gradient-to-b from-accent/50 to-background">
+            <Signature variant="overview" pattern={pattern} />
+          </span>
+          <span className="mt-2 flex items-center justify-between text-xs text-foreground">
+            {patternLabels[pattern]}
+            {value === pattern && <Check className="h-3.5 w-3.5 text-primary" />}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** A setting that exists in the schema but has nothing wired to it yet. */
+function Soon({ label, detail }: { label: string; detail: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border/60 py-2.5 last:border-0">
+      <div>
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground">{detail}</p>
+      </div>
+      <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+        Coming soon
+      </span>
+    </div>
   );
 }
 
@@ -767,8 +896,9 @@ function Toggle({
         className={`h-6 w-11 rounded-full p-0.5 transition-colors ${value ? "bg-primary" : "bg-muted"}`}
       >
         <span
-          className={`block h-5 w-5 rounded-full bg-card shadow transition-transform duration-300 ${value ? "translate-x-5" : "translate-x-0"
-            }`}
+          className={`block h-5 w-5 rounded-full bg-card shadow transition-transform duration-300 ${
+            value ? "translate-x-5" : "translate-x-0"
+          }`}
         />
       </button>
     </div>
@@ -794,10 +924,11 @@ function Choice({
           <button
             key={o}
             onClick={() => onChange(o)}
-            className={`rounded-md px-3 py-1 text-xs capitalize transition-colors ${value === o
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground"
-              }`}
+            className={`rounded-md px-3 py-1 text-xs capitalize transition-colors ${
+              value === o
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
             {o}
           </button>

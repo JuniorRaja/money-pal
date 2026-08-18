@@ -40,8 +40,9 @@ import type {
   Slice,
   TimelineEvent,
   Transaction,
+  UserSettings,
 } from "@/data/schema";
-import { IMPORT_LOW_CONFIDENCE_MAX } from "@/data/schema";
+import { IMPORT_LOW_CONFIDENCE_MAX, THEME_PATTERNS } from "@/data/schema";
 // Imported straight from the module, not the `@/lib/import` barrel — that barrel
 // pulls in the SheetJS/papaparse parser, which has no business in a read path.
 import {
@@ -240,13 +241,76 @@ export const liveNotificationChannel = (): Promise<NotificationChannel> =>
   live<NotificationChannel>(async (supabase) => {
     const { data, error } = await supabase
       .from("notification_channels")
-      .select("telegram_bot_token, telegram_chat_id, telegram_enabled, last_digest_sent_at, email_enabled, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, last_email_sent_at")
+      .select(
+        "telegram_bot_token, telegram_chat_id, telegram_enabled, last_digest_sent_at, email_enabled, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, last_email_sent_at",
+      )
       .is("deleted_at", null)
       .maybeSingle();
     if (error) throw error;
     // Merge with defaults for any missing fields (handles migration transition)
     return data ? { ...NO_NOTIFICATION_CHANNEL, ...data } : NO_NOTIFICATION_CHANNEL;
   }, NO_NOTIFICATION_CHANNEL);
+
+/**
+ * Profile row → `UserSettings`. Every field here has been a column since the
+ * baseline migration; nothing read them until Phase 2, so the defaults below
+ * are also what a profile-less session (or a signed-out SSR pass) renders.
+ */
+export const DEFAULT_SETTINGS: UserSettings = {
+  user_id: "",
+  display_name: "",
+  email: "",
+  currency: "INR",
+  week_starts_on: "Monday",
+  number_format: "indian",
+  round_to_nearest: true,
+  theme: "light",
+  accent: "Antique gold",
+  theme_pattern: "mountain",
+  sidebar: "expanded",
+  reduce_motion: false,
+  assistant_tone: "concise",
+  assistant_context: true,
+  timeline_seen_at: null,
+};
+
+/** Postgres stores an ISO weekday (0=Sun..6=Sat); the UI only offers two of them. */
+const weekStartLabel = (n: number): UserSettings["week_starts_on"] =>
+  n === 0 ? "Sunday" : "Monday";
+
+const oneOf = <T extends string>(value: string | null, allowed: readonly T[], fallback: T): T =>
+  (allowed as readonly string[]).includes(value ?? "") ? (value as T) : fallback;
+
+export const liveSettings = (): Promise<UserSettings> =>
+  live<UserSettings>(async (supabase) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(
+        "user_id, display_name, email, week_starts_on, number_format, round_to_nearest, theme, accent, theme_pattern, sidebar, reduce_motion, assistant_tone, assistant_context, timeline_seen_at",
+      )
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return DEFAULT_SETTINGS;
+    return {
+      user_id: data.user_id,
+      display_name: data.display_name ?? "",
+      email: data.email ?? "",
+      // Only INR exists in `currencies` today; the column is there for later.
+      currency: "INR",
+      week_starts_on: weekStartLabel(data.week_starts_on),
+      number_format: oneOf(data.number_format, ["indian", "international"] as const, "indian"),
+      round_to_nearest: data.round_to_nearest,
+      theme: oneOf(data.theme, ["light", "dark"] as const, "light"),
+      accent: data.accent ?? DEFAULT_SETTINGS.accent,
+      theme_pattern: oneOf(data.theme_pattern, THEME_PATTERNS, "mountain"),
+      sidebar: oneOf(data.sidebar, ["expanded", "collapsed"] as const, "expanded"),
+      reduce_motion: data.reduce_motion,
+      assistant_tone: oneOf(data.assistant_tone, ["concise", "detailed"] as const, "concise"),
+      assistant_context: data.assistant_context,
+      timeline_seen_at: data.timeline_seen_at,
+    };
+  }, DEFAULT_SETTINGS);
 
 export const liveLabels = (): Promise<Label[]> =>
   live<Label[]>(async (supabase) => {
@@ -332,7 +396,7 @@ export const liveTransactions = (period?: string): Promise<Transaction[]> =>
       const counterparty =
         row.type === "transfer"
           ? ((siblings.find((s) => s.entry_id !== row.entry_id)?.account_id as
-            string | undefined) ?? null)
+              string | undefined) ?? null)
           : null;
       return {
         id: row.entry_id as string,

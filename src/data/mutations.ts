@@ -42,6 +42,7 @@ import {
   disconnectImportSourceFn,
   dismissImportJobFn,
   saveNotificationChannelFn,
+  saveProfileFn,
   type CreateTransactionInput,
   type UpdateTransactionInput,
   type DeleteTransactionInput,
@@ -79,6 +80,7 @@ import {
   type DisconnectImportSourceInput,
   type DismissImportJobInput,
   type SaveNotificationChannelInput,
+  type SaveProfileInput,
 } from "@/lib/mutations.functions";
 import { mutationErrorMessage } from "@/lib/mutation-error";
 import type {
@@ -584,6 +586,7 @@ export async function createHolding(input: NewHoldingInput): Promise<Holding> {
 // =============================================================================
 
 export type {
+  SaveProfileInput,
   UpsertImportProfileInput,
   StageImportInput,
   CommitImportRowInput,
@@ -651,6 +654,14 @@ export async function disconnectImportSource(id: string) {
 
 export async function dismissImportJob(id: string) {
   return dismissImportJobFn({ data: { id } });
+}
+
+export async function saveProfile(input: SaveProfileInput) {
+  try {
+    return await saveProfileFn({ data: input });
+  } catch (error) {
+    throw new Error(mutationErrorMessage(error, "Could not save profile"));
+  }
 }
 
 export async function saveNotificationChannel(input: SaveNotificationChannelInput) {

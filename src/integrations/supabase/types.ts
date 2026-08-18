@@ -1287,6 +1287,8 @@ export type Database = {
           round_to_nearest: boolean;
           sidebar: string;
           theme: string;
+          theme_pattern: string;
+          timeline_seen_at: string | null;
           user_id: string;
           week_starts_on: number;
         };
@@ -1308,6 +1310,8 @@ export type Database = {
           round_to_nearest?: boolean;
           sidebar?: string;
           theme?: string;
+          theme_pattern?: string;
+          timeline_seen_at?: string | null;
           user_id: string;
           week_starts_on?: number;
         };
@@ -1329,6 +1333,8 @@ export type Database = {
           round_to_nearest?: boolean;
           sidebar?: string;
           theme?: string;
+          theme_pattern?: string;
+          timeline_seen_at?: string | null;
           user_id?: string;
           week_starts_on?: number;
         };

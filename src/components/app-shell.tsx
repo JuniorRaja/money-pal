@@ -406,6 +406,7 @@ export function AppShell({
   children,
 }: PageProps) {
   const navigate = useNavigate();
+  const { prefs } = useSession();
   const [addKind, setAddKind] = useState<RecordKind | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -444,7 +445,7 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="relative isolate shrink-0 overflow-hidden border-b border-border/70 bg-gradient-to-b from-accent/50 to-background px-4 pb-5 pt-5 sm:px-10 sm:pb-6 sm:pt-6">
-          <Signature variant={signature} />
+          <Signature variant={signature} pattern={prefs.themePattern} />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
             <div className="flex min-w-0 items-start gap-3">
               <button

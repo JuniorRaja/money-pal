@@ -25,6 +25,7 @@ import {
   liveLabels,
   liveMonthlyRollups,
   liveNotificationChannel,
+  liveSettings,
   liveSlices,
   liveTimeline,
   liveTransactions,
@@ -100,23 +101,8 @@ export const getImportJobRows = (
 export const getImportJobQueue = (jobId: string): Promise<ImportJobRow[]> =>
   liveImportJobQueue(jobId);
 
-// Settings — return sensible defaults; real settings come from profile table later.
-export const getSettings = (): Promise<UserSettings> =>
-  Promise.resolve({
-    user_id: "",
-    display_name: "",
-    email: "",
-    currency: "INR",
-    week_starts_on: "Monday",
-    number_format: "indian",
-    round_to_nearest: true,
-    theme: "light",
-    accent: "Antique gold",
-    sidebar: "expanded",
-    reduce_motion: false,
-    assistant_tone: "concise",
-    assistant_context: true,
-  });
+/** Profile row, or `DEFAULT_SETTINGS` when the user has no profile yet. */
+export const getSettings = (): Promise<UserSettings> => liveSettings();
 
 export interface TransactionFilter {
   search?: string | undefined;

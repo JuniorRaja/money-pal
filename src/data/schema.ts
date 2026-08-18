@@ -359,6 +359,10 @@ export interface MonthlyRollup {
   planned: Paise;
 }
 
+/** Header artwork family. Each has a scene per route — see `src/components/signature.tsx`. */
+export const THEME_PATTERNS = ["mountain", "forest", "ocean"] as const;
+export type ThemePattern = (typeof THEME_PATTERNS)[number];
+
 export interface UserSettings {
   user_id: string;
   display_name: string;
@@ -369,8 +373,11 @@ export interface UserSettings {
   round_to_nearest: boolean;
   theme: "light" | "dark";
   accent: string;
+  theme_pattern: ThemePattern;
   sidebar: "expanded" | "collapsed";
   reduce_motion: boolean;
   assistant_tone: "concise" | "detailed";
   assistant_context: boolean;
+  /** ISO timestamp the notification feed was last opened; null = never. */
+  timeline_seen_at: string | null;
 }

@@ -10,7 +10,7 @@ import {
 import { type ReactNode, useEffect } from "react";
 
 import appCss from "../styles.css?url";
-import { SessionProvider } from "../components/session";
+import { ACCENTS, PAINT_CACHE_KEY, SessionProvider } from "../components/session";
 import { AuthErrorHandler } from "../components/auth-error-handler";
 import { Toaster } from "../components/ui/sonner";
 import { isAuthError } from "../data/live";
@@ -122,11 +122,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+/**
+ * Runs before React hydrates, so a dark-theme user never sees a white flash.
+ * The accent map is generated from `ACCENTS` rather than restated, so the two
+ * cannot drift; everything else about preferences comes from the profile row.
+ */
+const PAINT_CACHE_SCRIPT = `(function(){try{
+var c=JSON.parse(localStorage.getItem(${JSON.stringify(PAINT_CACHE_KEY)})||"{}");
+var dark=c.theme==="dark";
+var root=document.documentElement;
+if(dark)root.classList.add("dark");
+var m=${JSON.stringify(Object.fromEntries(ACCENTS.map((a) => [a.name, [a.light, a.dark]])))};
+var v=(m[c.accent]||m[${JSON.stringify(ACCENTS[0].name)}])[dark?1:0];
+["--primary","--ring","--sidebar-primary","--sidebar-ring"].forEach(function(t){root.style.setProperty(t,v);});
+}catch(e){}})();`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    // PAINT_CACHE_SCRIPT sets the theme class and accent variables on <html>
+    // before hydration, which React would otherwise report as a server/client
+    // attribute mismatch it cannot patch.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: PAINT_CACHE_SCRIPT }} />
       </head>
       <body>
         {children}

@@ -12,8 +12,10 @@ import type {
   HoldingClass,
   ImportMapping,
   SliceKind,
+  ThemePattern,
   TransactionType,
 } from "@/data/schema";
+import { THEME_PATTERNS } from "@/data/schema";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { shiftPeriod } from "@/lib/period";
@@ -649,6 +651,76 @@ export const saveNotificationChannelFn = createServerFn({ method: "POST" })
       },
       { onConflict: "user_id" },
     );
+    if (error) throw error;
+    return { success: true };
+  });
+
+// =============================================================================
+// SAVE PROFILE
+// =============================================================================
+
+/**
+ * Partial profile update. Every field is optional so the same function serves
+ * the Profile tab's explicit Save and the debounced preference sync.
+ *
+ * `email` is deliberately absent: `profiles.email` mirrors `auth.users.email`,
+ * so writing it here would desync the row from the identity you actually sign
+ * in with. Changing the real address needs `supabase.auth.updateUser`, which is
+ * a confirmation-link flow, not a column write.
+ */
+export interface SaveProfileInput {
+  display_name?: string;
+  theme?: "light" | "dark";
+  accent?: string;
+  theme_pattern?: ThemePattern;
+  reduce_motion?: boolean;
+  number_format?: "indian" | "international";
+  round_to_nearest?: boolean;
+  week_starts_on?: "Monday" | "Sunday";
+  assistant_tone?: "concise" | "detailed";
+  assistant_context?: boolean;
+  timeline_seen_at?: string;
+}
+
+export const DISPLAY_NAME_MAX = 60;
+
+export const saveProfileFn = createServerFn({ method: "POST" })
+  .validator((input: SaveProfileInput) => {
+    if (input.display_name !== undefined) {
+      const name = input.display_name.trim();
+      if (!name) throw new Error("Display name cannot be empty");
+      if (name.length > DISPLAY_NAME_MAX) {
+        throw new Error(`Display name cannot exceed ${DISPLAY_NAME_MAX} characters`);
+      }
+    }
+    if (input.theme_pattern !== undefined && !THEME_PATTERNS.includes(input.theme_pattern)) {
+      throw new Error("Unknown pattern");
+    }
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    // Only the keys actually supplied are written, so a preference sync never
+    // clobbers a display name edited in another tab.
+    const patch: Database["public"]["Tables"]["profiles"]["Update"] = {
+      modified_at: new Date().toISOString(),
+    };
+    if (data.display_name !== undefined) patch.display_name = data.display_name.trim();
+    if (data.theme !== undefined) patch.theme = data.theme;
+    if (data.accent !== undefined) patch.accent = data.accent;
+    if (data.theme_pattern !== undefined) patch.theme_pattern = data.theme_pattern;
+    if (data.reduce_motion !== undefined) patch.reduce_motion = data.reduce_motion;
+    if (data.number_format !== undefined) patch.number_format = data.number_format;
+    if (data.round_to_nearest !== undefined) patch.round_to_nearest = data.round_to_nearest;
+    if (data.week_starts_on !== undefined) {
+      patch.week_starts_on = data.week_starts_on === "Sunday" ? 0 : 1;
+    }
+    if (data.assistant_tone !== undefined) patch.assistant_tone = data.assistant_tone;
+    if (data.assistant_context !== undefined) patch.assistant_context = data.assistant_context;
+    if (data.timeline_seen_at !== undefined) patch.timeline_seen_at = data.timeline_seen_at;
+
+    const { error } = await supabase.from("profiles").update(patch).eq("user_id", userId);
     if (error) throw error;
     return { success: true };
   });
