@@ -88,3 +88,38 @@ export function relativeDayLabel(isoDay: string, today: string) {
   if (diff === 1) return "Yesterday";
   return new Intl.DateTimeFormat("en-IN", { weekday: "long" }).format(new Date(a));
 }
+
+/**
+ * Groups an amount as it is typed, en-IN style (1,25,000.50). Only separators
+ * move — the digit sequence is preserved untouched, so the caret can be put
+ * back by counting digits (see `caretForDigits`) and no rounding ever happens
+ * to a value on its way to `paise()`.
+ */
+export function formatAmountInput(raw: string): string {
+  const cleaned = raw.replace(/[^\d.]/g, "");
+  const dot = cleaned.indexOf(".");
+  const whole = (dot === -1 ? cleaned : cleaned.slice(0, dot)).replace(/^0+(?=\d)/, "");
+  const grouped = whole === "" ? "" : indianWhole.format(Number(whole));
+  if (dot === -1) return grouped;
+  // Second and later dots are typos, not decimals; two places is the most paise can hold.
+  return `${grouped}.${cleaned
+    .slice(dot + 1)
+    .replace(/\./g, "")
+    .slice(0, 2)}`;
+}
+
+/** Strips the grouping `formatAmountInput` added, so `Number()` sees a number again. */
+export function unformatAmount(raw: string): string {
+  return raw.replace(/,/g, "");
+}
+
+/** Caret offset in `formatted` sitting after its `digits`-th non-separator character. */
+export function caretForDigits(formatted: string, digits: number): number {
+  if (digits <= 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < formatted.length; i += 1) {
+    if (formatted[i] !== ",") seen += 1;
+    if (seen === digits) return i + 1;
+  }
+  return formatted.length;
+}

@@ -31,11 +31,20 @@ test.describe("Transactions — CRUD Operations", () => {
     }) => {
       const dialog = await openAddTransactionDialog(page);
 
-      // Direction replaces a plain "Type" select — see add-record-dialog.tsx.
-      const expectedFields = ["Date", "Direction", "Merchant", "Amount (₹)", "Account", "Category"];
+      // Direction is a segmented control, and date/description/note now sit
+      // behind "More options" — see add-record-dialog.tsx.
+      for (const type of ["Income", "Expense", "Transfer"]) {
+        await expect(dialog.getByRole("radio", { name: type })).toBeVisible();
+      }
+      const expectedFields = ["Amount out", "Merchant", "Category", "Account", "More options"];
       for (const field of expectedFields) {
         await expect(dialog.getByText(field, { exact: true })).toBeVisible();
       }
+
+      // Date lives in the collapsed section, not on the front of the form.
+      await expect(dialog.getByText("Date", { exact: true })).toBeHidden();
+      await dialog.getByText("More options").click();
+      await expect(dialog.getByText("Date", { exact: true })).toBeVisible();
     });
 
     test("submitting with empty fields shows validation errors", async ({
@@ -58,20 +67,18 @@ test.describe("Transactions — CRUD Operations", () => {
       const uniqueMerchant = `TestMerchant_${Date.now()}`;
 
       await dialog.getByLabel("Merchant", { exact: true }).fill(uniqueMerchant);
-      await dialog.getByLabel("Amount (₹)", { exact: true }).fill("500");
+      await dialog.getByLabel("Amount out", { exact: true }).fill("500");
 
-      // Field order for kind="transaction" (add-record-dialog.tsx): Direction,
-      // Account, Category, Slice. Accounts/categories load asynchronously
-      // after the dialog mounts, so wait past the placeholder-only option.
-      const accountSelect = dialog.locator("select").nth(1);
+      // Account is the only <select> left on an expense — category is an icon
+      // grid. Both load asynchronously, so wait past the empty state.
+      const accountSelect = dialog.locator("select").first();
       await expect(accountSelect.locator("option")).not.toHaveCount(1, { timeout: 10_000 });
       const accountValue = await accountSelect.locator("option").nth(1).getAttribute("value");
       await accountSelect.selectOption(accountValue ?? "");
 
-      const categorySelect = dialog.locator("select").nth(2);
-      await expect(categorySelect.locator("option")).not.toHaveCount(1, { timeout: 10_000 });
-      const categoryValue = await categorySelect.locator("option").nth(1).getAttribute("value");
-      await categorySelect.selectOption(categoryValue ?? "");
+      const categoryGrid = dialog.getByTestId("category-grid");
+      await expect(categoryGrid.locator("button").first()).toBeVisible({ timeout: 10_000 });
+      await categoryGrid.locator("button").first().click();
 
       await dialog.getByRole("button", { name: "Save transaction" }).click();
       await expect(page.getByText("Transaction added")).toBeVisible({ timeout: 10_000 });

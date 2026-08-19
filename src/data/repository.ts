@@ -269,6 +269,66 @@ export async function getLabelIdsByName(name: string): Promise<string[]> {
   return labels.filter((l) => l.name === name).map((l) => l.id);
 }
 
+/** A merchant the user has typed before, with what they usually pair it with. */
+export interface MerchantSuggestion {
+  merchant: string;
+  /** Category on the most recent transaction for this merchant. */
+  category_id: string;
+  /** Account on the most recent transaction for this merchant. */
+  account_id: string;
+  /** Distinct descriptions/notes seen for this merchant, newest first. */
+  descriptors: string[];
+  count: number;
+}
+
+const MERCHANT_DESCRIPTORS = 6;
+
+/**
+ * Merchant autocomplete, derived from the transactions already in reach rather
+ * than a second round trip: `listTransactions()` hands back the newest 500
+ * entries, so the first row seen for a merchant *is* its last use.
+ *
+ * ponytail: a 500-row window, not a lifetime GROUP BY. Push it into SQL if
+ * someone's long-tail merchants stop showing up.
+ */
+export async function getMerchantSuggestions(): Promise<MerchantSuggestion[]> {
+  const rows = await listTransactions();
+  const byMerchant = new Map<string, MerchantSuggestion>();
+  // Both legs of a transfer carry the same merchant; counting one header twice
+  // would float transfers to the top of the list.
+  const seenHeaders = new Set<string>();
+
+  for (const t of rows) {
+    const merchant = t.merchant.trim();
+    if (!merchant || merchant === "—") continue;
+    if (seenHeaders.has(t.transaction_id)) continue;
+    seenHeaders.add(t.transaction_id);
+
+    let hit = byMerchant.get(merchant);
+    if (!hit) {
+      hit = {
+        merchant,
+        category_id: t.category_id,
+        account_id: t.account_id,
+        descriptors: [],
+        count: 0,
+      };
+      byMerchant.set(merchant, hit);
+    }
+    hit.count += 1;
+    // A descriptor that just echoes the merchant is what the form fills in when
+    // the field is left blank — suggesting it back teaches nothing.
+    for (const text of [t.descriptor, t.note]) {
+      const value = text?.trim();
+      if (!value || value === merchant) continue;
+      if (hit.descriptors.length >= MERCHANT_DESCRIPTORS) break;
+      if (!hit.descriptors.includes(value)) hit.descriptors.push(value);
+    }
+  }
+
+  return Array.from(byMerchant.values()).sort((a, b) => b.count - a.count);
+}
+
 /** Matches the row cap `liveTimeline()` puts on the stored half of the feed. */
 const TIMELINE_LIMIT = 200;
 
