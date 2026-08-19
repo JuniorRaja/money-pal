@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ReviewDeck } from "@/components/import/review-deck";
 import { Panel } from "@/components/mm-ui";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getCategories, getImportJobQueue, getImportJobs, getImportRules } from "@/data/repository";
 
 type ReviewSearch = { focus?: string };
@@ -34,11 +35,20 @@ export const Route = createFileRoute("/imports/$jobId")({
   }),
   pendingComponent: () => (
     <AppShell title="Review import" subtitle="Loading the queue…" signature="imports">
-      <Panel>
-        <p className="text-sm text-muted-foreground">Loading…</p>
+      <Panel title="Review deck">
+        <div className="space-y-4">
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <div className="flex justify-center gap-3">
+            <Skeleton className="h-10 w-24 rounded-lg" />
+            <Skeleton className="h-10 w-24 rounded-lg" />
+            <Skeleton className="h-10 w-24 rounded-lg" />
+          </div>
+        </div>
       </Panel>
     </AppShell>
   ),
+  pendingMs: 200,
+  pendingMinMs: 500,
   component: ImportReviewPage,
 });
 

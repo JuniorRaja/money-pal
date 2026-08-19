@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { MaskedText } from "@/components/masked-text";
 import { Chip, Dot, Panel, Sparkline } from "@/components/mm-ui";
+import { TransactionsSkeleton } from "@/components/route-skeletons";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -98,6 +99,9 @@ export const Route = createFileRoute("/transactions")({
     ]);
     return { transactions, accounts, categories, labels };
   },
+  pendingComponent: TransactionsSkeleton,
+  pendingMs: 200,
+  pendingMinMs: 500,
   component: TransactionsPage,
 });
 
@@ -293,9 +297,8 @@ function TransactionsPage() {
                         <tr
                           key={t.transaction_id}
                           onClick={() => setSelectedId(t.transaction_id)}
-                          className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/40 ${
-                            selectedId === t.transaction_id ? "bg-accent/50" : ""
-                          }`}
+                          className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/40 ${selectedId === t.transaction_id ? "bg-accent/50" : ""
+                            }`}
                         >
                           <td className="numeric px-5 py-3 text-xs text-muted-foreground">
                             {formatTime(t.occurred_at)}
@@ -551,9 +554,8 @@ function DetailPanel({
                   <button
                     key={l.id}
                     onClick={() => handleLabelChange(l.id)}
-                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
-                      l.id === transaction.label_id ? "bg-accent/60 font-medium" : ""
-                    }`}
+                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${l.id === transaction.label_id ? "bg-accent/60 font-medium" : ""
+                      }`}
                   >
                     <Dot token={l.color_token} /> {l.name}
                   </button>

@@ -16,6 +16,7 @@ import {
 
 import { AppShell } from "@/components/app-shell";
 import { Panel, StatCard } from "@/components/mm-ui";
+import { ReportsSkeleton } from "@/components/route-skeletons";
 import {
   CURRENT_PERIOD,
   getCategories,
@@ -48,6 +49,9 @@ export const Route = createFileRoute("/reports")({
     transactions: await listTransactions(),
     categories: await getCategories(),
   }),
+  pendingComponent: ReportsSkeleton,
+  pendingMs: 200,
+  pendingMinMs: 500,
   component: ReportsPage,
 });
 

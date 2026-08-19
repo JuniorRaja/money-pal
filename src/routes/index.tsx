@@ -23,6 +23,7 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { MaskedText } from "@/components/masked-text";
 import { Bar, EmptyState, Panel, Ring, StatCard, TableEmptyState } from "@/components/mm-ui";
+import { OverviewSkeleton } from "@/components/route-skeletons";
 import {
   getAccounts,
   getBudgets,
@@ -92,6 +93,9 @@ export const Route = createFileRoute("/")({
     const slices = await getSlices();
     return { accounts, transactions, rollups, budgets, goals, events, categories, slices, cycles };
   },
+  pendingComponent: OverviewSkeleton,
+  pendingMs: 200,
+  pendingMinMs: 500,
   component: OverviewPage,
 });
 

@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { JobProgress } from "@/components/import/job-progress";
 import { Panel } from "@/components/mm-ui";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getImportJobHistory } from "@/data/repository";
 
 export const Route = createFileRoute("/imports/history")({
@@ -15,12 +16,25 @@ export const Route = createFileRoute("/imports/history")({
   }),
   loader: async () => ({ jobs: await getImportJobHistory() }),
   pendingComponent: () => (
-    <AppShell title="Import history" subtitle="Loading…" signature="imports">
-      <Panel>
-        <p className="text-sm text-muted-foreground">Loading…</p>
+    <AppShell title="Import history" subtitle="Every job, including the ones you dismissed." signature="imports">
+      <Panel title="Past imports">
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4">
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+              <Skeleton className="h-4 w-16" />
+            </div>
+          ))}
+        </div>
       </Panel>
     </AppShell>
   ),
+  pendingMs: 200,
+  pendingMinMs: 500,
   component: ImportHistory,
 });
 

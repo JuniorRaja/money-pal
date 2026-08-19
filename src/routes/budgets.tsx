@@ -23,6 +23,7 @@ import {
   EditBudgetLineDialog,
 } from "@/components/budget-dialogs";
 import { Bar, Panel, StatCard } from "@/components/mm-ui";
+import { BudgetsSkeleton } from "@/components/route-skeletons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,6 +74,9 @@ export const Route = createFileRoute("/budgets")({
       },
     ],
   }),
+  pendingComponent: BudgetsSkeleton,
+  pendingMs: 200,
+  pendingMinMs: 500,
   component: BudgetsPage,
 });
 

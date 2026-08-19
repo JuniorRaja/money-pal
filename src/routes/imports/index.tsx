@@ -20,6 +20,7 @@ import { AppShell } from "@/components/app-shell";
 import { JobProgress } from "@/components/import/job-progress";
 import { ImportFlowDialog, type ImportFlow } from "@/components/import/pipeline-modal";
 import { Panel } from "@/components/mm-ui";
+import { ImportsSkeleton } from "@/components/route-skeletons";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,23 +83,11 @@ export const Route = createFileRoute("/imports/")({
     ]);
     return { sources, jobs, review, accounts };
   },
-  pendingComponent: ImportsPending,
+  pendingComponent: ImportsSkeleton,
+  pendingMs: 200,
+  pendingMinMs: 500,
   component: ImportsHub,
 });
-
-function ImportsPending() {
-  return (
-    <AppShell
-      title="Import Center"
-      subtitle="Bring statements in, keep the ledger honest."
-      signature="imports"
-    >
-      <Panel title="Waiting for you">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </Panel>
-    </AppShell>
-  );
-}
 
 function accountName(accounts: Account[], id: string | null): string | null {
   if (!id) return null;

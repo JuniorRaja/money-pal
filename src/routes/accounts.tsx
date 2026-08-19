@@ -21,6 +21,7 @@ import { ManageCyclesDialog } from "@/components/manage-cycles-dialog";
 import { ManageSlicesDialog } from "@/components/manage-slices-dialog";
 import { MaskedText } from "@/components/masked-text";
 import { EmptyState, Panel, Ring, SliceBar, Sparkline, StatCard } from "@/components/mm-ui";
+import { AccountsSkeleton } from "@/components/route-skeletons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +66,9 @@ export const Route = createFileRoute("/accounts")({
     ]);
     return { accounts, slices, cycles };
   },
+  pendingComponent: AccountsSkeleton,
+  pendingMs: 200,
+  pendingMinMs: 500,
   component: AccountsPage,
 });
 

@@ -24,6 +24,7 @@ import {
 } from "@/components/goal-dialogs";
 import { MaskedText } from "@/components/masked-text";
 import { Bar, Panel, Ring, StatCard } from "@/components/mm-ui";
+import { GoalsSkeleton } from "@/components/route-skeletons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +70,9 @@ export const Route = createFileRoute("/goals")({
     ]);
     return { goals, archivedGoals, accounts, contributions, transactions };
   },
+  pendingComponent: GoalsSkeleton,
+  pendingMs: 200,
+  pendingMinMs: 500,
   component: GoalsPage,
 });
 
