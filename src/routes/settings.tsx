@@ -1,11 +1,14 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { requireAuth } from "@/lib/auth-guard";
+import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Check, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { CategoryDialog } from "@/components/category-dialog";
+import { getCategoryIcon } from "@/lib/category-icons";
 import { Panel } from "@/components/mm-ui";
 import { SettingsSkeleton } from "@/components/route-skeletons";
 import { ACCENTS, useSession, type AppPrefs } from "@/components/session";
@@ -22,8 +25,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import {
+  archiveCategory,
+  createCategory,
   saveNotificationChannel,
   saveProfile,
+  updateCategory,
   updateImportRule,
   type UpdateImportRuleInput,
 } from "@/data/mutations";
@@ -84,6 +90,7 @@ export const Route = createFileRoute("/settings")({
 const tabs = [
   "Profile",
   "Appearance",
+  "Categories",
   "Formatting",
   "Assistant",
   "Notifications",
@@ -193,6 +200,10 @@ function SettingsPage() {
                 />
               </Panel>
             </>
+          )}
+
+          {tab === "Categories" && (
+            <CategoriesTab categories={categories} />
           )}
 
           {/* Every control here is parked. `formatMoney` is a plain module
@@ -932,5 +943,413 @@ function Choice({
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Category management tab with parent-child hierarchy.
+ * Users can create, edit, and archive categories.
+ */
+function CategoriesTab({ categories }: { categories: Category[] }) {
+  const router = useRouter();
+  const [showArchived, setShowArchived] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editCategory, setEditCategory] = useState<Category | null>(null);
+  const [parentForNew, setParentForNew] = useState<Category | null>(null);
+  const [newCategoryKind, setNewCategoryKind] = useState<"income" | "expense">("expense");
+  const [confirmArchive, setConfirmArchive] = useState<Category | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Separate into income/expense groups and parent-child hierarchy
+  const { incomeCategories, expenseCategories, archivedCategories } = useMemo(() => {
+    const active = categories.filter((c) => !c.deleted_at);
+    const archived = categories.filter((c) => c.deleted_at);
+
+    // Group by kind - only show parent categories (no parent_id) at top level
+    const income = active.filter((c) => c.group === "income" && !c.parent_id);
+    const expense = active.filter((c) => c.group !== "income" && c.group !== "transfer" && !c.parent_id);
+
+    return {
+      incomeCategories: income,
+      expenseCategories: expense,
+      archivedCategories: archived,
+    };
+  }, [categories]);
+
+  // Get children of a category
+  const getChildren = (parentId: string) => {
+    return categories.filter((c) => c.parent_id === parentId && !c.deleted_at);
+  };
+
+  function openNewCategoryDialog(kind: "income" | "expense") {
+    setEditCategory(null);
+    setParentForNew(null);
+    setNewCategoryKind(kind);
+    setDialogOpen(true);
+  }
+
+  function openEditDialog(category: Category) {
+    setEditCategory(category);
+    setParentForNew(null);
+    setDialogOpen(true);
+  }
+
+  function openAddSubDialog(parent: Category) {
+    setEditCategory(null);
+    setParentForNew(parent);
+    setNewCategoryKind(parent.group === "income" ? "income" : "expense");
+    setDialogOpen(true);
+  }
+
+  function closeDialog() {
+    setDialogOpen(false);
+    setEditCategory(null);
+    setParentForNew(null);
+  }
+
+  async function handleSave(input: {
+    name: string;
+    kind: "income" | "expense";
+    parent_id?: string | null;
+    icon: string;
+    color_token: string;
+  }) {
+    if (editCategory) {
+      await updateCategory({
+        id: editCategory.id,
+        name: input.name,
+        kind: input.kind,
+        icon: input.icon,
+        color_token: input.color_token,
+      });
+      toast.success("Category updated");
+    } else {
+      await createCategory({
+        ...input,
+        parent_id: parentForNew?.id ?? null,
+      });
+      toast.success("Category created");
+    }
+    await router.invalidate();
+    closeDialog();
+  }
+
+  async function handleArchive(category: Category) {
+    setBusyId(category.id);
+    try {
+      await archiveCategory(category.id, true);
+      toast.success("Category archived");
+      await router.invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not archive category");
+    } finally {
+      setBusyId(null);
+      setConfirmArchive(null);
+    }
+  }
+
+  async function handleUnarchive(category: Category) {
+    setBusyId(category.id);
+    try {
+      await archiveCategory(category.id, false);
+      toast.success("Category restored");
+      await router.invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not restore category");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <>
+      <Panel
+        title="Categories"
+        action={
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-border"
+            />
+            Show archived
+          </label>
+        }
+      >
+        <div className="space-y-6">
+          {/* Expense categories */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                Expense
+              </p>
+              <button
+                onClick={() => openNewCategoryDialog("expense")}
+                className="text-xs text-primary hover:underline"
+              >
+                + Add category
+              </button>
+            </div>
+            <CategoryList
+              categories={expenseCategories}
+              allCategories={categories}
+              getChildren={getChildren}
+              onEdit={openEditDialog}
+              onAddSub={openAddSubDialog}
+              onArchive={setConfirmArchive}
+              busyId={busyId}
+            />
+          </div>
+
+          {/* Income categories */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                Income
+              </p>
+              <button
+                onClick={() => openNewCategoryDialog("income")}
+                className="text-xs text-primary hover:underline"
+              >
+                + Add category
+              </button>
+            </div>
+            <CategoryList
+              categories={incomeCategories}
+              allCategories={categories}
+              getChildren={getChildren}
+              onEdit={openEditDialog}
+              onAddSub={openAddSubDialog}
+              onArchive={setConfirmArchive}
+              busyId={busyId}
+            />
+          </div>
+
+          {/* Archived categories */}
+          {showArchived && archivedCategories.length > 0 && (
+            <div>
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                Archived
+              </p>
+              <ArchivedCategoryList
+                categories={archivedCategories}
+                onEdit={openEditDialog}
+                onUnarchive={handleUnarchive}
+                busyId={busyId}
+              />
+            </div>
+          )}
+        </div>
+      </Panel>
+
+      {/* Category dialog */}
+      <CategoryDialog
+        open={dialogOpen}
+        onOpenChange={(open) => !open && closeDialog()}
+        category={editCategory}
+        parentCategory={parentForNew}
+        defaultKind={newCategoryKind}
+        categories={categories}
+        onSave={handleSave}
+      />
+
+      {/* Archive confirmation */}
+      <AlertDialog
+        open={confirmArchive !== null}
+        onOpenChange={(open) => !open && setConfirmArchive(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive "{confirmArchive?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Archived categories won't appear in transaction forms or reports. You can restore
+              them anytime by enabling "Show archived" and editing the category.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => confirmArchive && handleArchive(confirmArchive)}
+            >
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function CategoryList({
+  categories,
+  allCategories,
+  getChildren,
+  onEdit,
+  onAddSub,
+  onArchive,
+  busyId,
+}: {
+  categories: Category[];
+  allCategories: Category[];
+  getChildren: (parentId: string) => Category[];
+  onEdit: (c: Category) => void;
+  onAddSub: (c: Category) => void;
+  onArchive: (c: Category) => void;
+  busyId: string | null;
+}) {
+  if (categories.length === 0) {
+    return (
+      <p className="rounded-lg border border-dashed border-border/60 py-6 text-center text-sm text-muted-foreground">
+        No categories yet
+      </p>
+    );
+  }
+
+  return (
+    <ul className="divide-y divide-border/60 rounded-lg border border-border/60">
+      {categories.map((category) => {
+        const children = getChildren(category.id);
+        return (
+          <CategoryRow
+            key={category.id}
+            category={category}
+            children={children}
+            onEdit={onEdit}
+            onAddSub={onAddSub}
+            onArchive={onArchive}
+            busyId={busyId}
+          />
+        );
+      })}
+    </ul>
+  );
+}
+
+function CategoryRow({
+  category,
+  children,
+  onEdit,
+  onAddSub,
+  onArchive,
+  busyId,
+  isChild = false,
+}: {
+  category: Category;
+  children: Category[];
+  onEdit: (c: Category) => void;
+  onAddSub: (c: Category) => void;
+  onArchive: (c: Category) => void;
+  busyId: string | null;
+  isChild?: boolean;
+}) {
+  const Icon = getCategoryIcon(category.icon ?? "tag");
+  const colorVar = category.color_token ?? "chart-1";
+  const isBusy = busyId === category.id;
+  const hasChildren = children.length > 0;
+
+  return (
+    <>
+      <li
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-accent/40",
+          isChild && "pl-8 bg-accent/20",
+        )}
+      >
+        <Icon className="h-4 w-4 shrink-0" style={{ color: `var(--color-${colorVar})` }} />
+        <span className="flex-1 text-sm text-foreground">{category.name}</span>
+        {!isChild && (
+          <button
+            type="button"
+            onClick={() => onAddSub(category)}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            + Add sub
+          </button>
+        )}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onEdit(category)}
+            disabled={isBusy}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onArchive(category)}
+            disabled={isBusy || hasChildren}
+            title={hasChildren ? "Archive sub-categories first" : undefined}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+          >
+            <Archive className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </li>
+      {children.map((child) => (
+        <CategoryRow
+          key={child.id}
+          category={child}
+          children={[]}
+          onEdit={onEdit}
+          onAddSub={onAddSub}
+          onArchive={onArchive}
+          busyId={busyId}
+          isChild
+        />
+      ))}
+    </>
+  );
+}
+
+function ArchivedCategoryList({
+  categories,
+  onEdit,
+  onUnarchive,
+  busyId,
+}: {
+  categories: Category[];
+  onEdit: (c: Category) => void;
+  onUnarchive: (c: Category) => void;
+  busyId: string | null;
+}) {
+  return (
+    <ul className="divide-y divide-border/60 rounded-lg border border-border/60">
+      {categories.map((category) => {
+        const Icon = getCategoryIcon(category.icon ?? "tag");
+        const colorVar = category.color_token ?? "chart-1";
+        const isBusy = busyId === category.id;
+
+        return (
+          <li
+            key={category.id}
+            className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-accent/40 opacity-60"
+          >
+            <Icon className="h-4 w-4 shrink-0" style={{ color: `var(--color-${colorVar})` }} />
+            <span className="flex-1 text-sm text-foreground">{category.name}</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onEdit(category)}
+                disabled={isBusy}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onUnarchive(category)}
+                disabled={isBusy}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+              >
+                <ArchiveRestore className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

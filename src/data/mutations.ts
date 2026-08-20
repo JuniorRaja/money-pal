@@ -43,6 +43,9 @@ import {
   dismissImportJobFn,
   saveNotificationChannelFn,
   saveProfileFn,
+  createCategoryFn,
+  updateCategoryFn,
+  archiveCategoryFn,
   type CreateTransactionInput,
   type UpdateTransactionInput,
   type DeleteTransactionInput,
@@ -669,5 +672,49 @@ export async function saveNotificationChannel(input: SaveNotificationChannelInpu
     return await saveNotificationChannelFn({ data: input });
   } catch (error) {
     throw new Error(mutationErrorMessage(error, "Could not save notification settings"));
+  }
+}
+
+// =============================================================================
+// CATEGORY
+// =============================================================================
+
+export interface NewCategoryInput {
+  name: string;
+  kind: "income" | "expense";
+  parent_id?: string | null;
+  icon: string;
+  color_token: string;
+}
+
+export async function createCategory(input: NewCategoryInput): Promise<{ id: string }> {
+  try {
+    return await createCategoryFn({ data: input });
+  } catch (error) {
+    throw new Error(mutationErrorMessage(error, "Could not create category"));
+  }
+}
+
+export interface EditCategoryInput {
+  id: string;
+  name?: string;
+  kind?: "income" | "expense";
+  icon?: string;
+  color_token?: string;
+}
+
+export async function updateCategory(input: EditCategoryInput): Promise<void> {
+  try {
+    await updateCategoryFn({ data: input });
+  } catch (error) {
+    throw new Error(mutationErrorMessage(error, "Could not update category"));
+  }
+}
+
+export async function archiveCategory(id: string, archive: boolean): Promise<void> {
+  try {
+    await archiveCategoryFn({ data: { id, archive } });
+  } catch (error) {
+    throw new Error(mutationErrorMessage(error, "Could not archive category"));
   }
 }

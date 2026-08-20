@@ -77,6 +77,8 @@ export interface Category {
   group: "income" | "essentials" | "lifestyle" | "transfer" | "investment";
   icon: string;
   color_token: string;
+  parent_id?: string | null;
+  deleted_at?: string | null;
 }
 
 export interface Label {

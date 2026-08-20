@@ -211,7 +211,7 @@ export const liveCategories = (): Promise<Category[]> =>
   live<Category[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, kind, icon, color_token")
+      .select("id, name, kind, icon, color_token, parent_id, deleted_at")
       .order("sort_order");
     if (error) throw error;
     return (data ?? []).map((row): Category => ({
@@ -220,6 +220,8 @@ export const liveCategories = (): Promise<Category[]> =>
       group: row.kind as Category["group"],
       icon: row.icon ?? "circle",
       color_token: row.color_token ?? "chart-1",
+      parent_id: row.parent_id ?? null,
+      deleted_at: row.deleted_at ?? null,
     }));
   }, []);
 
@@ -396,7 +398,7 @@ export const liveTransactions = (period?: string): Promise<Transaction[]> =>
       const counterparty =
         row.type === "transfer"
           ? ((siblings.find((s) => s.entry_id !== row.entry_id)?.account_id as
-              string | undefined) ?? null)
+            string | undefined) ?? null)
           : null;
       return {
         id: row.entry_id as string,

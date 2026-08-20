@@ -729,6 +729,165 @@ function isUniqueViolation(error: { code?: string } | null): boolean {
   return error?.code === "23505";
 }
 
+// =============================================================================
+// CATEGORY MUTATIONS
+// =============================================================================
+
+/** UI-facing category kind - maps to database category_kind enum */
+export type CategoryKind = "income" | "expense";
+
+/** Map UI kind to database kind */
+function toDbKind(kind: CategoryKind): "income" | "essentials" | "lifestyle" | "transfer" | "investment" {
+  return kind === "income" ? "income" : "essentials";
+}
+
+export interface CreateCategoryInput {
+  name: string;
+  kind: CategoryKind;
+  parent_id?: string | null;
+  icon: string;
+  color_token: string;
+  sort_order?: number;
+}
+
+export const createCategoryFn = createServerFn({ method: "POST" })
+  .validator((input: CreateCategoryInput) => {
+    const name = input.name.trim();
+    if (!name) throw new Error("Category name is required");
+    if (name.length > 40) throw new Error("Category name cannot exceed 40 characters");
+    if (!input.icon) throw new Error("Icon is required");
+    if (!input.color_token) throw new Error("Color is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const dbKind = toDbKind(data.kind);
+
+    // Get max sort_order for this kind
+    const { data: existing } = await supabase
+      .from("categories")
+      .select("sort_order")
+      .eq("user_id", userId)
+      .eq("kind", dbKind)
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: false })
+      .limit(1);
+
+    const nextSortOrder = data.sort_order ?? (existing?.[0]?.sort_order ?? 0) + 10;
+
+    const { data: created, error } = await supabase
+      .from("categories")
+      .insert({
+        user_id: userId,
+        name: data.name.trim(),
+        kind: dbKind,
+        parent_id: data.parent_id ?? null,
+        icon: data.icon,
+        color_token: data.color_token,
+        sort_order: nextSortOrder,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      if (isUniqueViolation(error)) {
+        throw new Error(`Category "${data.name}" already exists`);
+      }
+      throw error;
+    }
+
+    return { id: created.id };
+  });
+
+export interface UpdateCategoryInput {
+  id: string;
+  name?: string;
+  kind?: CategoryKind;
+  icon?: string;
+  color_token?: string;
+}
+
+export const updateCategoryFn = createServerFn({ method: "POST" })
+  .validator((input: UpdateCategoryInput) => {
+    if (!input.id) throw new Error("Category ID is required");
+    if (input.name !== undefined) {
+      const name = input.name.trim();
+      if (!name) throw new Error("Category name cannot be empty");
+      if (name.length > 40) throw new Error("Category name cannot exceed 40 characters");
+    }
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+
+    const patch: Database["public"]["Tables"]["categories"]["Update"] = {
+      modified_at: new Date().toISOString(),
+    };
+
+    if (data.name !== undefined) patch.name = data.name.trim();
+    if (data.kind !== undefined) patch.kind = toDbKind(data.kind);
+    if (data.icon !== undefined) patch.icon = data.icon;
+    if (data.color_token !== undefined) patch.color_token = data.color_token;
+
+    const { error } = await supabase
+      .from("categories")
+      .update(patch)
+      .eq("id", data.id)
+      .eq("user_id", userId);
+
+    if (error) {
+      if (isUniqueViolation(error)) {
+        throw new Error(`Category "${data.name}" already exists`);
+      }
+      throw error;
+    }
+
+    return { success: true };
+  });
+
+export interface ArchiveCategoryInput {
+  id: string;
+  archive: boolean; // true to archive, false to unarchive
+}
+
+export const archiveCategoryFn = createServerFn({ method: "POST" })
+  .validator((input: ArchiveCategoryInput) => {
+    if (!input.id) throw new Error("Category ID is required");
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+
+    // If archiving, check if category has children
+    if (data.archive) {
+      const { data: children } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("parent_id", data.id)
+        .is("deleted_at", null)
+        .limit(1);
+
+      if (children && children.length > 0) {
+        throw new Error("Cannot archive a category with sub-categories");
+      }
+    }
+
+    const { error } = await supabase
+      .from("categories")
+      .update({
+        deleted_at: data.archive ? new Date().toISOString() : null,
+        modified_at: new Date().toISOString(),
+      })
+      .eq("id", data.id)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+    return { success: true };
+  });
+
 function localDate(): string {
   const now = new Date();
   const y = now.getFullYear();
