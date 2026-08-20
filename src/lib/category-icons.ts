@@ -36,6 +36,9 @@ import {
   TrendingUp,
   BarChart,
   Landmark,
+  Heart,
+  Percent,
+  ArrowLeftRight,
   Tag,
   Gift,
   Sparkles,
@@ -111,6 +114,11 @@ export const categoryIconMap: Record<string, LucideIcon> = {
   landmark: Landmark,
   tag: Tag,
   gift: Gift,
+  // Seeded categories (see the foundation migration) use these three names.
+  // They are not offered in the picker, but must still render.
+  heart: Heart,
+  percent: Percent,
+  "arrow-left-right": ArrowLeftRight,
   sparkles: Sparkles,
   star: Star,
 };
@@ -126,12 +134,6 @@ export function isValidCategoryIcon(name: string): name is CategoryIconName {
 }
 
 /** Available color tokens for categories */
-export const CATEGORY_COLORS = [
-  "chart-1",
-  "chart-2",
-  "chart-3",
-  "chart-4",
-  "chart-5",
-] as const;
+export const CATEGORY_COLORS = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"] as const;
 
 export type CategoryColorToken = (typeof CATEGORY_COLORS)[number];

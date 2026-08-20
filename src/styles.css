@@ -57,6 +57,21 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * `@theme inline` only emits a --color-* variable when some utility class in
+ * the source references it. Nothing writes `bg-chart-3`, so those five never
+ * reached :root — and every runtime `var(--color-${token})` built from a
+ * stored color_token silently resolved to nothing. Pin them by hand.
+ * They alias --chart-*, so the .dark overrides below still apply.
+ */
+:root {
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
 :root {
   --radius: 0.75rem;
   --background: oklch(0.978 0.006 85);

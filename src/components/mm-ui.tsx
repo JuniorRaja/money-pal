@@ -248,12 +248,6 @@ export function Dot({ token }: { token: string }) {
   );
 }
 
-const sliceKindLabel: Record<string, string> = {
-  owned: "Owned",
-  custodial: "Held for",
-  earmark: "Earmarked",
-};
-
 /**
  * Segmented bar showing how an account balance splits across its slices, with
  * the leftover shown as a muted "Unallocated" tail.
@@ -277,6 +271,9 @@ export function SliceBar({
   const pct = (value: number) => Math.max((Math.max(value, 0) / total) * 100, 0);
 
   return (
+    // Bar only. A per-slice list here grew the card by a row per slice, so an
+    // account with ten of them wrecked the grid — the full breakdown lives in
+    // the Manage slices dialog.
     <div className="mt-4 space-y-2.5">
       <div className="flex h-2 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
         {slices.map((s) => (
@@ -295,40 +292,9 @@ export function SliceBar({
           />
         )}
       </div>
-      <ul className="space-y-1">
-        {slices.map((s) => (
-          <li key={s.id} className="flex items-center justify-between gap-2 text-[11px]">
-            <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-              <Dot token={s.color_token} />
-              <span className="truncate text-foreground">{s.name}</span>
-              <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[9px] uppercase tracking-[0.1em]">
-                {sliceKindLabel[s.kind] ?? s.kind}
-              </span>
-            </span>
-            <span
-              className={cn(
-                "numeric shrink-0",
-                s.amount < 0 ? "text-destructive" : "text-foreground",
-              )}
-            >
-              {format(s.amount)}
-            </span>
-          </li>
-        ))}
-        <li className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30" />
-            {unallocated < 0 ? "Over-allocated" : "Unallocated"}
-          </span>
-          <span className={cn("numeric", unallocated < 0 && "text-destructive")}>
-            {format(unallocated)}
-          </span>
-        </li>
-      </ul>
     </div>
   );
 }
-
 
 /**
  * Empty state component for showing when there's no data.
@@ -378,9 +344,7 @@ export function EmptyState({
         </span>
       )}
       <p className="text-sm text-foreground">{title}</p>
-      {description && (
-        <p className="mt-1 max-w-xs text-xs text-muted-foreground">{description}</p>
-      )}
+      {description && <p className="mt-1 max-w-xs text-xs text-muted-foreground">{description}</p>}
       {action && actionLabel && (
         <button
           type="button"
