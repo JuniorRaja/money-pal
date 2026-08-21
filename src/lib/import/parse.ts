@@ -21,6 +21,40 @@ export function isPdfFilename(filename: string): boolean {
   return /\.pdf$/i.test(filename);
 }
 
+/**
+ * Detect file type by magic bytes (file signature) rather than extension.
+ * Banks sometimes export XLS files with wrong extensions (.csv, .xls for XLSX, etc.)
+ */
+function detectFileType(bytes: ArrayBuffer): "xls" | "xlsx" | "pdf" | "text" {
+  const arr = new Uint8Array(bytes.slice(0, 8));
+
+  // XLS (OLE2 Compound Document): D0 CF 11 E0 A1 B1 1A E1
+  if (
+    arr[0] === 0xd0 &&
+    arr[1] === 0xcf &&
+    arr[2] === 0x11 &&
+    arr[3] === 0xe0 &&
+    arr[4] === 0xa1 &&
+    arr[5] === 0xb1 &&
+    arr[6] === 0x1a &&
+    arr[7] === 0xe1
+  ) {
+    return "xls";
+  }
+
+  // XLSX/DOCX/etc (ZIP): 50 4B 03 04 or 50 4B 05 06 or 50 4B 07 08
+  if (arr[0] === 0x50 && arr[1] === 0x4b && (arr[2] === 0x03 || arr[2] === 0x05 || arr[2] === 0x07)) {
+    return "xlsx";
+  }
+
+  // PDF: 25 50 44 46 ("%PDF")
+  if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) {
+    return "pdf";
+  }
+
+  return "text";
+}
+
 function gridFromCsv(text: string): string[][] {
   const parsed = Papa.parse<string[]>(text, {
     delimiter: "",
@@ -63,11 +97,17 @@ export async function parseFileToGrid(
   filename: string,
   password?: string,
 ): Promise<string[][]> {
-  if (isPdfFilename(filename)) {
+  // First, detect actual file type by magic bytes - bank exports often have wrong extensions
+  const detectedType = detectFileType(bytes);
+
+  // Use content-based detection, falling back to extension if content looks like plain text
+  if (detectedType === "pdf" || isPdfFilename(filename)) {
     const { pdfToGrid } = await import("./pdf");
     return pdfToGrid(bytes, password);
   }
-  if (isSpreadsheetFilename(filename)) return gridFromWorkbook(bytes);
+  if (detectedType === "xls" || detectedType === "xlsx" || isSpreadsheetFilename(filename)) {
+    return gridFromWorkbook(bytes);
+  }
   return gridFromCsv(decodeText(bytes));
 }
 

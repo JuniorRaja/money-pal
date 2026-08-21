@@ -112,11 +112,11 @@ export function ImportFlowDialog({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
         className={cn(
-          "max-h-[90vh] overflow-y-auto sm:max-w-2xl",
+          "sm:max-w-2xl overflow-hidden",
           phase === "review" && "sm:max-w-xl",
         )}
       >
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>{phase === "review" ? "Review import" : "New import"}</DialogTitle>
           <DialogDescription>
             {phase === "review"
@@ -125,33 +125,35 @@ export function ImportFlowDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {!boot ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
-        ) : phase === "import" && flow?.kind === "import" ? (
-          <ImportWizard
-            key={flow.sourceId ?? "new"}
-            accounts={boot.accounts}
-            sources={boot.sources}
-            profiles={boot.profiles}
-            categories={boot.categories}
-            rules={boot.rules}
-            sourceId={flow.sourceId}
-            initialFile={flow.file ?? null}
-            onStaged={handleStaged}
-          />
-        ) : phase === "review" ? (
-          queue == null ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Loading queue…</p>
-          ) : (
-            <ReviewDeck
-              rows={queue}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {!boot ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+          ) : phase === "import" && flow?.kind === "import" ? (
+            <ImportWizard
+              key={flow.sourceId ?? "new"}
+              accounts={boot.accounts}
+              sources={boot.sources}
+              profiles={boot.profiles}
               categories={boot.categories}
               rules={boot.rules}
-              focusId={focusId}
-              onDone={onFinished}
+              sourceId={flow.sourceId}
+              initialFile={flow.file ?? null}
+              onStaged={handleStaged}
             />
-          )
-        ) : null}
+          ) : phase === "review" ? (
+            queue == null ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Loading queue…</p>
+            ) : (
+              <ReviewDeck
+                rows={queue}
+                categories={boot.categories}
+                rules={boot.rules}
+                focusId={focusId}
+                onDone={onFinished}
+              />
+            )
+          ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   );

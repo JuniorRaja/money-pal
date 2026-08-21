@@ -60,13 +60,31 @@ function clusterRows(items: PositionedItem[]): PositionedItem[][] {
 
 /** Gap-based 1D clustering of x start-positions, used only when no header row is found. */
 function clusterColumns(xs: number[]): number[] {
+  if (xs.length === 0) return [];
   const sorted = [...xs].sort((a, b) => a - b);
   const first = sorted[0];
   if (first === undefined) return [];
+
+  // Calculate gaps between consecutive x positions
+  const gaps: number[] = [];
+  for (let i = 1; i < sorted.length; i++) {
+    gaps.push(sorted[i]! - sorted[i - 1]!);
+  }
+
+  // Use adaptive threshold: if we have enough data points, use the median gap
+  // multiplied by a factor, otherwise fall back to the fixed COLUMN_GAP
+  let threshold = COLUMN_GAP;
+  if (gaps.length >= 5) {
+    const sortedGaps = [...gaps].sort((a, b) => a - b);
+    const medianGap = sortedGaps[Math.floor(sortedGaps.length / 2)] ?? COLUMN_GAP;
+    // A new column starts when the gap is significantly larger than typical within-column gaps
+    threshold = Math.max(COLUMN_GAP, medianGap * 3);
+  }
+
   const starts: number[] = [first];
   let prev = first;
   for (const x of sorted.slice(1)) {
-    if (x - prev > COLUMN_GAP) starts.push(x);
+    if (x - prev > threshold) starts.push(x);
     prev = x;
   }
   return starts;

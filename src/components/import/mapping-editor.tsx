@@ -137,9 +137,9 @@ export function MappingEditor({
         </ul>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <div className="max-h-[200px] overflow-auto rounded-xl border border-border">
         <table className="min-w-full text-left text-[11px]">
-          <thead className="bg-accent/50 text-muted-foreground">
+          <thead className="bg-accent/50 text-muted-foreground sticky top-0 z-10">
             <tr>
               {headers.map((header) => (
                 <th

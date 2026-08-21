@@ -22,6 +22,7 @@ const DESCRIPTION_ALIASES = [
   "statement",
   "transaction details",
   "merchant",
+  "transaction",
 ] as const;
 
 const DEBIT_ALIASES = [
@@ -197,20 +198,20 @@ export function guessMapping(headers: readonly string[]): ColumnMapping {
 export function rowLooksLikeHeader(cells: readonly string[], preset?: BankPreset): boolean {
   const aliases = preset
     ? [
-        ...preset.dateAliases,
-        ...preset.descriptionAliases,
-        ...preset.debitAliases,
-        ...preset.creditAliases,
-        ...preset.amountAliases,
-        ...preset.crDrAliases,
-      ]
+      ...preset.dateAliases,
+      ...preset.descriptionAliases,
+      ...preset.debitAliases,
+      ...preset.creditAliases,
+      ...preset.amountAliases,
+      ...preset.crDrAliases,
+    ]
     : [
-        ...DATE_ALIASES,
-        ...DESCRIPTION_ALIASES,
-        ...DEBIT_ALIASES,
-        ...CREDIT_ALIASES,
-        ...AMOUNT_ALIASES,
-      ];
+      ...DATE_ALIASES,
+      ...DESCRIPTION_ALIASES,
+      ...DEBIT_ALIASES,
+      ...CREDIT_ALIASES,
+      ...AMOUNT_ALIASES,
+    ];
 
   const aliasSet = new Set(aliases.map(normalizeHeader));
   let hits = 0;
