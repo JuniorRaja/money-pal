@@ -113,7 +113,7 @@ export function ImportFlowDialog({
       <DialogContent
         className={cn(
           "sm:max-w-2xl overflow-hidden",
-          phase === "review" && "sm:max-w-xl",
+          phase === "review" && "sm:max-w-4xl",
         )}
       >
         <DialogHeader className="flex-shrink-0">
@@ -125,7 +125,7 @@ export function ImportFlowDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
           {!boot ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
           ) : phase === "import" && flow?.kind === "import" ? (

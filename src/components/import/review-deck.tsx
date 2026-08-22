@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LayoutGrid, Layers } from "lucide-react";
 import { toast } from "sonner";
 
 import type { Category, ImportJobRow, ImportRule } from "@/data/schema";
@@ -7,8 +8,10 @@ import { commitImportRow, holdImportRow, reopenImportRow, skipImportRow } from "
 import { findImportRule, midnightIst, resolveSuggestedCategoryId } from "@/lib/import";
 import { dayKey, formatDay, formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { ReviewTable } from "./review-table";
 
 type StampKind = "accepted" | "skipped" | "held";
+type ViewMode = "card" | "table";
 
 const fieldBase =
   "h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-primary/60";
@@ -88,6 +91,7 @@ export function ReviewDeck({
   focusId?: string | undefined;
   onDone: () => void;
 }) {
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
   const [queue, setQueue] = useState(() => {
     if (!focusId) return rows;
     const hit = rows.find((row) => row.id === focusId);
@@ -115,12 +119,12 @@ export function ReviewDeck({
 
   const suggestedId = current
     ? resolveSuggestedCategoryId({
-        merchant: current.merchant,
-        suggestedCategoryId: current.suggested_category_id,
-        categories,
-        rules,
-        accountId: current.account_id,
-      })
+      merchant: current.merchant,
+      suggestedCategoryId: current.suggested_category_id,
+      categories,
+      rules,
+      accountId: current.account_id,
+    })
     : null;
 
   const [edit, setEdit] = useState<EditState | null>(null);
@@ -212,15 +216,15 @@ export function ReviewDeck({
           },
           ...(showRemember && remember && nextCategory
             ? {
-                rule: {
-                  // Correcting a rule targets the existing row, so the upsert
-                  // updates it instead of adding a narrower rule that would
-                  // never win against it.
-                  match: ruleTarget?.match ?? merchantText,
-                  category_id: nextCategory,
-                  account_id: current.account_id,
-                },
-              }
+              rule: {
+                // Correcting a rule targets the existing row, so the upsert
+                // updates it instead of adding a narrower rule that would
+                // never win against it.
+                match: ruleTarget?.match ?? merchantText,
+                category_id: nextCategory,
+                account_id: current.account_id,
+              },
+            }
             : {}),
         });
         remove(current.id);
@@ -309,6 +313,8 @@ export function ReviewDeck({
   }, [busy, history]);
 
   useEffect(() => {
+    // Card-view keyboard shortcuts only apply when in card mode
+    if (viewMode !== "card") return;
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target && ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) {
@@ -346,7 +352,79 @@ export function ReviewDeck({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [accept, busy, current, goBack, hold, onDone, skip]);
+  }, [accept, busy, current, goBack, hold, onDone, skip, viewMode]);
+
+  // Handler for table view when a row is processed (accepted/skipped)
+  const handleRowProcessed = useCallback((id: string) => {
+    setQueue((prev) => prev.filter((row) => row.id !== id));
+  }, []);
+
+  // Confidence breakdown for the summary banner
+  const breakdown = useMemo(() => {
+    const pending = queue.filter((row) => row.status === "pending" || row.status === "held");
+    const high = pending.filter((row) => (row.confidence ?? 0) >= 0.9);
+    const low = pending.filter((row) => (row.confidence ?? 0) < IMPORT_LOW_CONFIDENCE_MAX);
+    return { total: pending.length, high: high.length, low: low.length };
+  }, [queue]);
+
+  // View toggle component
+  const ViewToggle = (
+    <div className="mb-4 flex items-center justify-center gap-1 rounded-lg border border-border bg-card p-1">
+      <button
+        onClick={() => setViewMode("card")}
+        className={cn(
+          "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
+          viewMode === "card"
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground",
+        )}
+      >
+        <Layers className="h-4 w-4" />
+        Cards
+      </button>
+      <button
+        onClick={() => setViewMode("table")}
+        className={cn(
+          "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
+          viewMode === "table"
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground",
+        )}
+      >
+        <LayoutGrid className="h-4 w-4" />
+        Table
+      </button>
+    </div>
+  );
+
+  // Summary banner shown in both views
+  const SummaryBanner = breakdown.total > 0 && (
+    <div className="mb-4 flex flex-wrap items-center justify-center gap-3 text-sm">
+      <span className="text-foreground">{breakdown.total} to review</span>
+      {breakdown.high > 0 && (
+        <span className="text-success">{breakdown.high} high confidence</span>
+      )}
+      {breakdown.low > 0 && (
+        <span className="text-destructive">{breakdown.low} need review</span>
+      )}
+    </div>
+  );
+
+  // Table view rendering
+  if (viewMode === "table") {
+    return (
+      <div className="w-full">
+        {ViewToggle}
+        <ReviewTable
+          rows={queue}
+          categories={categories}
+          rules={rules}
+          onRowProcessed={handleRowProcessed}
+          onDone={onDone}
+        />
+      </div>
+    );
+  }
 
   if (!current) {
     return (
@@ -370,6 +448,8 @@ export function ReviewDeck({
 
   return (
     <div className="mx-auto w-full max-w-lg">
+      {ViewToggle}
+      {SummaryBanner}
       <p className="mb-3 text-center text-xs text-muted-foreground">{remaining} left in this job</p>
 
       <div className="relative mx-auto min-h-[200px] w-full max-w-md">
