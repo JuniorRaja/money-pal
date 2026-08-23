@@ -47,12 +47,12 @@ import { monthsUntil } from "@/lib/period";
 export const Route = createFileRoute("/goals")({
   head: () => ({
     meta: [
-      { title: "Goals — Money Pal Financial OS" },
+      { title: "Goals — Money Mate Financial OS" },
       {
         name: "description",
         content: "Track savings goals, monthly contributions and projected finish dates.",
       },
-      { property: "og:title", content: "Goals — Money Pal" },
+      { property: "og:title", content: "Goals — Money Mate" },
       {
         property: "og:description",
         content: "Name what you're saving for, then watch it get closer.",
@@ -345,7 +345,7 @@ function GoalsPage() {
       )}
 
       {suggestion ? (
-        <Panel className="mt-5" title="Suggestion from Money Pal">
+        <Panel className="mt-5" title="Suggestion from Money Mate">
           <p className="text-sm leading-relaxed text-foreground">
             {goalPace(suggestion).late
               ? `Raising the monthly plan on ${suggestion.name} would pull the projected finish back toward ${suggestion.target_date}.`

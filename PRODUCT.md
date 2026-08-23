@@ -22,7 +22,7 @@ Success: Track money that passes through accounts but isn't yours, and stop lyin
 
 ## Positioning
 
-Every other finance app forces a choice between fake accounts (pretending a single balance is multiple) and lying about net worth. Money Pal models reality: one real bank account, multiple named ownership slices, correct balances by construction. The ledger is append-only, labels cannot drift, and net worth accounts for what is genuinely yours.
+Every other finance app forces a choice between fake accounts (pretending a single balance is multiple) and lying about net worth. Money Mate models reality: one real bank account, multiple named ownership slices, correct balances by construction. The ledger is append-only, labels cannot drift, and net worth accounts for what is genuinely yours.
 
 ## Operating Context
 

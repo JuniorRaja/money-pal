@@ -90,13 +90,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Money Pal — Personal Finance OS" },
+      { title: "Money Mate — Personal Finance OS" },
       {
         name: "description",
         content:
-          "Money Pal is a premium personal finance workspace: accounts, transactions, budgets, goals, investments and an AI assistant.",
+          "Money Mate is a premium personal finance workspace: accounts, transactions, budgets, goals, investments and an AI assistant.",
       },
-      { property: "og:title", content: "Money Pal — Personal Finance OS" },
+      { property: "og:title", content: "Money Mate — Personal Finance OS" },
       {
         property: "og:description",
         content: "Accounts, budgets, goals and an AI assistant in one calm financial workspace.",

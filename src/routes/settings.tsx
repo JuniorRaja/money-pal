@@ -60,14 +60,14 @@ import {
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Money Pal Financial OS" },
+      { title: "Settings — Money Mate Financial OS" },
       {
         name: "description",
         content:
           "Profile, appearance, number formatting, assistant behaviour and privacy controls.",
       },
-      { property: "og:title", content: "Settings — Money Pal" },
-      { property: "og:description", content: "Make Money Pal feel like yours." },
+      { property: "og:title", content: "Settings — Money Mate" },
+      { property: "og:description", content: "Make Money Mate feel like yours." },
     ],
   }),
   beforeLoad: requireAuth,
@@ -111,7 +111,7 @@ function SettingsPage() {
   const [tab, setTab] = useState<Tab>("Appearance");
 
   return (
-    <AppShell title="Settings" subtitle="Make Money Pal feel like yours." signature="settings">
+    <AppShell title="Settings" subtitle="Make Money Mate feel like yours." signature="settings">
       <div className="grid max-w-4xl grid-cols-[168px_1fr] gap-5">
         <nav className="space-y-0.5">
           {tabs.map((t) => (

@@ -378,7 +378,7 @@ export function SettingsSkeleton() {
   return (
     <AppShell
       title="Settings"
-      subtitle="Make Money Pal feel like yours."
+      subtitle="Make Money Mate feel like yours."
       signature="settings"
     >
       {/* Tab bar */}

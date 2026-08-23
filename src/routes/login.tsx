@@ -9,12 +9,12 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Sign in — Money Pal" },
+      { title: "Sign in — Money Mate" },
       {
         name: "description",
-        content: "Sign in to your Money Pal account to access your personal finance dashboard.",
+        content: "Sign in to your Money Mate account to access your personal finance dashboard.",
       },
-      { property: "og:title", content: "Sign in — Money Pal" },
+      { property: "og:title", content: "Sign in — Money Mate" },
       { property: "og:description", content: "Access your personal finance dashboard." },
     ],
   }),
@@ -160,7 +160,7 @@ function LoginPage() {
             <circle cx="20" cy="8" r="2" fill="currentColor" />
           </svg>
           <div className="leading-tight">
-            <p className="text-sm font-semibold tracking-tight">money-pal</p>
+            <p className="text-sm font-semibold tracking-tight">Money Mate</p>
             <p className="text-[11px] text-muted-foreground">Financial OS</p>
           </div>
         </div>
@@ -240,7 +240,7 @@ function LoginPage() {
           <form onSubmit={handleSignUp} className="rise mt-14 max-w-[420px]">
             <h1 className="text-[44px] leading-tight">Create account.</h1>
             <p className="mt-3 text-sm text-muted-foreground">
-              Sign up to start tracking your finances with Money Pal.
+              Sign up to start tracking your finances with Money Mate.
             </p>
 
             <label className="mt-10 block text-sm text-foreground" htmlFor="signup-email">
@@ -367,7 +367,7 @@ function LoginPage() {
       <div className="relative isolate hidden w-[54%] flex-col justify-end overflow-hidden bg-accent/60 p-12 lg:flex">
         <Signature variant="login" />
         <div className="relative border-t border-border/60 pt-6 text-xs text-muted-foreground">
-          <p>Money Pal 1.0.0 · Secure cloud sync</p>
+          <p>Money Mate 1.0.0 · Secure cloud sync</p>
           <p className="mt-1">Powered by Supabase</p>
         </div>
       </div>

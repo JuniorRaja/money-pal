@@ -1,4 +1,4 @@
-# Money Pal — build order
+# Money Mate — build order
 
 Master index. Each child plan is self-contained: a fresh session should be able to read
 one file plus the repo's `CLAUDE.md` and start work.

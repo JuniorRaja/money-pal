@@ -49,7 +49,7 @@ export const sendTelegramTestFn = createServerFn({ method: "POST" })
     await sendTelegramMessage(
       data.bot_token.trim(),
       data.chat_id.trim(),
-      "✅ Money Pal is connected.",
+      "✅ Money Mate is connected.",
     );
     return { success: true };
   });
@@ -204,7 +204,7 @@ export const sendMonthlyEmailFn = createServerFn({ method: "POST" })
 
     const result = await sendEmail(config, {
       to: profile.email,
-      subject: `Money Pal - ${periodDisplay} Financial Report`,
+      subject: `Money Mate - ${periodDisplay} Financial Report`,
       html,
       text,
     });

@@ -17,5 +17,5 @@ export function formatTelegramDigest(events: TimelineEvent[]): string {
   const overflow = sorted.length - shown.length;
   if (overflow > 0) lines.push(`…and ${overflow} more in the app.`);
 
-  return ["Money Pal — daily digest", "", ...lines].join("\n");
+  return ["Money Mate — daily digest", "", ...lines].join("\n");
 }

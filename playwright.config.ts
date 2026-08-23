@@ -17,7 +17,7 @@ if (existsSync(envPath)) {
 }
 
 /**
- * Playwright configuration for Money Pal E2E tests.
+ * Playwright configuration for Money Mate E2E tests.
  *
  * `webServer` below starts (or reuses) the dev server on port 3000.
  */

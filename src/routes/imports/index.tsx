@@ -65,12 +65,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/imports/")({
   head: () => ({
     meta: [
-      { title: "Import Center — Money Pal Financial OS" },
+      { title: "Import Center — Money Mate Financial OS" },
       {
         name: "description",
         content: "Bring in bank statements from CSV or Excel, then review what needs a human eye.",
       },
-      { property: "og:title", content: "Import Center — Money Pal" },
+      { property: "og:title", content: "Import Center — Money Mate" },
       { property: "og:description", content: "Bring your money in from statements, cleanly." },
     ],
   }),

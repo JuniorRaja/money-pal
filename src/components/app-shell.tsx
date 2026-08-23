@@ -148,7 +148,7 @@ function Sidebar({
         {!collapsed && (
           <div className="leading-tight">
             <p className="text-sm font-semibold tracking-tight text-sidebar-foreground">
-              money-pal
+              Money Mate
             </p>
             <p className="text-[11px] text-muted-foreground">Financial OS</p>
           </div>
@@ -365,7 +365,7 @@ function TopBar({
         className="flex h-10 items-center gap-2 rounded-full border border-primary/30 bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:border-primary/60 hover:bg-accent sm:px-4"
       >
         <Sparkles className="h-4 w-4 text-primary" />
-        <span className="hidden sm:inline">Ask Money Pal</span>
+        <span className="hidden sm:inline">Ask Money Mate</span>
       </Link>
       <NotificationBell />
       <button
@@ -475,7 +475,7 @@ export function AppShell({
           )}
           <div className={actions ? "" : "pt-8"}>{children}</div>
           <footer className="mt-8 flex items-center gap-2 text-[11px] text-muted-foreground">
-            Money Pal
+            Money Mate
           </footer>
         </main>
       </div>

@@ -62,13 +62,13 @@ const UPCOMING_BILL_DAYS = 30;
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Overview — Money Pal Financial OS" },
+      { title: "Overview — Money Mate Financial OS" },
       {
         name: "description",
         content:
-          "Net worth, cash flow, budgets and upcoming bills at a glance in the Money Pal overview.",
+          "Net worth, cash flow, budgets and upcoming bills at a glance in the Money Mate overview.",
       },
-      { property: "og:title", content: "Overview — Money Pal Financial OS" },
+      { property: "og:title", content: "Overview — Money Mate Financial OS" },
       {
         property: "og:description",
         content: "Your net worth, this month's cash flow and what needs attention today.",

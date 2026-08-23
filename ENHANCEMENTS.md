@@ -1,4 +1,4 @@
-# Money Pal — Enhancement Master Plan
+# Money Mate — Enhancement Master Plan
 
 > **Version:** 1.0  
 > **Date:** August 2026  

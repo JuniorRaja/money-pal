@@ -1,4 +1,4 @@
-# Money Pal
+# Money Mate
 
 A personal finance workspace: accounts, transactions, budgets, goals, investments, bank-statement
 import, and an AI assistant — built around one idea, that a single real account balance can be split

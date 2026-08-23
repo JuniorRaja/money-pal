@@ -10,7 +10,7 @@ import { getImportJobHistory } from "@/data/repository";
 export const Route = createFileRoute("/imports/history")({
   head: () => ({
     meta: [
-      { title: "Import history — Money Pal Financial OS" },
+      { title: "Import history — Money Mate Financial OS" },
       { name: "description", content: "Every statement import, finished or dismissed." },
     ],
   }),

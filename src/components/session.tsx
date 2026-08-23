@@ -115,7 +115,7 @@ const SessionContext = createContext<SessionValue | null>(null);
  * on every load is worse than two keys in localStorage. The inline script in
  * `__root.tsx` reads this key before React boots.
  */
-export const PAINT_CACHE_KEY = "money-pal.appearance";
+export const PAINT_CACHE_KEY = "money-mate.appearance";
 
 type PaintCache = Pick<AppPrefs, "theme" | "accent">;
 

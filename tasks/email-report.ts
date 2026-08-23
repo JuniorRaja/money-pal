@@ -115,7 +115,7 @@ export default defineTask({
 
         const result = await sendEmail(config, {
           to: profile.email,
-          subject: `Money Pal - ${periodDisplay} Financial Report`,
+          subject: `Money Mate - ${periodDisplay} Financial Report`,
           html,
           text,
         });

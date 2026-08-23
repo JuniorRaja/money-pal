@@ -188,16 +188,16 @@ export async function sendEmail(config: EmailConfig, message: EmailMessage): Pro
 export async function sendTestEmail(config: EmailConfig, toAddress: string): Promise<SendResult> {
   return sendEmail(config, {
     to: toAddress,
-    subject: "Money Pal - Test Email",
+    subject: "Money Mate - Test Email",
     html: `
       <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #16a34a;">Money Pal is connected</h2>
+        <h2 style="color: #16a34a;">Money Mate is connected</h2>
         <p>Your email notifications are configured correctly.</p>
         <p style="color: #6b7280; font-size: 14px;">
           You'll receive monthly financial reports at this address.
         </p>
       </div>
     `,
-    text: "Money Pal is connected. Your email notifications are configured correctly.",
+    text: "Money Mate is connected. Your email notifications are configured correctly.",
   });
 }

@@ -62,12 +62,12 @@ export const Route = createFileRoute("/budgets")({
   },
   head: () => ({
     meta: [
-      { title: "Budgets — Money Pal Financial OS" },
+      { title: "Budgets — Money Mate Financial OS" },
       {
         name: "description",
         content: "Plan every category, watch the pace, and get warned before a budget slips.",
       },
-      { property: "og:title", content: "Budgets — Money Pal" },
+      { property: "og:title", content: "Budgets — Money Mate" },
       {
         property: "og:description",
         content: "Give every rupee a job before the month spends it for you.",

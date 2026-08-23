@@ -75,13 +75,13 @@ export const Route = createFileRoute("/transactions")({
   },
   head: () => ({
     meta: [
-      { title: "Transactions — Money Pal Financial OS" },
+      { title: "Transactions — Money Mate Financial OS" },
       {
         name: "description",
         content:
           "Every financial event, organised and clear: filter by date, account, category, label and type.",
       },
-      { property: "og:title", content: "Transactions — Money Pal" },
+      { property: "og:title", content: "Transactions — Money Mate" },
       { property: "og:description", content: "Every financial event, organized and clear." },
     ],
   }),

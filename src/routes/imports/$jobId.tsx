@@ -29,7 +29,9 @@ export const Route = createFileRoute("/imports/$jobId")({
   head: ({ loaderData }) => ({
     meta: [
       {
-        title: loaderData ? `${loaderData.job.title} — Import review` : "Import review — Money Pal",
+        title: loaderData
+          ? `${loaderData.job.title} — Import review`
+          : "Import review — Money Mate",
       },
     ],
   }),

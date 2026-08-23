@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Money Pal — User Guide</title>
+  <title>Money Mate — User Guide</title>
   <style>
     :root {
       --bg: #fafafa;
@@ -294,7 +294,7 @@
 
   <header class="hero">
     <span class="tagline">Personal Finance OS</span>
-    <h1>Money Pal</h1>
+    <h1>Money Mate</h1>
     <p>Finally, a finance app that knows not all the money in your account is yours.</p>
   </header>
 
@@ -368,7 +368,7 @@
       useful.</p>
 
     <figure>
-      <img src="img/overview.png" alt="Money Pal Overview showing net worth with custodial money excluded">
+      <img src="img/overview.png" alt="Money Mate Overview showing net worth with custodial money excluded">
       <figcaption>The Overview shows your true net worth — custodial money is tracked but excluded.</figcaption>
     </figure>
 
@@ -445,7 +445,7 @@
   <section id="importing">
     <h2>Importing statements</h2>
 
-    <p>Manual entry works, but importing your bank statement is faster. Money Pal reads CSV and Excel files — the
+    <p>Manual entry works, but importing your bank statement is faster. Money Mate reads CSV and Excel files — the
       statement never leaves your browser.</p>
 
     <h3>How to import</h3>
@@ -496,11 +496,11 @@
       <li><strong>New transactions</strong> — ready to import</li>
       <li><strong>Possible duplicates</strong> — same amount and date as an existing transaction. You decide: skip or
         import anyway</li>
-      <li><strong>Unknown merchants</strong> — no category assigned. Pick one, and Money Pal learns for next time</li>
+      <li><strong>Unknown merchants</strong> — no category assigned. Pick one, and Money Mate learns for next time</li>
     </ul>
 
     <div class="callout">
-      <p><strong>How categorisation learns:</strong> When you assign a category to a merchant, Money Pal saves that as a
+      <p><strong>How categorisation learns:</strong> When you assign a category to a merchant, Money Mate saves that as a
         rule. Next time you import a transaction from "SWIGGY", it already knows that's "Food & Dining".</p>
       <p>You can view and edit these rules in <strong>Settings → Import rules</strong>.</p>
     </div>
@@ -522,7 +522,7 @@
   <section id="budgets">
     <h2>Budgets</h2>
 
-    <p>A budget is a spending limit for a category in a month. Set ₹15,000 for Groceries, and Money Pal shows you how
+    <p>A budget is a spending limit for a category in a month. Set ₹15,000 for Groceries, and Money Mate shows you how
       much you have left as you spend.</p>
 
     <h3>Creating a budget</h3>
@@ -585,7 +585,7 @@
 
     <div class="callout warning">
       <p><strong>Monthly contribution is a guide, not an auto-transfer:</strong> Setting a monthly contribution amount
-        helps Money Pal calculate your estimated finish date and warn you if you are behind pace. But nothing moves
+        helps Money Mate calculate your estimated finish date and warn you if you are behind pace. But nothing moves
         automatically — you contribute manually when you choose to.</p>
     </div>
 
@@ -638,7 +638,7 @@
     </div>
 
     <h3>Notifications</h3>
-    <p>Money Pal can alert you to important events:</p>
+    <p>Money Mate can alert you to important events:</p>
     <ul>
       <li>Budget approaching its limit</li>
       <li>Credit card due date approaching</li>
@@ -661,7 +661,7 @@
   <section id="self-hosting">
     <h2>Self-hosting</h2>
 
-    <p>Money Pal can run on your own server. The setup is two containers: the app and a Postgres database.</p>
+    <p>Money Mate can run on your own server. The setup is two containers: the app and a Postgres database.</p>
 
     <h3>Requirements</h3>
     <ul>
@@ -709,13 +709,13 @@ docker compose up -d</code></pre>
     <p>For detailed setup instructions, see <a href="SETUP.md">SETUP.md</a> in the repository.</p>
 
     <div class="callout warning">
-      <p><strong>Alpha software:</strong> Money Pal is in active development. Your data is important — keep backups. If
+      <p><strong>Alpha software:</strong> Money Mate is in active development. Your data is important — keep backups. If
         you need data deleted, ask and it will be done. Real deletion, including any append-only audit rows.</p>
     </div>
   </section>
 
   <footer>
-    <p>Money Pal User Guide</p>
+    <p>Money Mate User Guide</p>
     <p>Screenshots regenerate with <code>npm run screenshots</code></p>
   </footer>
 

@@ -1,7 +1,7 @@
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
 
 /**
- * Custom test fixtures for Money Pal E2E tests.
+ * Custom test fixtures for Money Mate E2E tests.
  *
  * One shared sign-in path (`ensureSignedIn`) for every page fixture below —
  * see docs/plans/P2-2-playwright-journeys.md for why three copies of this
