@@ -125,7 +125,7 @@ export function filterTransactions(rows: Transaction[], filter: TransactionFilte
     // the month into the month before.
     if (filter.period && !dayKey(t.occurred_at).startsWith(filter.period)) return false;
     if (q) {
-      const hay = `${t.merchant} ${t.descriptor} ${t.payment_method}`.toLowerCase();
+      const hay = `${t.payee} ${t.descriptor} ${t.note ?? ""} ${t.payment_method}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -269,64 +269,64 @@ export async function getLabelIdsByName(name: string): Promise<string[]> {
   return labels.filter((l) => l.name === name).map((l) => l.id);
 }
 
-/** A merchant the user has typed before, with what they usually pair it with. */
-export interface MerchantSuggestion {
-  merchant: string;
-  /** Category on the most recent transaction for this merchant. */
+/** A payee the user has typed before, with what they usually pair it with. */
+export interface PayeeSuggestion {
+  payee: string;
+  /** Category on the most recent transaction for this payee. */
   category_id: string;
-  /** Account on the most recent transaction for this merchant. */
+  /** Account on the most recent transaction for this payee. */
   account_id: string;
-  /** Distinct descriptions/notes seen for this merchant, newest first. */
+  /** Distinct descriptions/notes seen for this payee, newest first. */
   descriptors: string[];
   count: number;
 }
 
-const MERCHANT_DESCRIPTORS = 6;
+const PAYEE_DESCRIPTORS = 6;
 
 /**
- * Merchant autocomplete, derived from the transactions already in reach rather
+ * Payee autocomplete, derived from the transactions already in reach rather
  * than a second round trip: `listTransactions()` hands back the newest 500
- * entries, so the first row seen for a merchant *is* its last use.
+ * entries, so the first row seen for a payee *is* its last use.
  *
  * ponytail: a 500-row window, not a lifetime GROUP BY. Push it into SQL if
- * someone's long-tail merchants stop showing up.
+ * someone's long-tail payees stop showing up.
  */
-export async function getMerchantSuggestions(): Promise<MerchantSuggestion[]> {
+export async function getPayeeSuggestions(): Promise<PayeeSuggestion[]> {
   const rows = await listTransactions();
-  const byMerchant = new Map<string, MerchantSuggestion>();
-  // Both legs of a transfer carry the same merchant; counting one header twice
+  const byPayee = new Map<string, PayeeSuggestion>();
+  // Both legs of a transfer carry the same payee; counting one header twice
   // would float transfers to the top of the list.
   const seenHeaders = new Set<string>();
 
   for (const t of rows) {
-    const merchant = t.merchant.trim();
-    if (!merchant || merchant === "—") continue;
+    const payee = t.payee.trim();
+    if (!payee || payee === "—") continue;
     if (seenHeaders.has(t.transaction_id)) continue;
     seenHeaders.add(t.transaction_id);
 
-    let hit = byMerchant.get(merchant);
+    let hit = byPayee.get(payee);
     if (!hit) {
       hit = {
-        merchant,
+        payee,
         category_id: t.category_id,
         account_id: t.account_id,
         descriptors: [],
         count: 0,
       };
-      byMerchant.set(merchant, hit);
+      byPayee.set(payee, hit);
     }
     hit.count += 1;
-    // A descriptor that just echoes the merchant is what the form fills in when
+    // A descriptor that just echoes the payee is what the form fills in when
     // the field is left blank — suggesting it back teaches nothing.
     for (const text of [t.descriptor, t.note]) {
       const value = text?.trim();
-      if (!value || value === merchant) continue;
-      if (hit.descriptors.length >= MERCHANT_DESCRIPTORS) break;
+      if (!value || value === payee) continue;
+      if (hit.descriptors.length >= PAYEE_DESCRIPTORS) break;
       if (!hit.descriptors.includes(value)) hit.descriptors.push(value);
     }
   }
 
-  return Array.from(byMerchant.values()).sort((a, b) => b.count - a.count);
+  return Array.from(byPayee.values()).sort((a, b) => b.count - a.count);
 }
 
 /** Matches the row cap `liveTimeline()` puts on the stored half of the feed. */

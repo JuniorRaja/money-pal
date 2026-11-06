@@ -108,8 +108,9 @@ const flatTrend = (base: number) => Array.from({ length: 12 }, () => base);
 
 export interface NewTransactionInput {
   occurred_at: string; // "2026-08-07"
-  merchant: string;
+  payee: string;
   descriptor: string;
+  narration?: string | null;
   amount: Paise; // absolute value
   type: TransactionType;
   account_id: string;
@@ -125,8 +126,9 @@ export async function createTransaction(input: NewTransactionInput): Promise<{
 }> {
   const serverInput: CreateTransactionInput = {
     occurred_at: input.occurred_at,
-    merchant: input.merchant,
+    payee: input.payee,
     descriptor: input.descriptor,
+    narration: input.narration ?? null,
     amount: input.amount,
     type: input.type,
     account_id: input.account_id,
@@ -147,8 +149,9 @@ export interface EditTransactionInput {
   id: string; // entry ID (the domain-level transaction ID from v_transactions_flat)
   transaction_id?: string | undefined;
   occurred_at?: string | undefined;
-  merchant?: string | undefined;
+  payee?: string | undefined;
   descriptor?: string | undefined;
+  narration?: string | null | undefined;
   amount?: Paise | undefined; // absolute value — will be re-signed based on type
   type?: TransactionType | undefined;
   account_id?: string | undefined;
@@ -168,8 +171,9 @@ export async function updateTransaction(
     id: input.id,
     transaction_id: input.transaction_id ?? current.transaction_id,
     occurred_at: input.occurred_at,
-    merchant: input.merchant,
+    payee: input.payee,
     descriptor: input.descriptor,
+    narration: input.narration,
     amount: input.amount,
     type: input.type,
     account_id: input.account_id,

@@ -61,8 +61,9 @@ async function getOrCreateBudget(
 
 export interface CreateTransactionInput {
   occurred_at: string; // ISO date "2026-08-07"
-  merchant: string;
+  payee: string;
   descriptor: string;
+  narration?: string | null;
   amount: number; // absolute value in paise
   type: TransactionType;
   account_id: string; // from / sole account
@@ -76,7 +77,7 @@ export interface CreateTransactionInput {
 export const createTransactionFn = createServerFn({ method: "POST" })
   .validator((input: CreateTransactionInput) => {
     if (!input.occurred_at) throw new Error("occurred_at is required");
-    if (!input.merchant?.trim()) throw new Error("merchant is required");
+    if (!input.payee?.trim()) throw new Error("payee is required");
     if (!input.account_id) throw new Error("account_id is required");
     if (!input.category_id) throw new Error("category_id is required");
     if (input.amount <= 0) throw new Error("amount must be positive");
@@ -101,8 +102,9 @@ export const createTransactionFn = createServerFn({ method: "POST" })
         ? { p_to_account: data.to_account_id }
         : {}),
       p_category: data.category_id,
-      p_merchant: data.merchant,
-      p_descriptor: data.descriptor || data.merchant,
+      p_payee: data.payee,
+      p_descriptor: data.descriptor || data.payee,
+      ...(data.narration ? { p_narration: data.narration } : {}),
       ...(data.label_id ? { p_from_label: data.label_id } : {}),
       ...(data.type === "transfer" && data.to_label_id ? { p_to_label: data.to_label_id } : {}),
       p_payment_method: "Manual",
@@ -122,8 +124,9 @@ export interface UpdateTransactionInput {
   id: string;
   transaction_id?: string | undefined;
   occurred_at?: string | undefined;
-  merchant?: string | undefined;
+  payee?: string | undefined;
   descriptor?: string | undefined;
+  narration?: string | null | undefined;
   amount?: number | undefined;
   type?: TransactionType | undefined;
   account_id?: string | undefined;
@@ -139,8 +142,8 @@ export const updateTransactionFn = createServerFn({ method: "POST" })
   .validator((input: UpdateTransactionInput) => {
     if (!input.id && !input.transaction_id) throw new Error("id is required");
     if (input.amount !== undefined && input.amount <= 0) throw new Error("amount must be positive");
-    if (input.merchant !== undefined && !input.merchant.trim())
-      throw new Error("merchant cannot be empty");
+    if (input.payee !== undefined && !input.payee.trim())
+      throw new Error("payee cannot be empty");
     if (input.type === "transfer" && input.to_account_id === null) {
       throw new Error("to_account_id is required for transfers");
     }
@@ -179,8 +182,10 @@ export const updateTransactionFn = createServerFn({ method: "POST" })
       ...(data.to_account_id ? { p_to_account: data.to_account_id } : {}),
       ...(data.amount !== undefined ? { p_amount: data.amount } : {}),
       ...(data.category_id ? { p_category: data.category_id } : {}),
-      ...(data.merchant !== undefined ? { p_merchant: data.merchant } : {}),
+      ...(data.payee !== undefined ? { p_payee: data.payee } : {}),
       ...(data.descriptor !== undefined ? { p_descriptor: data.descriptor } : {}),
+      ...(data.narration ? { p_narration: data.narration } : {}),
+      p_clear_narration: data.narration === null,
       ...(data.label_id ? { p_from_label: data.label_id } : {}),
       ...(data.to_label_id ? { p_to_label: data.to_label_id } : {}),
       p_clear_from_label: data.label_id === null,
@@ -1507,14 +1512,15 @@ function asJson(value: ImportMapping): Json {
   return value as Json;
 }
 
-function normalizeRuleMatch(value: string): string {
+function normalizeRulePattern(value: string): string {
   return value.trim().toLowerCase();
 }
 
 type ImportRowDraft = {
   occurred_at: string;
-  merchant?: string | null;
+  payee?: string | null;
   descriptor?: string | null;
+  narration?: string | null;
   note?: string | null;
   amount_paise: number;
   type: "income" | "expense";
@@ -1547,17 +1553,17 @@ async function findExistingExternalRefs(
 async function upsertImportRuleRow(
   supabase: AppSupabase,
   userId: string,
-  input: { match: string; category_id: string; account_id?: string | null },
+  input: { pattern: string; category_id: string; account_id?: string | null; match_field?: string },
 ): Promise<{ id: string }> {
-  const match = normalizeRuleMatch(input.match);
-  if (!match) throw new Error("match is required");
+  const pattern = normalizeRulePattern(input.pattern);
+  if (!pattern) throw new Error("pattern is required");
   if (!input.category_id) throw new Error("category_id is required");
 
   let existingQuery = supabase
     .from("import_rules")
     .select("id")
     .eq("user_id", userId)
-    .eq("match", match)
+    .eq("pattern", pattern)
     .is("deleted_at", null);
   existingQuery = input.account_id
     ? existingQuery.eq("account_id", input.account_id)
@@ -1567,7 +1573,7 @@ async function upsertImportRuleRow(
   if (lookupError) throw lookupError;
 
   if (existing) {
-    // Re-teaching a merchant revives a paused rule: the unique index means there
+    // Re-teaching a payee revives a paused rule: the unique index means there
     // can be no second row, so leaving it inactive would silently do nothing.
     const { error } = await supabase
       .from("import_rules")
@@ -1585,7 +1591,8 @@ async function upsertImportRuleRow(
     .from("import_rules")
     .insert({
       user_id: userId,
-      match,
+      pattern,
+      match_field: (input.match_field as "note" | "narration" | "payee") ?? "narration",
       category_id: input.category_id,
       account_id: input.account_id ?? null,
     })
@@ -1797,8 +1804,9 @@ export const stageImportFn = createServerFn({ method: "POST" })
       job_id: job.id,
       account_id: data.account_id,
       occurred_at: row.occurred_at,
-      merchant: row.merchant?.trim() || null,
+      payee: row.payee?.trim() || null,
       descriptor: row.descriptor?.trim() || null,
+      narration: row.narration?.trim() || null,
       note: row.note?.trim() || null,
       amount_paise: row.amount_paise,
       type: row.type,
@@ -1831,19 +1839,21 @@ export interface CommitImportRowInput {
   row_id: string;
   patch?: {
     occurred_at?: string;
-    merchant?: string | null;
+    payee?: string | null;
     descriptor?: string | null;
+    narration?: string | null;
     note?: string | null;
     amount_paise?: number;
     type?: "income" | "expense";
     suggested_category_id?: string | null;
     confidence?: number | null;
   };
-  /** When the user corrects category, persist a merchant → category rule. */
+  /** When the user corrects category, persist a payee → category rule. */
   rule?: {
-    match: string;
+    pattern: string;
     category_id: string;
     account_id?: string | null;
+    match_field?: string;
   };
 }
 
@@ -1868,8 +1878,9 @@ export const commitImportRowFn = createServerFn({ method: "POST" })
         modified_at: new Date().toISOString(),
       };
       if (patch.occurred_at !== undefined) update.occurred_at = patch.occurred_at;
-      if (patch.merchant !== undefined) update.merchant = patch.merchant?.trim() || null;
+      if (patch.payee !== undefined) update.payee = patch.payee?.trim() || null;
       if (patch.descriptor !== undefined) update.descriptor = patch.descriptor?.trim() || null;
+      if (patch.narration !== undefined) update.narration = patch.narration?.trim() || null;
       if (patch.note !== undefined) update.note = patch.note?.trim() || null;
       if (patch.amount_paise !== undefined) update.amount_paise = patch.amount_paise;
       if (patch.type !== undefined) update.type = patch.type;
@@ -1946,14 +1957,15 @@ export const holdImportRowFn = createServerFn({ method: "POST" })
   });
 
 export interface UpsertImportRuleInput {
-  match: string;
+  pattern: string;
   category_id: string;
   account_id?: string | null;
+  match_field?: string;
 }
 
 export const upsertImportRuleFn = createServerFn({ method: "POST" })
   .validator((input: UpsertImportRuleInput) => {
-    if (!input.match?.trim()) throw new Error("match is required");
+    if (!input.pattern?.trim()) throw new Error("pattern is required");
     if (!input.category_id) throw new Error("category_id is required");
     return input;
   })

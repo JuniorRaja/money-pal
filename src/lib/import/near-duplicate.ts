@@ -30,7 +30,7 @@ export interface MatchableTransaction {
   account_id: string;
   occurred_at: string;
   amount: number;
-  merchant: string | null;
+  payee: string | null;
 }
 
 /** Staged rows carry a positive amount plus a direction; entries carry a sign. */
@@ -79,7 +79,7 @@ export function matchNearDuplicates(
       id: best.id,
       occurred_at: best.occurred_at,
       amount_paise: Math.abs(best.amount),
-      merchant: best.merchant ?? "",
+      payee: best.payee ?? "",
     });
   }
   return matches;

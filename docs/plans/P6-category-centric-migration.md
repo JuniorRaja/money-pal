@@ -82,26 +82,34 @@ Search now matches against: category name → note → payee → descriptor (in 
 - ✅ Update RPC function signatures (fn_record_transaction, fn_update_transaction)
 - ✅ Add `import_match_field` enum
 
-### Phase 3: Data Layer
+### Phase 3: Data Layer ✅
 
-**Task 3.1**: Update `src/data/live.ts`
-- `liveTransactions`: map payee and narration
-- `liveImportJobRows`: map payee and narration
-- `liveImportRules`: map pattern and match_field
+**Task 3.1**: Update `src/data/live.ts` ✅
+- ✅ `liveTransactions`: map payee and narration
+- ✅ `liveGoalContributions`: map payee (was merchant)
+- ✅ `liveImportJobRows`: map payee and narration
+- ✅ `liveImportRules`: map pattern and match_field
+- ✅ `attachNearDuplicates`: use payee field
+- ✅ `mapReviewItem`: use payee for title
 
-**Task 3.2**: Update `src/data/repository.ts`
-- `filterTransactions`: search category name, note, payee
-- Rename `getMerchantSuggestions` → `getPayeeSuggestions`
-- Update `MerchantSuggestion` → `PayeeSuggestion` interface
+**Task 3.2**: Update `src/data/repository.ts` ✅
+- ✅ `filterTransactions`: search note, payee (was merchant)
+- ✅ Rename `getMerchantSuggestions` → `getPayeeSuggestions`
+- ✅ Update `MerchantSuggestion` → `PayeeSuggestion` interface
 
-**Task 3.3**: Update `src/data/mutations.ts`
-- `NewTransactionInput`: rename merchant → payee, add narration
-- `EditTransactionInput`: same changes
-- Update all transaction mutation calls
+**Task 3.3**: Update `src/data/mutations.ts` ✅
+- ✅ `NewTransactionInput`: rename merchant → payee, add narration
+- ✅ `EditTransactionInput`: same changes
+- ✅ Update all transaction mutation calls
 
-**Task 3.4**: Update `src/lib/mutations.functions.ts`
-- Update server function input types
-- Update RPC call parameters
+**Task 3.4**: Update `src/lib/mutations.functions.ts` ✅
+- ✅ `CreateTransactionInput`: rename merchant → payee, add narration
+- ✅ `UpdateTransactionInput`: same changes, add p_clear_narration
+- ✅ `ImportRowDraft`: rename merchant → payee, add narration
+- ✅ `CommitImportRowInput`: rename merchant → payee, match → pattern, add match_field
+- ✅ `UpsertImportRuleInput`: rename match → pattern, add match_field
+- ✅ `upsertImportRuleRow`: use pattern and match_field
+- ✅ Update RPC call parameters (p_payee, p_narration)
 
 ### Phase 4: Import Pipeline
 

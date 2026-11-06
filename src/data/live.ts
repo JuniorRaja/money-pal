@@ -404,8 +404,9 @@ export const liveTransactions = (period?: string): Promise<Transaction[]> =>
         id: row.entry_id as string,
         transaction_id: tid,
         occurred_at: row.occurred_at as string,
-        merchant: (row.merchant as string | null) ?? "—",
+        payee: (row.payee as string | null) ?? "—",
         descriptor: (row.descriptor as string | null) ?? "",
+        narration: (row.narration as string | null) ?? null,
         amount: Number(row.amount ?? 0),
         type: row.type as Transaction["type"],
         account_id: row.account_id as string,
@@ -569,7 +570,7 @@ export const liveGoalContributions = (): Promise<GoalContribution[]> =>
         amount: Number(row.amount ?? 0),
         contributed_on: row.contributed_on,
         transaction_id: headerId,
-        merchant: txn?.merchant ?? null,
+        payee: txn?.payee ?? null,
         descriptor: txn?.descriptor ?? null,
       };
     });
@@ -638,8 +639,9 @@ function mapJobRow(row: {
   job_id: string;
   account_id: string;
   occurred_at: string;
-  merchant: string | null;
+  payee: string | null;
   descriptor: string | null;
+  narration: string | null;
   note: string | null;
   amount_paise: number;
   type: string;
@@ -656,8 +658,9 @@ function mapJobRow(row: {
     job_id: row.job_id,
     account_id: row.account_id,
     occurred_at: row.occurred_at,
-    merchant: row.merchant ?? "",
+    payee: row.payee ?? "",
     descriptor: row.descriptor ?? "",
+    narration: row.narration ?? null,
     note: row.note,
     amount_paise: Number(row.amount_paise ?? 0),
     type,
@@ -700,7 +703,7 @@ async function attachNearDuplicates(
   for (let i = 0; i < amounts.length; i += NEAR_DUPLICATE_CHUNK) {
     const { data, error } = await supabase
       .from("v_transactions_flat")
-      .select("transaction_id, account_id, occurred_at, amount, merchant")
+      .select("transaction_id, account_id, occurred_at, amount, payee")
       .in("account_id", accountIds)
       .in("amount", amounts.slice(i, i + NEAR_DUPLICATE_CHUNK))
       .gte("occurred_at", from)
@@ -712,7 +715,7 @@ async function attachNearDuplicates(
         account_id: txn.account_id as string,
         occurred_at: txn.occurred_at as string,
         amount: Number(txn.amount ?? 0),
-        merchant: (txn.merchant as string | null) ?? null,
+        payee: (txn.payee as string | null) ?? null,
       });
     }
   }
@@ -736,7 +739,7 @@ function mapReviewItem(row: ImportJobRow): ImportReviewItem {
   return {
     id: row.id,
     kind,
-    title: row.merchant || row.descriptor || "Imported row",
+    title: row.payee || row.descriptor || "Imported row",
     detail: `${when} · ${row.type}`,
     action_label: row.status === "held" ? "Resume" : "Review",
     job_id: row.job_id,
@@ -830,7 +833,7 @@ export const liveImportJobs = (includeDismissed = false): Promise<ImportJob[]> =
   }, []);
 
 const JOB_ROW_COLUMNS =
-  "id, job_id, account_id, occurred_at, merchant, descriptor, note, amount_paise, type, raw_line, import_hash, status, suggested_category_id, transaction_id, confidence";
+  "id, job_id, account_id, occurred_at, payee, descriptor, narration, note, amount_paise, type, raw_line, import_hash, status, suggested_category_id, transaction_id, confidence";
 
 export const liveImportJobRows = (
   jobId: string,
@@ -886,14 +889,15 @@ export const liveImportRules = (): Promise<ImportRule[]> =>
   live<ImportRule[]>(async (supabase) => {
     const { data, error } = await supabase
       .from("import_rules")
-      .select("id, match, category_id, account_id, is_active")
+      .select("id, pattern, match_field, category_id, account_id, is_active")
       .is("deleted_at", null)
-      .order("match");
+      .order("pattern");
     if (error) throw error;
     // Paused rules come back too — Settings lists them; `applyImportRules` skips them.
     return (data ?? []).map((row): ImportRule => ({
       id: row.id,
-      match: row.match,
+      pattern: row.pattern,
+      match_field: row.match_field,
       category_id: row.category_id,
       account_id: row.account_id,
       is_active: row.is_active,
