@@ -270,22 +270,24 @@ export function applyHeuristics(input: {
   type: "income" | "expense";
 }): HeuristicSuggestion {
   const haystack = normalizeNarration(input.narration);
-  const merchant = extractMerchant(input.narration);
+  const payee = extractMerchant(input.narration);
   const note = extractNote(input.narration);
   const hit = matchRule(haystack, input.type);
 
   if (hit) {
     return {
-      merchant: merchant || hit.category,
+      payee: payee || hit.category,
+      narration: input.narration,
       note,
       suggested_category_name: hit.category,
       confidence: hit.confidence,
     };
   }
 
-  if (merchant && merchant.length >= 3) {
+  if (payee && payee.length >= 3) {
     return {
-      merchant,
+      payee,
+      narration: input.narration,
       note,
       suggested_category_name: null,
       confidence: 0.4,
@@ -293,7 +295,8 @@ export function applyHeuristics(input: {
   }
 
   return {
-    merchant: merchant || input.narration.trim().slice(0, 48),
+    payee: payee || input.narration.trim().slice(0, 48),
+    narration: input.narration,
     note,
     suggested_category_name: null,
     confidence: 0.2,

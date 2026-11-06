@@ -27,7 +27,7 @@ function committed(over: Partial<Parameters<typeof matchNearDuplicates>[1][numbe
     account_id: ACCOUNT,
     occurred_at: ist("2026-08-11"),
     amount: -129900,
-    merchant: "Swiggy",
+    payee: "Swiggy",
     ...over,
   };
 }
@@ -42,7 +42,7 @@ describe("near-duplicate matching", () => {
     const matches = matchNearDuplicates([staged()], [committed()]);
     assert.equal(matches.get("row-1")?.id, "txn-1");
     assert.equal(matches.get("row-1")?.amount_paise, 129900);
-    assert.equal(matches.get("row-1")?.merchant, "Swiggy");
+    assert.equal(matches.get("row-1")?.payee, "Swiggy");
   });
 
   it("matches one day either side but not two", () => {

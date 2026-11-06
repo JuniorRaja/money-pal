@@ -151,7 +151,8 @@ function buildMappedRows(
     return {
       occurred_on: row.date,
       occurred_at: midnightIst(row.date),
-      merchant: heuristic.merchant,
+      payee: heuristic.payee,
+      narration: heuristic.narration,
       descriptor: row.narration,
       note: heuristic.note,
       amount_paise: row.amount_paise,

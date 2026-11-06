@@ -59,36 +59,42 @@ export function categoryIdByName(
 }
 
 /**
- * Account-scoped rules win over global. Match is a lowercase substring of the
- * merchant. Paused rules (`is_active` off in Settings) are skipped here — the
- * one place every caller routes through.
+ * Account-scoped rules win over global. Paused rules (`is_active` off in
+ * Settings) are skipped here — the one place every caller routes through.
  */
 export function findImportRule(
-  merchant: string,
+  row: { payee: string; narration: string; note: string | null },
   rules: ImportRule[],
   accountId: string,
 ): ImportRule | null {
-  const haystack = merchant.trim().toLowerCase();
-  if (!haystack) return null;
   const active = rules.filter((rule) => rule.is_active);
   const scoped = active.filter((rule) => rule.account_id === accountId);
   const global = active.filter((rule) => rule.account_id == null);
   for (const rule of [...scoped, ...global]) {
-    if (haystack.includes(rule.match.toLowerCase())) return rule;
+    const field = rule.match_field ?? "narration";
+    const haystack =
+      field === "note"
+        ? (row.note ?? "").toLowerCase()
+        : field === "payee"
+          ? row.payee.toLowerCase()
+          : row.narration.toLowerCase();
+    if (haystack.includes(rule.pattern.toLowerCase())) return rule;
   }
   return null;
 }
 
 export function applyImportRules(
-  merchant: string,
+  row: { payee: string; narration: string; note: string | null },
   rules: ImportRule[],
   accountId: string,
 ): string | null {
-  return findImportRule(merchant, rules, accountId)?.category_id ?? null;
+  return findImportRule(row, rules, accountId)?.category_id ?? null;
 }
 
 export function resolveSuggestedCategoryId(input: {
-  merchant: string;
+  payee: string;
+  narration: string;
+  note: string | null;
   suggestedCategoryName?: string | null;
   suggestedCategoryId?: string | null;
   categories: Category[];
@@ -96,7 +102,11 @@ export function resolveSuggestedCategoryId(input: {
   accountId: string;
 }): string | null {
   return (
-    applyImportRules(input.merchant, input.rules, input.accountId) ??
+    applyImportRules(
+      { payee: input.payee, narration: input.narration, note: input.note },
+      input.rules,
+      input.accountId,
+    ) ??
     input.suggestedCategoryId ??
     categoryIdByName(input.categories, input.suggestedCategoryName)
   );
@@ -109,7 +119,8 @@ export function toStageDrafts(
   accountId: string,
 ): Array<{
   occurred_at: string;
-  merchant: string;
+  payee: string;
+  narration: string;
   descriptor: string;
   note: string | null;
   amount_paise: number;
@@ -122,11 +133,16 @@ export function toStageDrafts(
   return rows
     .filter((row) => Math.abs(row.amount_paise) > 0 && row.import_hash)
     .map((row) => {
-      const fromRule = applyImportRules(row.merchant, rules, accountId);
+      const fromRule = applyImportRules(
+        { payee: row.payee, narration: row.narration, note: row.note },
+        rules,
+        accountId,
+      );
       const fromName = categoryIdByName(categories, row.suggested_category_name);
       return {
         occurred_at: row.occurred_at,
-        merchant: row.merchant,
+        payee: row.payee,
+        narration: row.narration,
         descriptor: row.descriptor,
         note: row.note,
         amount_paise: Math.abs(row.amount_paise),

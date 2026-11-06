@@ -73,7 +73,7 @@ describe("HDFC / DBS fixture rows → mapped fields", () => {
     assert.equal(salary?.type, "income");
     assert.equal(salary?.amount_paise, 12000000);
     assert.equal(salary?.suggested_category_name, "Salary");
-    assert.match(salary?.merchant ?? "", /Acme/i);
+    assert.match(salary?.payee ?? "", /Acme/i);
 
     assert.equal(amazon?.amount_paise, -129900);
     assert.equal(amazon?.suggested_category_name, "Shopping");

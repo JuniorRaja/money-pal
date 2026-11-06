@@ -46,7 +46,9 @@ export type BankPreset = {
 export type MappedImportRow = {
   occurred_on: ISODate;
   occurred_at: ISODateTime;
-  merchant: string;
+  payee: string;
+  /** Full bank statement narration. */
+  narration: string;
   descriptor: string;
   /** Trailing free text you typed at payment time, when the narration has one. */
   note: string | null;
@@ -79,7 +81,8 @@ export type ParseImportOptions = {
 };
 
 export type HeuristicSuggestion = {
-  merchant: string;
+  payee: string;
+  narration: string;
   note: string | null;
   suggested_category_name: string | null;
   confidence: number;

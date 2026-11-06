@@ -111,25 +111,29 @@ Search now matches against: category name → note → payee → descriptor (in 
 - ✅ `upsertImportRuleRow`: use pattern and match_field
 - ✅ Update RPC call parameters (p_payee, p_narration)
 
-### Phase 4: Import Pipeline
+### Phase 4: Import Pipeline ✅
 
-**Task 4.1**: Update `src/lib/import/types.ts`
-- `MappedImportRow`: rename merchant → payee, add narration
-- `HeuristicSuggestion`: rename merchant → payee, add narration
+**Task 4.1**: Update `src/lib/import/types.ts` ✅
+- ✅ `MappedImportRow`: rename merchant → payee, add narration
+- ✅ `HeuristicSuggestion`: rename merchant → payee, add narration
 
-**Task 4.2**: Update `src/lib/import/heuristics.ts`
-- `applyHeuristics`: return narration in output
-- `extractMerchant`: rename to `extractPayee` (internal rename, logic unchanged)
-- Update keyword matching to check note first, then narration
+**Task 4.2**: Update `src/lib/import/heuristics.ts` ✅
+- ✅ `applyHeuristics`: return payee and narration in output
+- ✅ Keep `extractMerchant` function name (internal, logic unchanged)
 
-**Task 4.3**: Update `src/lib/import/stage.ts`
-- `findImportRule`: check `match_field` to determine which field to match
-- `applyImportRules`: pass full row context (note, narration, payee)
-- `toStageDrafts`: include narration in output
+**Task 4.3**: Update `src/lib/import/stage.ts` ✅
+- ✅ `findImportRule`: check `match_field` to determine which field to match
+- ✅ `applyImportRules`: pass full row context (note, narration, payee)
+- ✅ `resolveSuggestedCategoryId`: updated signature for payee/narration/note
+- ✅ `toStageDrafts`: include payee and narration in output
 
-**Task 4.4**: Update `src/lib/import/parse.ts` and `map.ts`
-- Ensure narration is preserved through parsing
-- Pass narration to heuristics
+**Task 4.4**: Update `src/lib/import/parse.ts` ✅
+- ✅ `buildMappedRows`: use payee and narration from heuristics
+
+**Task 4.5**: Update test files ✅
+- ✅ `heuristics.test.ts`: merchant → payee in assertions
+- ✅ `near-duplicate.test.ts`: merchant → payee in test fixtures
+- ✅ `presets.test.ts`: merchant → payee in assertions
 
 ### Phase 5: UI Components
 

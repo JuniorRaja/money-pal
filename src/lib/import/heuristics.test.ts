@@ -29,7 +29,7 @@ describe("merchant extraction", () => {
   it("drops a merchantless row to low confidence and shows the raw narration", () => {
     const result = applyHeuristics({ narration: "IMPS P2P 622157719873#09", type: "expense" });
     assert.equal(result.confidence, 0.2);
-    assert.equal(result.merchant, "IMPS P2P 622157719873#09");
+    assert.equal(result.payee, "IMPS P2P 622157719873#09");
     assert.equal(result.suggested_category_name, null);
   });
 
@@ -39,7 +39,7 @@ describe("merchant extraction", () => {
       type: "expense",
     });
     assert.equal(result.suggested_category_name, "Dining");
-    assert.equal(result.merchant, "Swiggy");
+    assert.equal(result.payee, "Swiggy");
   });
 });
 
@@ -86,12 +86,12 @@ describe("payment note extraction", () => {
     );
   });
 
-  it("rides along on applyHeuristics without disturbing the merchant", () => {
+  it("rides along on applyHeuristics without disturbing the payee", () => {
     const result = applyHeuristics({
       narration: "UPI-M O COOL BAR-Q693365448@YBL-YESB0YBLUPI-192342317477-TEA",
       type: "expense",
     });
     assert.equal(result.note, "TEA");
-    assert.equal(result.merchant, "M O Cool Bar");
+    assert.equal(result.payee, "M O Cool Bar");
   });
 });
