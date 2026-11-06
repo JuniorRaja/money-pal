@@ -64,16 +64,23 @@ Search now matches against: category name → note → payee → descriptor (in 
 - Create new seed transactions with proper category assignments
 - Seed sample import rules using new match_field
 
-### Phase 2: TypeScript Types
+### Phase 2: TypeScript Types ✅
 
-**Task 2.1**: Update `src/data/schema.ts`
-- `Transaction`: rename `merchant` → `payee`, add `narration`
-- `ImportJobRow`: rename `merchant` → `payee`, add `narration`
-- `ImportRule`: rename `match` → `pattern`, add `match_field`
-- Add `ImportMatchField` type
+**Task 2.1**: Update `src/data/schema.ts` ✅
+- ✅ `Transaction`: rename `merchant` → `payee`, add `narration`
+- ✅ `ImportJobRow`: rename `merchant` → `payee`, add `narration`
+- ✅ `ImportRule`: rename `match` → `pattern`, add `match_field`
+- ✅ Add `ImportMatchField` type
+- ✅ `PossibleDuplicate`: rename `merchant` → `payee`
+- ✅ `GoalContribution`: rename `merchant` → `payee`
 
-**Task 2.2**: Update `src/integrations/supabase/types.ts`
-- Regenerate or manually update database types
+**Task 2.2**: Update `src/integrations/supabase/types.ts` ✅
+- ✅ Update `transactions` table types (payee, narration)
+- ✅ Update `import_job_rows` table types (payee, narration)
+- ✅ Update `import_rules` table types (pattern, match_field)
+- ✅ Update `v_transactions_flat` view types (payee, narration)
+- ✅ Update RPC function signatures (fn_record_transaction, fn_update_transaction)
+- ✅ Add `import_match_field` enum
 
 ### Phase 3: Data Layer
 

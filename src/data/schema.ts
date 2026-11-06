@@ -135,8 +135,10 @@ export interface Transaction {
   /** Parent transactions header id — shared by both legs of a transfer. */
   transaction_id: string;
   occurred_at: ISODateTime;
-  merchant: string;
+  payee: string;
   descriptor: string;
+  /** Full bank statement narration text. */
+  narration: string | null;
   amount: Paise; // signed: negative = money out
   type: TransactionType;
   account_id: string;
@@ -194,7 +196,7 @@ export interface GoalContribution {
   amount: Paise;
   contributed_on: ISODate;
   transaction_id: string | null;
-  merchant: string | null;
+  payee: string | null;
   descriptor: string | null;
 }
 
@@ -280,7 +282,7 @@ export interface PossibleDuplicate {
   id: string;
   occurred_at: ISODateTime;
   amount_paise: Paise;
-  merchant: string;
+  payee: string;
 }
 
 export interface ImportJobRow {
@@ -288,8 +290,10 @@ export interface ImportJobRow {
   job_id: string;
   account_id: string;
   occurred_at: ISODateTime;
-  merchant: string;
+  payee: string;
   descriptor: string;
+  /** Full bank statement narration text. */
+  narration: string | null;
   /** Trailing free text from the narration — what you typed at payment time. */
   note: string | null;
   amount_paise: Paise;
@@ -303,9 +307,12 @@ export interface ImportJobRow {
   possible_duplicate: PossibleDuplicate | null;
 }
 
+export type ImportMatchField = "note" | "narration" | "payee";
+
 export interface ImportRule {
   id: string;
-  match: string;
+  pattern: string;
+  match_field: ImportMatchField;
   category_id: string;
   account_id: string | null;
   /** Paused rules stay listed in Settings but stop categorising — see `applyImportRules`. */

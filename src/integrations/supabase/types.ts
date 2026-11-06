@@ -769,7 +769,8 @@ export type Database = {
           import_hash: string;
           is_active: boolean;
           job_id: string;
-          merchant: string | null;
+          narration: string | null;
+          payee: string | null;
           modified_at: string;
           modified_by: string | null;
           note: string | null;
@@ -793,7 +794,8 @@ export type Database = {
           import_hash: string;
           is_active?: boolean;
           job_id: string;
-          merchant?: string | null;
+          narration?: string | null;
+          payee?: string | null;
           modified_at?: string;
           modified_by?: string | null;
           note?: string | null;
@@ -817,7 +819,8 @@ export type Database = {
           import_hash?: string;
           is_active?: boolean;
           job_id?: string;
-          merchant?: string | null;
+          narration?: string | null;
+          payee?: string | null;
           modified_at?: string;
           modified_by?: string | null;
           note?: string | null;
@@ -1050,7 +1053,8 @@ export type Database = {
           deleted_at: string | null;
           id: string;
           is_active: boolean;
-          match: string;
+          match_field: Database["public"]["Enums"]["import_match_field"];
+          pattern: string;
           modified_at: string;
           modified_by: string | null;
           user_id: string;
@@ -1063,7 +1067,8 @@ export type Database = {
           deleted_at?: string | null;
           id?: string;
           is_active?: boolean;
-          match: string;
+          match_field?: Database["public"]["Enums"]["import_match_field"];
+          pattern: string;
           modified_at?: string;
           modified_by?: string | null;
           user_id: string;
@@ -1076,7 +1081,8 @@ export type Database = {
           deleted_at?: string | null;
           id?: string;
           is_active?: boolean;
-          match?: string;
+          match_field?: Database["public"]["Enums"]["import_match_field"];
+          pattern?: string;
           modified_at?: string;
           modified_by?: string | null;
           user_id?: string;
@@ -1597,7 +1603,8 @@ export type Database = {
           id: string;
           is_active: boolean;
           label_id: string | null;
-          merchant: string | null;
+          narration: string | null;
+          payee: string | null;
           modified_at: string;
           modified_by: string | null;
           note: string | null;
@@ -1619,7 +1626,8 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           label_id?: string | null;
-          merchant?: string | null;
+          narration?: string | null;
+          payee?: string | null;
           modified_at?: string;
           modified_by?: string | null;
           note?: string | null;
@@ -1641,7 +1649,8 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           label_id?: string | null;
-          merchant?: string | null;
+          narration?: string | null;
+          payee?: string | null;
           modified_at?: string;
           modified_by?: string | null;
           note?: string | null;
@@ -2140,7 +2149,8 @@ export type Database = {
           entry_id: string | null;
           id: string | null;
           label_id: string | null;
-          merchant: string | null;
+          narration: string | null;
+          payee: string | null;
           minor_unit: number | null;
           note: string | null;
           occurred_at: string | null;
@@ -2250,9 +2260,10 @@ export type Database = {
           p_external_ref?: string;
           p_from_account: string;
           p_from_label?: string;
-          p_merchant?: string;
+          p_narration?: string;
           p_note?: string;
           p_occurred_at: string;
+          p_payee?: string;
           p_payment_method?: string;
           p_source?: string;
           p_to_account?: string;
@@ -2266,14 +2277,16 @@ export type Database = {
           p_amount?: number;
           p_category?: string;
           p_clear_from_label?: boolean;
+          p_clear_narration?: boolean;
           p_clear_note?: boolean;
           p_clear_to_label?: boolean;
           p_descriptor?: string;
           p_from_account?: string;
           p_from_label?: string;
-          p_merchant?: string;
+          p_narration?: string;
           p_note?: string;
           p_occurred_at?: string;
+          p_payee?: string;
           p_payment_method?: string;
           p_to_account?: string;
           p_to_label?: string;
@@ -2289,6 +2302,7 @@ export type Database = {
       category_kind: "income" | "essentials" | "lifestyle" | "transfer" | "investment";
       holding_class: "equity" | "mutual_fund" | "gold" | "fixed_income" | "crypto" | "property";
       import_kind: "gmail" | "pdf" | "csv" | "manual";
+      import_match_field: "note" | "narration" | "payee";
       import_row_status: "pending" | "imported" | "skipped_duplicate" | "skipped" | "held";
       review_kind: "duplicate" | "unknown_merchant" | "large_transfer";
       slice_kind: "owned" | "custodial" | "earmark";
@@ -2420,6 +2434,7 @@ export const Constants = {
       category_kind: ["income", "essentials", "lifestyle", "transfer", "investment"],
       holding_class: ["equity", "mutual_fund", "gold", "fixed_income", "crypto", "property"],
       import_kind: ["gmail", "pdf", "csv", "manual"],
+      import_match_field: ["note", "narration", "payee"],
       import_row_status: ["pending", "imported", "skipped_duplicate", "skipped", "held"],
       review_kind: ["duplicate", "unknown_merchant", "large_transfer"],
       slice_kind: ["owned", "custodial", "earmark"],
