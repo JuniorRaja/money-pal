@@ -148,6 +148,23 @@ Row status transitions between `pending` / `skipped` / `held` go through `fn_set
 
 Category lives on `transactions`. Staging is `import_job_rows`, not uploaded files. Hub tables `import_sources` / `import_jobs` / `import_review_items` remain; profiles, staged rows, and rules are additive. Do not rewrite PRD history.
 
+## Category-centric model
+
+Category is the primary transaction identifier, not merchant/payee. Transaction list and detail views show category as the headline. Payee (renamed from merchant) is secondary metadata. The `merchant` field was renamed to `payee` throughout the system — "payee" better describes what it actually is (the counterparty in a transaction).
+
+## Import rules support multiple match fields
+
+Rules can specify what field to match against via `match_field`:
+- `note` — matches against extracted/user note (highest priority)
+- `narration` — matches against full narration (default, backward compatible)
+- `payee` — matches against extracted payee name
+
+Note takes precedence in auto-categorization because it contains what the user typed at payment time (e.g., "TEA" or "LUNCH" in UPI transactions).
+
+## Full narration is stored
+
+The `narration` column stores the complete bank statement narration text. Previously we extracted merchant and discarded the rest. Storing the full narration enables better pattern matching and future AI categorization.
+
 ## Investments — holdings do not enter net worth
 
 Overview's `investments` figure is the ledger balance of `investment` accounts (`summariseNetWorth`

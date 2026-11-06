@@ -191,7 +191,7 @@ function TransactionsPage() {
           <input
             value={filter.search ?? ""}
             onChange={(e) => setFilter({ ...filter, search: e.target.value })}
-            placeholder="Search merchant, category, or note..."
+            placeholder="Search payee, category, or note..."
             className="h-9 w-[300px] rounded-lg border border-border bg-card px-3 text-sm outline-none transition-colors focus:border-primary/60"
           />
           <Select
@@ -270,7 +270,7 @@ function TransactionsPage() {
               <thead>
                 <tr className="border-b border-border text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                   <th className="px-5 py-3 text-left font-medium">Date</th>
-                  <th className="px-2 py-3 text-left font-medium">Merchant</th>
+                  <th className="px-2 py-3 text-left font-medium">Payee</th>
                   <th className="px-2 py-3 text-left font-medium">Category</th>
                   <th className="px-2 py-3 text-left font-medium">Account</th>
                   <th className="px-2 py-3 text-left font-medium">Slice</th>
@@ -304,7 +304,7 @@ function TransactionsPage() {
                             {formatTime(t.occurred_at)}
                           </td>
                           <td className="px-2 py-3">
-                            <p className="font-medium text-foreground">{t.merchant}</p>
+                            <p className="font-medium text-foreground">{t.payee}</p>
                             <p className="text-xs text-muted-foreground">{t.descriptor}</p>
                           </td>
                           <td className="px-2 py-3 text-xs text-muted-foreground">{cat?.name}</td>
@@ -474,10 +474,10 @@ function DetailPanel({
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/12 text-sm font-semibold text-primary">
-              {transaction.merchant.slice(0, 1)}
+              {transaction.payee.slice(0, 1)}
             </span>
             <div>
-              <p className="text-sm font-medium text-foreground">{transaction.merchant}</p>
+              <p className="text-sm font-medium text-foreground">{transaction.payee}</p>
               <p className="text-xs text-muted-foreground">{category}</p>
             </div>
           </div>
@@ -633,7 +633,7 @@ function DetailPanel({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete transaction?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will soft-delete the transaction for {transaction.merchant} (
+              This will soft-delete the transaction for {transaction.payee} (
               {formatMoney(Math.abs(transaction.amount), { sign: transaction.type !== "transfer" })}
               ).
               {transaction.type === "transfer" ? " Both transfer legs will be removed." : ""}
@@ -679,7 +679,7 @@ function EditTransactionDialog({
   labels: Label[];
   onUpdated: () => void;
 }) {
-  const [merchant, setMerchant] = useState(transaction.merchant);
+  const [payee, setPayee] = useState(transaction.payee);
   const [descriptor, setDescriptor] = useState(transaction.descriptor);
   const [amount, setAmount] = useState(String(Math.abs(transaction.amount) / 100));
   const [type, setType] = useState<TransactionType>(transaction.type);
@@ -694,7 +694,7 @@ function EditTransactionDialog({
 
   useEffect(() => {
     if (!open) return;
-    setMerchant(transaction.merchant);
+    setPayee(transaction.payee);
     setDescriptor(transaction.descriptor);
     setAmount(String(Math.abs(transaction.amount) / 100));
     setType(transaction.type);
@@ -718,7 +718,7 @@ function EditTransactionDialog({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!merchant.trim()) return setError("Merchant is required");
+    if (!payee.trim()) return setError("Payee is required");
     const parsedAmount = parseFloat(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0)
       return setError("Enter a valid amount");
@@ -734,8 +734,8 @@ function EditTransactionDialog({
         {
           id: transaction.id,
           transaction_id: transaction.transaction_id,
-          merchant: merchant.trim(),
-          descriptor: descriptor.trim() || merchant.trim(),
+          payee: payee.trim(),
+          descriptor: descriptor.trim() || payee.trim(),
           amount: Math.round(parsedAmount * 100),
           type,
           account_id: accountId,
@@ -766,11 +766,11 @@ function EditTransactionDialog({
         </DialogHeader>
         <form onSubmit={submit} className="mt-2 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Merchant</label>
+            <label className="text-xs font-medium text-muted-foreground">Payee</label>
             <input
               className={fieldBase}
-              value={merchant}
-              onChange={(e) => setMerchant(e.target.value)}
+              value={payee}
+              onChange={(e) => setPayee(e.target.value)}
               autoFocus
             />
           </div>

@@ -131,7 +131,7 @@ describe("RLS: Cross-user data isolation", { skip: !canRun }, () => {
         user_id: userA.id,
         occurred_at: new Date().toISOString(),
         type: "expense",
-        merchant: "RLS Test Merchant A",
+        payee: "RLS Test Merchant A",
       })
       .select("id")
       .single();
@@ -144,7 +144,7 @@ describe("RLS: Cross-user data isolation", { skip: !canRun }, () => {
         user_id: userB.id,
         occurred_at: new Date().toISOString(),
         type: "expense",
-        merchant: "RLS Test Merchant B",
+        payee: "RLS Test Merchant B",
       })
       .select("id")
       .single();
@@ -339,7 +339,7 @@ describe("RLS: Cross-user data isolation", { skip: !canRun }, () => {
     assert.equal(foreignTxns.length, 0, "User A should not see User B's transactions");
 
     // Verify we can see our own test transaction
-    const testTxn = data?.find((t) => t.merchant === "RLS Test Merchant A");
+    const testTxn = data?.find((t) => t.payee === "RLS Test Merchant A");
     assert.ok(testTxn, "User A should see their own test transaction");
   });
 
@@ -349,7 +349,7 @@ describe("RLS: Cross-user data isolation", { skip: !canRun }, () => {
     assert.equal(error, null, `Query should not error: ${error?.message}`);
 
     // Specifically check for User A's test transaction
-    const stolenTxn = data?.find((t) => t.merchant === "RLS Test Merchant A");
+    const stolenTxn = data?.find((t) => t.payee === "RLS Test Merchant A");
     assert.equal(stolenTxn, undefined, "User B should not see User A's test transaction");
   });
 

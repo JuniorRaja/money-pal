@@ -588,8 +588,14 @@ function EmailPanel({ channel }: { channel: NotificationChannel }) {
   );
 }
 
+const MATCH_FIELD_LABELS: Record<ImportRule["match_field"], string> = {
+  note: "Note",
+  narration: "Narration",
+  payee: "Payee",
+};
+
 /**
- * Every merchant → category rule the import review has learned. Grouped
+ * Every pattern → category rule the import review has learned. Grouped
  * account-scoped first, then global, so the list reads in the same order
  * `applyImportRules` resolves them. Removing is a soft delete — a rule is never
  * dropped from the table, it just stops being listed.
@@ -673,15 +679,28 @@ function ImportRulesTab({
                       className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-foreground">{rule.match}</p>
+                        <p className="truncate text-sm text-foreground">{rule.pattern}</p>
                         <p className="text-xs text-muted-foreground">
                           {rule.is_active
-                            ? "Applied to matching merchants"
+                            ? `Matches ${MATCH_FIELD_LABELS[rule.match_field].toLowerCase()}`
                             : "Paused — imports ignore it"}
                         </p>
                       </div>
                       <select
-                        aria-label={`Category for ${rule.match}`}
+                        aria-label={`Match field for ${rule.pattern}`}
+                        value={rule.match_field}
+                        disabled={busyId === rule.id}
+                        onChange={(event) =>
+                          void apply({ id: rule.id, match_field: event.target.value as ImportRule["match_field"] })
+                        }
+                        className="h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-primary/60 disabled:opacity-50 sm:w-28"
+                      >
+                        <option value="note">Note</option>
+                        <option value="narration">Narration</option>
+                        <option value="payee">Payee</option>
+                      </select>
+                      <select
+                        aria-label={`Category for ${rule.pattern}`}
                         value={rule.category_id}
                         disabled={busyId === rule.id}
                         onChange={(event) =>
@@ -698,12 +717,12 @@ function ImportRulesTab({
                       <Switch
                         checked={rule.is_active}
                         disabled={busyId === rule.id}
-                        aria-label={`Apply the rule for ${rule.match}`}
+                        aria-label={`Apply the rule for ${rule.pattern}`}
                         onCheckedChange={(next) => void apply({ id: rule.id, is_active: next })}
                       />
                       <button
                         type="button"
-                        aria-label={`Remove the rule for ${rule.match}`}
+                        aria-label={`Remove the rule for ${rule.pattern}`}
                         onClick={() => setConfirmRemove(rule)}
                         className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                       >
@@ -724,7 +743,7 @@ function ImportRulesTab({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove the rule for “{confirmRemove?.match}”?</AlertDialogTitle>
+            <AlertDialogTitle>Remove the rule for “{confirmRemove?.pattern}”?</AlertDialogTitle>
             <AlertDialogDescription>
               Future imports stop categorising it for you. Transactions already imported keep the
               category they were given. To keep the rule but stop it applying, use the toggle

@@ -51,7 +51,7 @@ function uniqueTxnOptions(
 
 function txnLabel(t: Transaction): string {
   const date = t.occurred_at.slice(0, 10);
-  return `${date} · ${t.merchant} · ${formatMoney(Math.abs(t.amount), { whole: true })}`;
+  return `${date} · ${t.payee} · ${formatMoney(Math.abs(t.amount), { whole: true })}`;
 }
 
 export function EditGoalDialog({
@@ -597,7 +597,7 @@ export function GoalHistoryDialog({
                       {row.contributed_on}
                       {" · "}
                       {row.transaction_id
-                        ? row.merchant || row.descriptor || "Linked transaction"
+                        ? row.payee || row.descriptor || "Linked transaction"
                         : "Manual"}
                     </p>
                   </div>

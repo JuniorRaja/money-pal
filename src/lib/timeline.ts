@@ -136,7 +136,7 @@ function budgetEvents({
           occurred_at: txn.occurred_at,
           kind: "money",
           title: pct >= 100 ? `${name} budget spent` : `${name} budget at ${pct}%`,
-          detail: `${whole(running)} of ${whole(budget.planned)} planned — ${txn.merchant} tipped it over.`,
+          detail: `${whole(running)} of ${whole(budget.planned)} planned — ${txn.payee} tipped it over.`,
           amount: txn.amount,
           account_id: txn.account_id,
           action_label: "Open budgets",
@@ -224,8 +224,8 @@ function largeTransactionEvents({ transactions, categories }: TimelineInputs): T
         title: `Unusually large ${name} spend`,
         detail:
           usual > 0
-            ? `${txn.merchant} — about ${Math.round(-txn.amount / usual)}x your usual ${whole(usual)} here.`
-            : `${txn.merchant} — well above anything else in ${name}.`,
+            ? `${txn.payee} — about ${Math.round(-txn.amount / usual)}x your usual ${whole(usual)} here.`
+            : `${txn.payee} — well above anything else in ${name}.`,
         amount: txn.amount,
         account_id: txn.account_id,
         action_label: "Open transactions",

@@ -1978,8 +1978,9 @@ export const upsertImportRuleFn = createServerFn({ method: "POST" })
 export interface UpdateImportRuleInput {
   id: string;
   category_id?: string;
+  match_field?: "note" | "narration" | "payee";
   is_active?: boolean;
-  /** Soft-delete. `match` is unique per user, so a hard delete is never needed. */
+  /** Soft-delete. `pattern` is unique per user, so a hard delete is never needed. */
   deleted?: boolean;
 }
 
@@ -1993,7 +1994,12 @@ export const updateImportRuleFn = createServerFn({ method: "POST" })
     if (input.category_id !== undefined && !input.category_id) {
       throw new Error("category_id is required");
     }
-    if (input.category_id === undefined && input.is_active === undefined && !input.deleted) {
+    if (
+      input.category_id === undefined &&
+      input.match_field === undefined &&
+      input.is_active === undefined &&
+      !input.deleted
+    ) {
       throw new Error("nothing to update");
     }
     return input;
@@ -2004,6 +2010,7 @@ export const updateImportRuleFn = createServerFn({ method: "POST" })
     const now = new Date().toISOString();
     const update: Database["public"]["Tables"]["import_rules"]["Update"] = { modified_at: now };
     if (data.category_id !== undefined) update.category_id = data.category_id;
+    if (data.match_field !== undefined) update.match_field = data.match_field;
     if (data.is_active !== undefined) update.is_active = data.is_active;
     if (data.deleted) {
       update.deleted_at = now;

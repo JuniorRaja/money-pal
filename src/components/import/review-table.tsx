@@ -128,7 +128,9 @@ export function ReviewTable({
   const acceptRow = useCallback(
     async (row: ImportJobRow) => {
       const categoryId = resolveSuggestedCategoryId({
-        merchant: row.merchant,
+        payee: row.payee,
+        narration: row.narration ?? row.descriptor,
+        note: row.note,
         suggestedCategoryId: row.suggested_category_id,
         categories,
         rules,
@@ -139,7 +141,7 @@ export function ReviewTable({
         row_id: row.id,
         patch: {
           occurred_at: midnightIst(dayKey(row.occurred_at)),
-          merchant: row.merchant || null,
+          payee: row.payee || null,
           descriptor: row.descriptor || null,
           note: row.note,
           amount_paise: row.amount_paise,
@@ -275,7 +277,7 @@ export function ReviewTable({
           row_id: row.id,
           patch: {
             occurred_at: midnightIst(dayKey(row.occurred_at)),
-            merchant: row.merchant || null,
+            payee: row.payee || null,
             descriptor: row.descriptor || null,
             note: row.note,
             amount_paise: row.amount_paise,
@@ -417,7 +419,7 @@ export function ReviewTable({
                 />
               </TableHead>
               <TableHead className="w-24">Date</TableHead>
-              <TableHead className="min-w-[180px]">Merchant</TableHead>
+              <TableHead className="min-w-[180px]">Payee</TableHead>
               <TableHead className="w-28 text-right">Amount</TableHead>
               <TableHead className="w-32">Category</TableHead>
               <TableHead className="w-20">Conf.</TableHead>
@@ -427,7 +429,9 @@ export function ReviewTable({
             {visible.map((row) => {
               const isProcessing = processingIds.has(row.id);
               const categoryId = resolveSuggestedCategoryId({
-                merchant: row.merchant,
+                payee: row.payee,
+                narration: row.narration ?? row.descriptor,
+                note: row.note,
                 suggestedCategoryId: row.suggested_category_id,
                 categories,
                 rules,
@@ -445,7 +449,7 @@ export function ReviewTable({
                       checked={selected.has(row.id)}
                       onCheckedChange={() => toggleRow(row.id)}
                       disabled={isProcessing}
-                      aria-label={`Select ${row.merchant || "row"}`}
+                      aria-label={`Select ${row.payee || "row"}`}
                     />
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -454,9 +458,9 @@ export function ReviewTable({
                   <TableCell>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground">
-                        {row.merchant || row.descriptor || "Unknown"}
+                        {row.payee || row.descriptor || "Unknown"}
                       </p>
-                      {row.descriptor && row.descriptor !== row.merchant && (
+                      {row.descriptor && row.descriptor !== row.payee && (
                         <p className="truncate text-xs text-muted-foreground">{row.descriptor}</p>
                       )}
                       {row.possible_duplicate && (

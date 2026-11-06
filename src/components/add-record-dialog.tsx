@@ -40,9 +40,9 @@ import {
   TODAY,
   getAccounts,
   getCategories,
-  getMerchantSuggestions,
+  getPayeeSuggestions,
   getSlices,
-  type MerchantSuggestion,
+  type PayeeSuggestion,
 } from "@/data/repository";
 import {
   createAccount,
@@ -90,8 +90,8 @@ const schemas = {
       account_id: text(40),
       to_account_id: z.string().optional(),
       // Required for income/expense only — enforced in superRefine below.
-      // A transfer between your own accounts has no merchant to name.
-      merchant: z.string().trim().max(60, "Max 60 characters"),
+      // A transfer between your own accounts has no payee to name.
+      payee: z.string().trim().max(60, "Max 60 characters"),
       descriptor: z.string().trim().max(120).optional(),
       amount: rupees,
       type: z.enum(["expense", "income", "transfer"]),
@@ -101,8 +101,8 @@ const schemas = {
       note: z.string().trim().max(280).optional(),
     })
     .superRefine((val, ctx) => {
-      if (val.type !== "transfer" && !val.merchant) {
-        ctx.addIssue({ code: "custom", path: ["merchant"], message: "Required" });
+      if (val.type !== "transfer" && !val.payee) {
+        ctx.addIssue({ code: "custom", path: ["payee"], message: "Required" });
       }
       if (val.type === "transfer") {
         if (!val.to_account_id?.trim()) {
@@ -195,7 +195,7 @@ const defaults: Record<RecordKind, Record<string, string>> = {
     occurred_at: TODAY,
     account_id: "",
     to_account_id: "",
-    merchant: "",
+    payee: "",
     descriptor: "",
     amount: "",
     type: "expense",
@@ -549,7 +549,7 @@ export function AddRecordDialog({
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [slices, setSlices] = useState<Slice[]>([]);
-  const [merchants, setMerchants] = useState<MerchantSuggestion[]>([]);
+  const [payees, setPayees] = useState<PayeeSuggestion[]>([]);
   // Without this, a double-click on Save posts the ledger write twice.
   const [saving, setSaving] = useState(false);
   // Fields the user has picked themselves. History never overwrites those.
@@ -561,7 +561,7 @@ export function AddRecordDialog({
       setCategories(c);
       setSlices(s);
     });
-    if (kind === "transaction") void getMerchantSuggestions().then(setMerchants);
+    if (kind === "transaction") void getPayeeSuggestions().then(setPayees);
   }, [kind]);
 
   useEffect(() => {
@@ -638,11 +638,11 @@ export function AddRecordDialog({
   // An error hiding inside a closed <details> is an error the user never fixes.
   const detailsError = !!(errors["occurred_at"] || errors["descriptor"] || errors["note"]);
 
-  const merchantMatch = useMemo(() => {
-    const typed = (values["merchant"] ?? "").trim().toLowerCase();
+  const payeeMatch = useMemo(() => {
+    const typed = (values["payee"] ?? "").trim().toLowerCase();
     if (!typed) return undefined;
-    return merchants.find((m) => m.merchant.toLowerCase() === typed);
-  }, [merchants, values]);
+    return payees.find((m) => m.payee.toLowerCase() === typed);
+  }, [payees, values]);
 
   // Transfers carry a fixed category; fill it in as soon as categories land so
   // the hidden field is never the reason a submit fails.
@@ -653,38 +653,38 @@ export function AddRecordDialog({
     );
   }, [isTransfer, transferCategory]);
 
-  // Smart defaults: what this merchant was last filed under, unless the user
+  // Smart defaults: what this payee was last filed under, unless the user
   // has already answered that themselves.
   //
   // The updater must return `v` untouched when there is nothing to fill.
   // `categoryOptions` is a fresh array whenever `values` changes identity, so
   // an unconditional `{ ...v }` re-triggers this effect on its own output —
   // React caps it at "Maximum update depth exceeded" and every keystroke on a
-  // known merchant burns ~50 render passes.
+  // known payee burns ~50 render passes.
   useEffect(() => {
-    if (!merchantMatch) return;
+    if (!payeeMatch) return;
     setValues((v) => {
-      const fitsDirection = categoryOptions.some((c) => c.id === merchantMatch.category_id);
+      const fitsDirection = categoryOptions.some((c) => c.id === payeeMatch.category_id);
       const fillCategory =
         !touched.current.has("category_id") &&
         !isTransfer &&
         fitsDirection &&
-        v["category_id"] !== merchantMatch.category_id;
+        v["category_id"] !== payeeMatch.category_id;
       const fillAccount =
         !touched.current.has("account_id") &&
-        !!merchantMatch.account_id &&
-        v["account_id"] !== merchantMatch.account_id;
+        !!payeeMatch.account_id &&
+        v["account_id"] !== payeeMatch.account_id;
       if (!fillCategory && !fillAccount) return v;
 
       const next = { ...v };
-      if (fillCategory) next["category_id"] = merchantMatch.category_id;
+      if (fillCategory) next["category_id"] = payeeMatch.category_id;
       if (fillAccount) {
-        next["account_id"] = merchantMatch.account_id;
+        next["account_id"] = payeeMatch.account_id;
         next["label_id"] = "";
       }
       return next;
     });
-  }, [merchantMatch, isTransfer, categoryOptions]);
+  }, [payeeMatch, isTransfer, categoryOptions]);
 
   const budgetCategories = useMemo(
     () =>
@@ -714,12 +714,12 @@ export function AddRecordDialog({
     try {
       if (kind === "transaction") {
         const type = v["type"] as "income" | "expense" | "transfer";
-        // A blank transfer merchant still needs a label in the ledger.
-        const merchant = v["merchant"] || "Transfer";
+        // A blank transfer payee still needs a label in the ledger.
+        const payee = v["payee"] || "Transfer";
         await createTransaction({
           occurred_at: v["occurred_at"]!,
-          merchant,
-          descriptor: v["descriptor"] || merchant,
+          payee,
+          descriptor: v["descriptor"] || payee,
           amount: paise(v["amount"]),
           type,
           account_id: v["account_id"]!,
@@ -954,30 +954,30 @@ export function AddRecordDialog({
                   )}
 
                   <Field
-                    label={isTransfer ? "Merchant (optional)" : "Merchant"}
-                    error={errors["merchant"]}
+                    label={isTransfer ? "Payee (optional)" : "Payee"}
+                    error={errors["payee"]}
                   >
                     <input
                       className={fieldBase}
-                      list="merchant-history"
+                      list="payee-history"
                       autoComplete="off"
                       placeholder={isTransfer ? "Transfer" : "Blue Tokai"}
-                      value={values["merchant"] ?? ""}
-                      onChange={(e) => set("merchant", e.target.value)}
+                      value={values["payee"] ?? ""}
+                      onChange={(e) => set("payee", e.target.value)}
                     />
-                    <datalist id="merchant-history">
-                      {merchants.map((m) => (
-                        <option key={m.merchant} value={m.merchant} />
+                    <datalist id="payee-history">
+                      {payees.map((m) => (
+                        <option key={m.payee} value={m.payee} />
                       ))}
                     </datalist>
                   </Field>
-                  {merchantMatch && (
+                  {payeeMatch && (
                     <p className="-mt-2 text-[11px] text-muted-foreground">
                       Usually{" "}
-                      {categories.find((c) => c.id === merchantMatch.category_id)?.name ??
+                      {categories.find((c) => c.id === payeeMatch.category_id)?.name ??
                         "uncategorised"}
                       {" · "}
-                      {accounts.find((a) => a.id === merchantMatch.account_id)?.name ??
+                      {accounts.find((a) => a.id === payeeMatch.account_id)?.name ??
                         "unknown account"}
                       {" — from your history"}
                     </p>
@@ -1013,7 +1013,7 @@ export function AddRecordDialog({
                       onChange={(e) => set("descriptor", e.target.value)}
                     />
                     <datalist id="descriptor-history">
-                      {(merchantMatch?.descriptors ?? []).map((d) => (
+                      {(payeeMatch?.descriptors ?? []).map((d) => (
                         <option key={d} value={d} />
                       ))}
                     </datalist>

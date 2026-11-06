@@ -40,7 +40,7 @@ function PeekFace({ row, categories }: { row: ImportJobRow; categories: Category
           {formatDay(row.occurred_at)}
         </p>
         <p className="mt-0.5 truncate text-sm font-medium text-foreground">
-          {row.merchant || row.descriptor || "Imported row"}
+          {row.payee || row.descriptor || "Imported row"}
         </p>
         <p className="mt-1 text-[11px] text-muted-foreground">
           {categoryName(categories, row.suggested_category_id)}
@@ -55,7 +55,7 @@ function PeekFace({ row, categories }: { row: ImportJobRow; categories: Category
 
 type EditState = {
   occurred_on: string;
-  merchant: string;
+  payee: string;
   descriptor: string;
   note: string;
   amount: string;
@@ -119,7 +119,9 @@ export function ReviewDeck({
 
   const suggestedId = current
     ? resolveSuggestedCategoryId({
-      merchant: current.merchant,
+      payee: current.payee,
+      narration: current.narration ?? current.descriptor,
+      note: current.note,
       suggestedCategoryId: current.suggested_category_id,
       categories,
       rules,
@@ -133,18 +135,26 @@ export function ReviewDeck({
   const [remember, setRemember] = useState(true);
 
   // The rule that categorised this row, if any — the "from your rule" marker.
-  const matchedRule = current ? findImportRule(current.merchant, rules, current.account_id) : null;
+  const matchedRule = current ? findImportRule(
+    { payee: current.payee, narration: current.narration ?? current.descriptor, note: current.note },
+    rules,
+    current.account_id,
+  ) : null;
 
-  const merchantText = edit?.merchant.trim() ?? "";
+  const payeeText = edit?.payee.trim() ?? "";
   const nextCategory = edit?.category_id || null;
   const categoryChanged = Boolean(nextCategory) && nextCategory !== suggestedId;
   const merchantRule =
-    current && merchantText ? findImportRule(merchantText, rules, current.account_id) : null;
+    current && payeeText ? findImportRule(
+      { payee: payeeText, narration: current.narration ?? current.descriptor, note: current.note },
+      rules,
+      current.account_id,
+    ) : null;
   // An account-scoped rule already covering this merchant is corrected in place —
   // the unique index allows no second row for it. A broader global rule is left
   // alone: fixing one account must not silently re-teach the others.
   const ruleTarget = merchantRule?.account_id === current?.account_id ? merchantRule : null;
-  const showRemember = categoryChanged && Boolean(merchantText);
+  const showRemember = categoryChanged && Boolean(payeeText);
 
   useEffect(() => {
     if (!current) {
@@ -153,7 +163,9 @@ export function ReviewDeck({
       return;
     }
     const id = resolveSuggestedCategoryId({
-      merchant: current.merchant,
+      payee: current.payee,
+      narration: current.narration ?? current.descriptor,
+      note: current.note,
       suggestedCategoryId: current.suggested_category_id,
       categories,
       rules,
@@ -161,7 +173,7 @@ export function ReviewDeck({
     });
     setEdit({
       occurred_on: dayKey(current.occurred_at),
-      merchant: current.merchant,
+      payee: current.payee,
       descriptor: current.descriptor,
       note: current.note ?? "",
       amount: paiseToRupees(current.amount_paise),
@@ -207,7 +219,7 @@ export function ReviewDeck({
           row_id: current.id,
           patch: {
             occurred_at: midnightIst(edit.occurred_on),
-            merchant: edit.merchant.trim() || null,
+            payee: edit.payee.trim() || null,
             descriptor: edit.descriptor.trim() || null,
             note: edit.note.trim() || null,
             amount_paise: amount,
@@ -220,7 +232,7 @@ export function ReviewDeck({
                 // Correcting a rule targets the existing row, so the upsert
                 // updates it instead of adding a narrower rule that would
                 // never win against it.
-                match: ruleTarget?.match ?? merchantText,
+                pattern: ruleTarget?.pattern ?? payeeText,
                 category_id: nextCategory,
                 account_id: current.account_id,
               },
@@ -238,7 +250,7 @@ export function ReviewDeck({
     busy,
     current,
     edit,
-    merchantText,
+    payeeText,
     nextCategory,
     remember,
     remove,
@@ -524,9 +536,9 @@ export function ReviewDeck({
                 {formatDay(current.occurred_at)}
               </p>
               <h2 className="mt-1 truncate text-lg font-semibold tracking-tight text-foreground">
-                {current.merchant || current.descriptor || "Imported row"}
+                {current.payee || current.descriptor || "Imported row"}
               </h2>
-              {current.descriptor && current.descriptor !== current.merchant && (
+              {current.descriptor && current.descriptor !== current.payee && (
                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                   {current.descriptor}
                 </p>
@@ -556,7 +568,7 @@ export function ReviewDeck({
             </span>
             {matchedRule && (
               <span
-                title={`Your rule: “${matchedRule.match}”`}
+                title={`Your rule: “${matchedRule.pattern}”`}
                 className="rounded-full border border-primary/40 px-2.5 py-1 text-[11px] text-primary"
               >
                 From your rule
@@ -593,8 +605,8 @@ export function ReviewDeck({
               <p className="mt-1 text-sm text-foreground">
                 {formatDay(current.possible_duplicate.occurred_at)} ·{" "}
                 {formatMoney(current.possible_duplicate.amount_paise)}
-                {current.possible_duplicate.merchant
-                  ? ` · ${current.possible_duplicate.merchant}`
+                {current.possible_duplicate.payee
+                  ? ` · ${current.possible_duplicate.payee}`
                   : ""}
               </p>
               <p className="mt-1 text-[11px] text-muted-foreground">
@@ -630,12 +642,12 @@ export function ReviewDeck({
               </label>
               <label className="block sm:col-span-2">
                 <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                  Merchant
+                  Payee
                 </span>
                 <input
                   className={fieldBase}
-                  value={edit.merchant}
-                  onChange={(event) => setEdit({ ...edit, merchant: event.target.value })}
+                  value={edit.payee}
+                  onChange={(event) => setEdit({ ...edit, payee: event.target.value })}
                 />
               </label>
               <label className="block sm:col-span-2">
@@ -704,20 +716,20 @@ export function ReviewDeck({
                   <span className="block text-sm text-foreground">
                     {ruleTarget ? (
                       <>
-                        Update your rule for <strong>{ruleTarget.match}</strong>
+                        Update your rule for <strong>{ruleTarget.pattern}</strong>
                       </>
                     ) : (
                       <>
-                        Also remember this for <strong>{merchantText}</strong>
+                        Also remember this for <strong>{payeeText}</strong>
                       </>
                     )}
                   </span>
                   <span className="mt-0.5 block text-[11px] text-muted-foreground">
                     {ruleTarget
-                      ? `Was ${categoryName(categories, ruleTarget.category_id)}. Every future row matching “${ruleTarget.match}” on this account follows the new category.`
+                      ? `Was ${categoryName(categories, ruleTarget.category_id)}. Every future row matching “${ruleTarget.pattern}” on this account follows the new category.`
                       : merchantRule
-                        ? `Applies to this account only — your shared rule for “${merchantRule.match}” is left as it is.`
-                        : `Future imports of “${merchantText}” on this account are categorised for you.`}
+                        ? `Applies to this account only — your shared rule for “${merchantRule.pattern}” is left as it is.`
+                        : `Future imports of “${payeeText}” on this account are categorised for you.`}
                   </span>
                 </span>
               </label>

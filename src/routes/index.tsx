@@ -473,7 +473,7 @@ function OverviewPage() {
                       {formatDay(t.occurred_at)}
                     </td>
                     <td className="px-2 py-3">
-                      <p className="text-foreground">{t.merchant}</p>
+                      <p className="text-foreground">{t.payee}</p>
                       <p className="text-xs text-muted-foreground">{t.descriptor}</p>
                     </td>
                     <td className="px-2 py-3 text-xs text-muted-foreground">

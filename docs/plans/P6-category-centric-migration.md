@@ -59,10 +59,10 @@ Search now matches against: category name → note → payee → descriptor (in 
 - ✅ `fn_update_transaction`: add `p_narration` parameter (now 18 params)
 - ✅ `fn_commit_import_row`: pass narration through
 
-**Task 1.4**: Update seed data
-- Clear existing demo transactions
-- Create new seed transactions with proper category assignments
-- Seed sample import rules using new match_field
+**Task 1.4**: Update seed data ✅
+- ✅ Clear existing demo transactions
+- ✅ Create new seed transactions with proper category assignments
+- ✅ Seed sample import rules using new match_field
 
 ### Phase 2: TypeScript Types ✅
 
@@ -135,60 +135,60 @@ Search now matches against: category name → note → payee → descriptor (in 
 - ✅ `near-duplicate.test.ts`: merchant → payee in test fixtures
 - ✅ `presets.test.ts`: merchant → payee in assertions
 
-### Phase 5: UI Components
+### Phase 5: UI Components ✅
 
-**Task 5.1**: Update `src/routes/transactions.tsx`
-- Table columns: Category | Payee | Account | Note | Amount
-- Detail panel: Category as headline, payee as subtitle
-- Search placeholder: "Search category, payee, or note..."
-- Edit dialog: rename Merchant field to Payee
+**Task 5.1**: Update `src/routes/transactions.tsx` ✅
+- ✅ Table columns: Category | Payee | Account | Note | Amount
+- ✅ Detail panel: Category as headline, payee as subtitle
+- ✅ Search placeholder: "Search category, payee, or note..."
+- ✅ Edit dialog: rename Merchant field to Payee
 
-**Task 5.2**: Update `src/components/add-record-dialog.tsx`
-- Reorder: Category picker more prominent (move up)
-- Rename "Merchant" label → "Payee"
-- Keep Note field as-is
+**Task 5.2**: Update `src/components/add-record-dialog.tsx` ✅
+- ✅ Reorder: Category picker more prominent (move up)
+- ✅ Rename "Merchant" label → "Payee"
+- ✅ Keep Note field as-is
 
-**Task 5.3**: Update `src/components/import/review-deck.tsx`
-- Card display: Category as headline
-- Show payee as secondary info
-- Display note if present
+**Task 5.3**: Update `src/components/import/review-deck.tsx` ✅
+- ✅ Card display: Category as headline
+- ✅ Show payee as secondary info
+- ✅ Display note if present
 
-**Task 5.4**: Update `src/components/import/import-wizard.tsx`
-- Any merchant references → payee
+**Task 5.4**: Update `src/components/import/import-wizard.tsx` ✅
+- ✅ Any merchant references → payee
 
-**Task 5.5**: Update `src/routes/settings.tsx`
-- Import rules section: show match_field selector
-- Allow editing pattern and match_field
-- Display rules grouped by match_field
+**Task 5.5**: Update `src/routes/settings.tsx` ✅
+- ✅ Import rules section: show match_field selector
+- ✅ Allow editing pattern and match_field
+- ✅ Display rules grouped by match_field
 
-### Phase 6: Supporting Files
+### Phase 6: Supporting Files ✅
 
-**Task 6.1**: Update `src/lib/import/near-duplicate.ts`
-- Rename merchant references → payee
+**Task 6.1**: Update `src/lib/import/near-duplicate.ts` ✅
+- ✅ Rename merchant references → payee
 
-**Task 6.2**: Update `src/lib/timeline.ts`
-- Any merchant references in event generation → payee
+**Task 6.2**: Update `src/lib/timeline.ts` ✅
+- ✅ Any merchant references in event generation → payee
 
-**Task 6.3**: Update `src/routes/index.tsx` (Overview)
-- Any transaction displays → use payee
+**Task 6.3**: Update `src/routes/index.tsx` (Overview) ✅
+- ✅ Any transaction displays → use payee
 
-**Task 6.4**: Update `src/routes/assistant.tsx`
-- Context generation: use payee terminology
+**Task 6.4**: Update `src/routes/assistant.tsx` ✅
+- ✅ Context generation: use payee terminology
 
-**Task 6.5**: Update test files
-- `src/lib/import/heuristics.test.ts`
-- `src/lib/import/near-duplicate.test.ts`
-- Any other tests referencing merchant
+**Task 6.5**: Update test files ✅
+- ✅ `src/lib/import/heuristics.test.ts`
+- ✅ `src/lib/import/near-duplicate.test.ts`
+- ✅ Any other tests referencing merchant
 
-### Phase 7: Documentation
+### Phase 7: Documentation ✅
 
-**Task 7.1**: Update `docs/DECISIONS.md`
-- Add decision: "Category is the primary transaction identifier"
-- Add decision: "Import rules support note/narration/payee matching"
-- Add decision: "Note takes precedence in auto-categorization"
+**Task 7.1**: Update `docs/DECISIONS.md` ✅
+- ✅ Add decision: "Category is the primary transaction identifier"
+- ✅ Add decision: "Import rules support note/narration/payee matching"
+- ✅ Add decision: "Note takes precedence in auto-categorization"
 
-**Task 7.2**: Update `README.md`
-- Any user-facing documentation about transactions
+**Task 7.2**: Update `README.md` ✅
+- ✅ Any user-facing documentation about transactions (already uses correct terminology)
 
 ---
 

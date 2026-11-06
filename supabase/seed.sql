@@ -80,7 +80,7 @@ select
   gen_random_uuid() as txn_id,
   m + (t.day - 1) * interval '1 day' + interval '10 hours' as occurred_at,
   t.type::public.txn_type,
-  t.merchant,
+  t.payee,
   t.amount,
   (select id from public.categories where name = t.category and user_id is null) as category_id,
   t.from_account::uuid,
@@ -91,7 +91,7 @@ from generate_series(
        interval '1 month'
      ) as m,
      (values
-       -- day, type, merchant, category, paise, from account, to account
+       -- day, type, payee, category, paise, from account, to account
        (1,  'income',   'Acme Corp payroll',  'Salary',        12000000, 'a0000000-0000-4000-8000-000000000001', null),
        (3,  'expense',  'Landlord',           'Rent',           2500000, 'a0000000-0000-4000-8000-000000000001', null),
        (5,  'transfer', 'SIP — Nifty 50',     'Investments',    1500000, 'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000004'),
@@ -108,13 +108,13 @@ from generate_series(
        (24, 'transfer', 'Card payment',       'Transfer',       1400000, 'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003'),
        (26, 'expense',  'Indian Oil',         'Transport',       210000, 'a0000000-0000-4000-8000-000000000003', null),
        (27, 'expense',  'Big Basket',         'Groceries',       368000, 'a0000000-0000-4000-8000-000000000003', null)
-     ) as t(day, type, merchant, category, amount, from_account, to_account)
+     ) as t(day, type, payee, category, amount, from_account, to_account)
 -- The current month is only seeded up to today, so charts do not show a future.
 where m + (t.day - 1) * interval '1 day' <= now();
 
 insert into public.transactions
-  (id, user_id, occurred_at, type, merchant, category_id, source, confidence)
-select txn_id, '11111111-1111-4111-8111-111111111111', occurred_at, type, merchant,
+  (id, user_id, occurred_at, type, payee, category_id, source, confidence)
+select txn_id, '11111111-1111-4111-8111-111111111111', occurred_at, type, payee,
        category_id, 'seed', 1
 from seed_plan;
 
@@ -181,3 +181,28 @@ values
   ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000004',
    'Parag Parikh Flexi Cap', 'mutual_fund', 340.5, 2000000, 7420, 7385,
    now(), 'INR', '122639');
+
+-- -----------------------------------------------------------------------------
+-- Import rules with different match_field values
+-- -----------------------------------------------------------------------------
+
+insert into public.import_rules (user_id, pattern, match_field, category_id, account_id)
+select
+  '11111111-1111-4111-8111-111111111111',
+  r.pattern,
+  r.match_field::public.import_match_field,
+  (select id from public.categories where name = r.category and user_id is null),
+  r.account_id::uuid
+from (values
+  -- Global rules (apply to all accounts)
+  ('swiggy',        'narration', 'Dining',        null),
+  ('zomato',        'narration', 'Dining',        null),
+  ('uber',          'narration', 'Transport',     null),
+  ('amazon',        'payee',     'Shopping',      null),
+  -- Note-based rules (what user typed at payment time)
+  ('tea',           'note',      'Dining',        null),
+  ('lunch',         'note',      'Dining',        null),
+  ('rent',          'note',      'Rent',          null),
+  -- Account-scoped rule (only for HDFC Savings)
+  ('big basket',    'payee',     'Groceries',     'a0000000-0000-4000-8000-000000000001')
+) as r(pattern, match_field, category, account_id);
