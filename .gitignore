@@ -41,7 +41,7 @@ dist-ssr
 .replit/
 
 # Plans / design docs
-docs/plans/
+# docs/plans/
 
 # Account statements
 docs/Acct_*
