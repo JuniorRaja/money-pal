@@ -1,7 +1,7 @@
-# P7: Zero-Friction Onboarding & Note-First Categorization
+# P7: Zero-Friction Onboarding & AI-Assisted Categorization
 
-> Turn the first import from 100 manual decisions into roughly 6 taps, and finish
-> what P6 decided but did not build.
+> Turn the first import from 100 manual decisions into roughly 6 taps, finish what P6
+> decided but did not build, and let a model do the part only a model can do.
 
 ## Summary
 
@@ -9,7 +9,7 @@ A new user signs up, adds an account, uploads three months of statement, and lan
 review deck that asks them to categorize 100 transactions one at a time. Most arrive as
 `Uncategorized`. They came to track money, not to teach the app that Swiggy is food.
 
-Two things cause this, and neither is a missing AI model.
+Three causes:
 
 1. **P6 decided note-first categorization but only half-built it.** `findImportRule` honours
    `match_field`, but `applyHeuristics` still matches keywords against narration only. The
@@ -17,8 +17,12 @@ Two things cause this, and neither is a missing AI model.
 2. **Review is row-by-row.** 100 rows over three months are roughly 30 distinct things. There
    is no grouping anywhere in `review-deck.tsx` or `review-table.tsx`, and "Also remember this"
    writes a rule for *future* imports without applying it to the other rows in the *current* one.
+3. **Keywords cannot know what they have not been told.** A 400-entry table covers the big
+   brands. It will never know that `Cult.fit` is fitness or that `Zepto Marketplace` is
+   groceries, and it cannot invent a category that fits a user's actual life.
 
-P7 fixes the engine, groups the review, and wraps it in a real onboarding flow.
+P7 fixes the engine, groups the review, adds a model for the long tail, and wraps it all in
+a mandatory onboarding flow.
 
 ## Baseline (measured on `origin/main`, commit e59e3f0)
 
@@ -27,12 +31,13 @@ P7 fixes the engine, groups the review, and wraps it in a real onboarding flow.
 | Keyword rules | 59 keywords across 12 categories | `heuristics.ts` |
 | Seeded global categories | 15 | `20260811150500_seed_categories_and_profile_trigger.sql` |
 | Seeded categories with **no** keyword rule | 3 — Rent, Freelance, Transfer | cross-check of the two above |
-| Note used for keyword matching | **No** | `applyHeuristics` calls `matchRule(normalizeNarration(narration))` |
+| Note used for keyword matching | **No** | `heuristics.ts:272-275` |
 | Grouping in review UI | **None** | `review-deck.tsx`, `review-table.tsx` |
 | Rule applied to sibling rows in same import | **No** | `review-deck.tsx:217` |
 | Onboarding route | **Does not exist** | `src/routes/` |
 | Import wizard steps | `file → map → account` | `import-wizard.tsx:31` |
 | Commit path | One RPC per row | `commitImportRowFn` |
+| LLM wiring | Exists, Anthropic → OpenRouter fallback | `assistant.functions.ts` |
 
 ## Evidence for note-first
 
@@ -53,12 +58,22 @@ normalizing (case, month names, digits, reference tails) before they can be grou
 
 ---
 
+## Resolved decisions
+
+| # | Question | Answer |
+|---|---|---|
+| Q1 | Where does the teach screen live? | **Separate component**, onboarding-owned. Not a mode of the import wizard. |
+| Q2 | Can categories be created during the flow? | **Yes, with AI help.** The model proposes a coherent set from the whole statement, not 30 ad-hoc ones. |
+| Q3 | Can onboarding be skipped? | **No.** Onboarding is mandatory for a new user. |
+
+---
+
 ## Decisions
 
 ### D1: Note is a first-class matching signal, not just a display field
-`applyHeuristics` matches keywords against the normalized note first, then the narration.
-A note hit scores higher confidence than the same keyword found in narration, because the
-note is what the user typed, not what the rail generated.
+`applyHeuristics` matches keywords against the normalized note first, then the narration. A
+note hit scores higher confidence than the same keyword found in narration, because the note
+is what the user typed, not what the rail generated.
 
 ### D2: Group key priority is note → keyword → payee
 Mirrors P6 D3. A normalized note wins. Absent a note, a keyword hit groups by category.
@@ -79,41 +94,70 @@ feels endless; money-based reads 80% and feels nearly done.
 
 ### D6: Nothing blocks the import
 "Import anyway" is available from the first render. `Uncategorized` is a valid end state,
-not an error. Onboarding can be exited at any point with data committed.
+not an error. Onboarding itself is mandatory (Q3), but no *step inside it* can trap the user.
 
 ### D7: Keyword rules move from code to data
 `KEYWORD_RULES` grows from 59 keywords to roughly 400. It becomes a separate data module so
-it can grow without touching matching logic, and so one test can assert the whole table is
-well-formed.
+it can grow without touching matching logic.
 
 ### D8: Recurrence is a categorization signal
 A near-identical amount recurring monthly is Rent or EMI. The largest recurring credit is
-Salary. These are computable from parsed rows with no extra data and no model.
+Salary. Computable from parsed rows with no extra data and no model.
 
-### D9: No ML model in P7
-Everything here is deterministic and unit-testable. Embedding and LLM categorization stay
-out of scope; P7 deliberately builds the grouping and verification layer those would plug
-into later, so adding one becomes an experiment rather than a dependency.
+### D9: AI categorization is in scope, as a layer on top — not as the foundation
+*(This reverses the earlier draft, which excluded it.)*
 
----
+A model is the only thing that can categorize `Cult.fit`, `Zepto Marketplace` or `Licious`
+without being told, and the only thing that can propose a category set that fits the user's
+actual spending. Keywords and recurrence stay underneath it because they are instant, free,
+offline, deterministic and unit-testable. The model handles what they miss.
 
-## Open decisions — need a call before Part 3 and Part 4 start
+Order of resolution per group:
 
-| # | Question | Options | Blocks |
-|---|---|---|---|
-| Q1 | Where does the teach screen live? | (a) new view mode inside the existing import wizard, reused by onboarding; (b) separate onboarding-only component | Part 3 |
-| Q2 | Can a group card create a brand-new category inline? | (a) pick from the 15 seeded only, create later in Settings; (b) allow inline create | Part 3 |
-| Q3 | Does onboarding force an import? | (a) "Skip, I'll add later" exits to an empty dashboard; (b) import is required to finish | Part 4 |
+```
+user rule  →  keyword hit  →  recurrence hint  →  AI pass  →  user taps
+(exact)       (instant)       (instant)           (~2s)       (last resort)
+```
 
-Recommended: Q1(a), Q2(b), Q3(a). Q2(b) matters because a user whose biggest group is
-"FAGS" may want a category the seed list does not have, and sending them to Settings
-mid-flow breaks the whole premise.
+### D10: AI is progressive enhancement, never a dependency
+The teach screen renders immediately from keywords and recurrence. The AI result arrives
+after and upgrades cards that are still blank. If the call fails, times out, or no API key
+is configured, the flow is fully usable — it just has more cards in `needs_input`. No
+spinner gates the UI.
+
+### D11: Only derived labels leave the browser, never the statement
+The AI pass sends group labels, a count, a direction and a coarse size bucket. It does not
+send the file, exact amounts, dates, balances, account numbers or narration. A new
+`DECISIONS.md` entry records this; the existing "file is never uploaded" rule is unchanged
+and still true.
+
+What is sent per group:
+
+```jsonc
+{ "id": "g2", "label": "FAGS", "kind": "note",
+  "count": 18, "direction": "expense",
+  "recurring": false, "size": "small" }   // size ∈ small | medium | large
+```
+
+### D12: The model proposes categories; the user approves them
+AI-proposed new categories are shown as suggestions on the group card, visibly marked as
+new. Nothing is written to `categories` until the user taps. Cap: 5 new proposals per
+import, so the flow cannot explode the category list.
+
+### D13: AI output is validated, never trusted
+Every response is checked before use: every returned id must exist in the request, every
+category must be either an existing name or flagged `isNew`, confidence must parse to
+0–1. Unknown ids are dropped. A malformed response is treated as no response.
+
+### D14: AI confidence is capped below the auto-accept threshold
+AI-derived suggestions cap at 0.75, under `IMPORT_LOW_CONFIDENCE_MAX` (0.8). The model
+pre-fills the chip; it never silently commits a category. One tap still confirms.
 
 ---
 
 # Part 1 — Note-first categorization
 
-Completes P6 D3. Pure functions only. No UI, no schema, no new files beyond tests.
+Completes P6 D3. Pure functions only. No UI, no schema.
 
 **Ships alone:** every existing user's next import categorizes better the moment this merges.
 
@@ -125,236 +169,242 @@ Completes P6 D3. Pure functions only. No UI, no schema, no new files beyond test
   - strip standalone digit runs and ordinals (`RENT 2`, `RENT MAY 25`)
   - strip trailing punctuation
   - return `""` when nothing meaningful remains
-- [ ] 1.2 Add `matchRule` call against the normalized note, before the narration call
-- [ ] 1.3 Add `noteConfidenceBonus` — a note hit returns `min(rule.confidence + 0.06, 0.95)`
-- [ ] 1.4 Add keyword rules for the three orphaned seeded categories
+- [ ] 1.2 Match keywords against the normalized note before the narration
+- [ ] 1.3 Note hit returns `min(rule.confidence + 0.06, 0.95)`
+- [ ] 1.4 Keyword rules for the three orphaned seeded categories
   - `Rent` — RENT, HOUSE RENT, ROOM RENT, LANDLORD, MAINTENANCE, SOCIETY
   - `Transfer` — SELF, OWN ACCOUNT, TRANSFER TO, SWEEP, CREDIT CARD PAYMENT
   - `Freelance` — FREELANCE, CONSULTING, INVOICE, RETAINER, CONTRACT (income only)
 - [ ] 1.5 Extend `HeuristicSuggestion` with `note_key: string | null` and `matched_on: "note" | "narration" | null`
-- [ ] 1.6 Thread `note_key` through `MappedImportRow` in `types.ts` and `buildMappedRows` in `parse.ts`
-
-### Testing checklist
-
-| # | Test | File | Asserts |
-|---|---|---|---|
-| T1.1 | `normalizeNoteKey` collapses months | `heuristics.test.ts` | `RENT MAY`, `RENT JUN`, `Rent July` → `RENT` |
-| T1.2 | `normalizeNoteKey` strips digits | `heuristics.test.ts` | `RENT 2`, `RENT MAY 25` → `RENT` |
-| T1.3 | `normalizeNoteKey` returns empty for noise | `heuristics.test.ts` | `123`, `--`, `` → `""` |
-| T1.4 | Note hit beats narration hit | `heuristics.test.ts` | `...-SWIGGY-...-GROCERIES` → Groceries, not Dining |
-| T1.5 | Note hit scores higher confidence | `heuristics.test.ts` | note match confidence > same rule via narration |
-| T1.6 | Rent now categorizes | `heuristics.test.ts` | `IMPS-616232121393-KRISHNA KUMAR-SBIN-XXXXXXX1893-RENT MAY` → `Rent` |
-| T1.7 | Transfer now categorizes | `heuristics.test.ts` | a self-transfer narration → `Transfer` |
-| T1.8 | Freelance is income-gated | `heuristics.test.ts` | `INVOICE` as expense → not Freelance |
-| T1.9 | Every rule category exists in seed | new `heuristics.test.ts` case | each `KEYWORD_RULES[].category` appears in the seed SQL list |
-| T1.10 | No regression | existing suite | `npm run test:unit` green |
-
-### Done when
-
-`npm run test:unit` green, `npm run lint` clean, and a fixture statement that previously
-produced N categorized rows now produces measurably more. Record before/after in the PR.
-
----
-
-# Part 2 — Wider auto-categorization
-
-Grows the keyword table and adds recurrence signals. Still pure functions.
-
-**Ships alone:** raises the auto-categorized share again, independent of any UI work.
-
-### Action items
-
-- [ ] 2.1 Extract `KEYWORD_RULES` into `src/lib/import/keywords.ts` as data
-- [ ] 2.2 Grow to roughly 400 keywords, India-weighted
-  - Dining — add Box8, Faasos, Behrouz, Wow Momo, Chaayos, Third Wave, Blue Tokai, Haldiram, Bikanervala, local chains
-  - Groceries — add JioMart, Licious, Country Delight, Milkbasket, Reliance Fresh, More, Spencers, Nature's Basket, Star Bazaar
-  - Transport — add Namma Yatri, Blusmart, Quick Ride, Shell, Nayara, Jio-bp, Chalo, metro operators (DMRC, BMRCL, CMRL)
-  - Shopping — add Tata Cliq, Snapdeal, Lenskart, Decathlon, Reliance Digital, Vijay Sales, Pepperfry, Urban Ladder, IKEA
-  - Entertainment — add JioCinema, Zee5, Aha, Sun NXT, Audible, Kindle, Steam, PlayStation, Cinepolis, Carnival
-  - Utilities — add Airtel, Jio, Vi, BSNL, ACT, Hathway, Tata Play, electricity boards (TNEB, BESCOM, MSEB, BSES, Adani Electricity), gas (Indane, HP Gas, Bharat Gas)
-  - Healthcare — add Apollo, PharmEasy, Netmeds, Tata 1mg, Practo, Cult.fit, Dr Lal PathLabs, Thyrocare, Medplus
-  - Travel — add MakeMyTrip, Goibibo, Cleartrip, EaseMyTrip, Yatra, Ixigo, RedBus, Oyo, Airbnb, Indigo, Vistara, Air India, Akasa
-  - Investments — add Zerodha, Groww, Upstox, Kuvera, Coin, INDmoney, Smallcase, NPS, PPF, ELSS, SIP
-  - EMI — add Bajaj Finserv, HDB, Slice, LazyPay, Simpl, KreditBee, loan EMI patterns
-  - Healthcare/Utilities insurance split — LIC, HDFC Life, ICICI Pru, Star Health, Niva Bupa, Acko, Digit
-- [ ] 2.3 Add `src/lib/import/recurrence.ts`
-  - `detectRecurring(rows: MappedImportRow[]): RecurrenceHint[]`
-  - group by `note_key` else payee; a group recurs when it has >= 2 occurrences, 25-35 days apart, with amounts within 5% of each other
-  - `Rent` when expense, recurring, amount is the largest recurring expense and a round thousand
-  - `EMI` when expense, recurring, amount is exact to the rupee across occurrences
-  - `Salary` when income, recurring, and the largest recurring credit
-- [ ] 2.4 Apply recurrence hints in `parse.ts` **after** `buildMappedRows`, only to rows whose `suggested_category_name` is still null
-- [ ] 2.5 Cap recurrence-derived confidence at 0.75 so it stays under `IMPORT_LOW_CONFIDENCE_MAX` and always surfaces for review
-
-### Testing checklist
-
-| # | Test | File | Asserts |
-|---|---|---|---|
-| T2.1 | Keyword table is well-formed | new `keywords.test.ts` | no duplicate keyword across categories; all uppercase; no empty strings |
-| T2.2 | Every keyword category exists in seed | `keywords.test.ts` | cross-check against seeded names |
-| T2.3 | Keyword count floor | `keywords.test.ts` | >= 350 keywords (guards accidental truncation) |
-| T2.4 | Monthly same-amount expense → Rent | new `recurrence.test.ts` | 3 rows, ₹22,000, 30 days apart → Rent |
-| T2.5 | Exact-to-rupee recurring → EMI | `recurrence.test.ts` | 3 rows, ₹4,317, 30 days apart → EMI |
-| T2.6 | Largest recurring credit → Salary | `recurrence.test.ts` | monthly credit → Salary |
-| T2.7 | Two occurrences is enough, one is not | `recurrence.test.ts` | single occurrence yields no hint |
-| T2.8 | Irregular spacing is not recurrence | `recurrence.test.ts` | 5 and 50 days apart → no hint |
-| T2.9 | Recurrence never overrides a keyword hit | `recurrence.test.ts` | row already categorized stays as-is |
-| T2.10 | Recurrence confidence stays reviewable | `recurrence.test.ts` | confidence <= 0.75 |
-
-### Done when
-
-`npm run test:unit` green. Measured auto-categorized share on a real fixture statement
-recorded in the PR against the Part 1 number.
-
----
-
-# Part 3 — Grouping engine and grouped review
-
-The core UX change. New pure module plus a new review surface, wired into the existing
-import wizard.
-
-**Ships alone:** every user, new or existing, gets grouped review on their next import.
-Onboarding is still untouched.
-
-### Action items
-
-**Engine**
-
-- [ ] 3.1 Add `src/lib/import/group.ts`
-  - `type ReviewGroup = { key, keyKind: "note" | "keyword" | "payee", label, rowIds, rowCount, totalPaise, firstDate, lastDate, payees: string[], suggestedCategoryName, confidence, band }`
-  - `groupRowsForReview(rows, options): ReviewGroup[]`
-  - key priority per D2: `note_key` → keyword category → normalized payee
-- [ ] 3.2 Band assignment
-  - `settled` — confidence >= `IMPORT_LOW_CONFIDENCE_MAX` (0.8) and a category resolved
-  - `needs_input` — everything else above the trivial threshold
-  - `trivial` — single occurrence and total under ₹200
-- [ ] 3.3 Sort `needs_input` by `totalPaise` descending
-- [ ] 3.4 Add `rankCategoriesForGroup(group, categories): Category[]` — returns the 4 chips to show, ranked by kind match, amount shape (round thousands favour Rent/EMI), and direction (income groups never offer expense categories)
-- [ ] 3.5 Add `summariseProgress(groups): { settledPaise, totalPaise, pct }`
-
-**Commit path**
-
-- [ ] 3.6 Add `bulkCommitImportRowsFn` to `mutations.functions.ts` — accepts `{ rows: Array<{row_id, suggested_category_id}>, rules: UpsertImportRuleInput[] }`, applies patches in one update per category, commits via RPC, writes rules once. Replaces 100 round trips with a handful.
-- [ ] 3.7 Group card category pick writes an `import_rule` with `match_field` derived from `keyKind` — `note` for a note group, `payee` for a payee group, `narration` for a keyword group
-
-**UI**
-
-- [ ] 3.8 Add `src/components/import/teach-screen.tsx` — three bands per D3/D5/D6
-  - Band 1 `settled`: one collapsed summary strip with category totals and an expand link
-  - Band 2 `needs_input`: one card per group — label, `{n} payments · ₹{total} · {range}`, payee list, 4 category chips plus "Other"
-  - Band 3 `trivial`: one strip with a single "Skip these {n}" button
-  - Money-denominated progress bar pinned at top
-  - "Import anyway" always enabled
-- [ ] 3.9 Wire into `import-wizard.tsx` as a view mode alongside the existing deck/table toggle (pending Q1)
-- [ ] 3.10 Keep the existing row-level deck reachable — grouping is the default, not the only option
-
-### Testing checklist
-
-| # | Test | File | Asserts |
-|---|---|---|---|
-| T3.1 | Note key groups across payees | new `group.test.ts` | the two `FAGS` fixtures land in one group |
-| T3.2 | Month variants collapse | `group.test.ts` | `RENT MAY` + `RENT JUN` + `RENT JUL` → one group of 3 |
-| T3.3 | Keyword groups when no note | `group.test.ts` | Swiggy + Zomato + EatSure → one `Dining` group |
-| T3.4 | Payee groups when neither | `group.test.ts` | repeated `Apurvasigamani` with no note → one group |
-| T3.5 | Note beats keyword | `group.test.ts` | Swiggy row with note `LUNCH` groups under `LUNCH` |
-| T3.6 | Band split is correct | `group.test.ts` | confidence 0.86 → settled; 0.4 → needs_input; single ₹120 → trivial |
-| T3.7 | needs_input sorted by money | `group.test.ts` | ₹66,000 group precedes ₹4,320 group with more rows |
-| T3.8 | Realistic collapse ratio | `group.test.ts` | 100-row fixture → <= 35 groups |
-| T3.9 | Chip ranking respects direction | `group.test.ts` | income group offers no expense category |
-| T3.10 | Chip ranking favours shape | `group.test.ts` | ₹22,000 round monthly expense offers Rent first |
-| T3.11 | Progress is money-weighted | `group.test.ts` | clearing the top group moves pct more than clearing five small ones |
-| T3.12 | match_field derived from keyKind | `group.test.ts` or `stage.test.ts` | note group → `note`; payee group → `payee` |
-| T3.13 | Bulk commit writes all rows | new `imports.spec.ts` case | group pick categorizes every row in the group |
-| T3.14 | Bulk commit writes one rule per group | e2e | rule count equals groups categorized |
-| T3.15 | Import anyway works with zero taps | e2e | all rows commit as Uncategorized, no error |
-| T3.16 | Row-level deck still reachable | e2e | toggle switches views, deck behaves as before |
-
-### Done when
-
-A 100-row fixture reaches <= 35 groups, the top 6 groups cover >= 70% of total value, and
-`npm run test:unit` plus `npm run test:e2e` are green.
-
----
-
-# Part 4 — Onboarding route
-
-Wraps Parts 1-3 in a first-run flow.
-
-**Ships alone:** new users get the guided path; existing users are unaffected.
-
-### Action items
-
-- [ ] 4.1 Add `src/routes/onboarding.tsx` with four steps: `account → upload → teach → done`
-- [ ] 4.2 Add first-run detection — redirect to `/onboarding` when the user has zero accounts and zero transactions
-- [ ] 4.3 Account step — name, type, nothing else. No opening balance field.
-- [ ] 4.4 Upload step — reuse the existing parse path including password handling; show detected date range and row count as confirmation, not as a question
-- [ ] 4.5 Infer what the statement already states
-  - opening balance from the statement's own opening balance row where the mapping has a balance column
-  - account type hint from the detected preset
-  - date range from parsed rows
-- [ ] 4.6 Teach step — render `teach-screen.tsx` from Part 3
-- [ ] 4.7 Done step — commit, then a single line: "Next month's statement will mostly sort itself." Route to dashboard.
-- [ ] 4.8 "Skip for now" on every step, exiting to the dashboard with whatever is committed (pending Q3)
-- [ ] 4.9 Resume — a half-finished onboarding re-entered goes back to the furthest step reached, not to the start
-
-### Testing checklist
-
-| # | Test | File | Asserts |
-|---|---|---|---|
-| T4.1 | Fresh user is redirected | new `onboarding.spec.ts` | zero accounts → `/onboarding` |
-| T4.2 | Existing user is not | `onboarding.spec.ts` | user with accounts goes to dashboard |
-| T4.3 | Full happy path | `onboarding.spec.ts` | account → upload → 6 taps → dashboard shows real charts |
-| T4.4 | Skip at each step | `onboarding.spec.ts` | three cases, each lands on dashboard without error |
-| T4.5 | Password-protected PDF | `onboarding.spec.ts` | prompts in-flow, never uploads the file |
-| T4.6 | Opening balance inferred | `onboarding.spec.ts` | account balance matches the statement, with no balance field shown |
-| T4.7 | Resume mid-flow | `onboarding.spec.ts` | reload during teach returns to teach, not account |
-| T4.8 | Zero-tap finish | `onboarding.spec.ts` | "Import anyway" from teach commits everything |
-| T4.9 | Rules persisted | `onboarding.spec.ts` | Settings lists one rule per categorized group, with correct `match_field` |
-| T4.10 | Second import is quiet | `onboarding.spec.ts` | re-importing a later month leaves few groups in `needs_input` |
-
-### Done when
-
-A new user reaches a populated dashboard in under 60 seconds and under 10 taps,
-measured on the real fixture statement.
-
----
-
-# Part 5 — Refinement and verification
-
-The smoothness pass, plus the measurement that proves the whole thing worked.
-
-**Ships alone:** polish on a flow that already works.
-
-### Action items
-
-- [ ] 5.1 Card transitions — chosen card animates out, progress bar animates, next card rises
-- [ ] 5.2 Undo — a toast after each group pick, reversible for 5 seconds, no confirmation dialogs
-- [ ] 5.3 Keyboard path — number keys pick chips, `Enter` accepts, `Esc` skips the group
-- [ ] 5.4 Inline category creation on a group card (pending Q2)
-- [ ] 5.5 Empty and edge states — statement with no notes at all; statement with one transaction; statement where every row is already categorized (teach step should auto-skip)
-- [ ] 5.6 Mobile layout — cards are the primary surface, one-handed reach, 44px touch targets
-- [ ] 5.7 Accessibility — chips are real buttons, progress has `aria-valuenow`, bands are landmarks, focus moves to the next card after a pick
-- [ ] 5.8 Add `docs/DECISIONS.md` entries for D1-D9
-- [ ] 5.9 Update `CLAUDE.md` import pipeline line to name `keywords.ts`, `recurrence.ts`, `group.ts`
-- [ ] 5.10 Record the measurement table in the PR
+- [ ] 1.6 Thread `note_key` through `MappedImportRow` and `buildMappedRows`
 
 ### Testing checklist
 
 | # | Test | Asserts |
 |---|---|---|
-| T5.1 | Undo restores a group | category reverts, rule is not written |
-| T5.2 | Keyboard completes the flow | no mouse, full teach step finished |
-| T5.3 | Inline category appears everywhere | new category usable in Settings and transactions |
-| T5.4 | No-notes statement | still groups by keyword and payee, no crash |
-| T5.5 | Single-transaction statement | teach step renders one card, no division by zero in progress |
-| T5.6 | Fully-categorized statement | teach step auto-skips to done |
-| T5.7 | Mobile viewport | Playwright at 390×844, no horizontal scroll, targets >= 44px |
-| T5.8 | Axe clean | no serious or critical violations on the teach screen |
-| T5.9 | Full regression | `npm run test:unit`, `npm run test:e2e`, `npm run lint`, `npm run build` all green |
+| T1.1 | `normalizeNoteKey` collapses months | `RENT MAY`, `RENT JUN`, `Rent July` → `RENT` |
+| T1.2 | strips digits | `RENT 2`, `RENT MAY 25` → `RENT` |
+| T1.3 | returns empty for noise | `123`, `--`, `` → `""` |
+| T1.4 | note hit beats narration hit | `...-SWIGGY-...-GROCERIES` → Groceries, not Dining |
+| T1.5 | note hit scores higher | note match confidence > same rule via narration |
+| T1.6 | Rent now categorizes | `...-KRISHNA KUMAR-SBIN-XXXXXXX1893-RENT MAY` → `Rent` |
+| T1.7 | Transfer now categorizes | self-transfer narration → `Transfer` |
+| T1.8 | Freelance is income-gated | `INVOICE` as expense → not Freelance |
+| T1.9 | every rule category exists in seed | each `KEYWORD_RULES[].category` appears in seed SQL |
+| T1.10 | no regression | `npm run test:unit` green |
 
 ### Done when
+`test:unit` and `lint` green; before/after categorized count on a real fixture recorded in the PR.
 
-The measurement table below is filled in from a real run.
+---
+
+# Part 2 — Wider auto-categorization
+
+Grows the keyword table and adds recurrence. Still pure functions.
+
+**Ships alone:** raises the auto-categorized share again, independent of any UI or AI work.
+
+### Action items
+
+- [ ] 2.1 Extract `KEYWORD_RULES` into `src/lib/import/keywords.ts` as data
+- [ ] 2.2 Grow to roughly 400 keywords, India-weighted
+  - Dining — Box8, Faasos, Behrouz, Wow Momo, Chaayos, Third Wave, Blue Tokai, Haldiram, Bikanervala
+  - Groceries — JioMart, Licious, Country Delight, Milkbasket, Reliance Fresh, More, Spencers, Star Bazaar
+  - Transport — Namma Yatri, Blusmart, Quick Ride, Shell, Nayara, Jio-bp, Chalo, DMRC, BMRCL, CMRL
+  - Shopping — Tata Cliq, Snapdeal, Lenskart, Decathlon, Reliance Digital, Vijay Sales, Pepperfry, IKEA
+  - Entertainment — JioCinema, Zee5, Aha, Sun NXT, Audible, Kindle, Steam, PlayStation, Cinepolis
+  - Utilities — Airtel, Jio, Vi, BSNL, ACT, Hathway, Tata Play, TNEB, BESCOM, MSEB, BSES, Indane, HP Gas
+  - Healthcare — Apollo, PharmEasy, Netmeds, Tata 1mg, Practo, Cult.fit, Dr Lal PathLabs, Thyrocare, Medplus
+  - Travel — MakeMyTrip, Goibibo, Cleartrip, EaseMyTrip, Yatra, Ixigo, RedBus, Oyo, Indigo, Vistara, Akasa
+  - Investments — Zerodha, Groww, Upstox, Kuvera, Coin, INDmoney, Smallcase, NPS, PPF, ELSS, SIP
+  - EMI — Bajaj Finserv, HDB, Slice, LazyPay, Simpl, KreditBee
+  - Insurance — LIC, HDFC Life, ICICI Pru, Star Health, Niva Bupa, Acko, Digit
+- [ ] 2.3 Add `src/lib/import/recurrence.ts` with `detectRecurring(rows): RecurrenceHint[]`
+  - group by `note_key` else payee; recurs when >= 2 occurrences, 25–35 days apart, amounts within 5%
+  - `Rent` — expense, recurring, largest recurring expense, round thousand
+  - `EMI` — expense, recurring, exact to the rupee across occurrences
+  - `Salary` — income, recurring, largest recurring credit
+- [ ] 2.4 Apply hints in `parse.ts` after `buildMappedRows`, only where `suggested_category_name` is null
+- [ ] 2.5 Cap recurrence confidence at 0.75
+
+### Testing checklist
+
+| # | Test | Asserts |
+|---|---|---|
+| T2.1 | keyword table well-formed | no cross-category duplicates, all uppercase, no empties |
+| T2.2 | every keyword category exists in seed | cross-check against seeded names |
+| T2.3 | keyword count floor | >= 350 (guards truncation) |
+| T2.4 | monthly same-amount expense → Rent | 3 rows, ₹22,000, 30 days apart |
+| T2.5 | exact-to-rupee recurring → EMI | 3 rows, ₹4,317, 30 days apart |
+| T2.6 | largest recurring credit → Salary | monthly credit |
+| T2.7 | two occurrences enough, one is not | single occurrence yields no hint |
+| T2.8 | irregular spacing is not recurrence | 5 and 50 days apart → no hint |
+| T2.9 | never overrides a keyword hit | already-categorized row unchanged |
+| T2.10 | stays reviewable | confidence <= 0.75 |
+
+### Done when
+`test:unit` green; auto-categorized share recorded against the Part 1 number.
+
+---
+
+# Part 3 — Grouping engine and bulk commit
+
+Pure module plus the commit path. No UI yet.
+
+**Ships alone:** the grouping library is tested and the existing review UI gets a bulk
+commit path that replaces 100 round trips with a handful.
+
+### Action items
+
+- [ ] 3.1 Add `src/lib/import/group.ts`
+  - `type ReviewGroup = { id, key, keyKind: "note"|"keyword"|"payee", label, rowIds, rowCount, totalPaise, firstDate, lastDate, payees, suggestedCategoryName, confidence, source: "rule"|"keyword"|"recurrence"|"ai"|null, band }`
+  - `groupRowsForReview(rows, options): ReviewGroup[]`, key priority per D2
+- [ ] 3.2 Band assignment
+  - `settled` — confidence >= 0.8 and a category resolved
+  - `needs_input` — everything else above the trivial threshold
+  - `trivial` — single occurrence, total under ₹200
+- [ ] 3.3 Sort `needs_input` by `totalPaise` descending
+- [ ] 3.4 `rankCategoriesForGroup(group, categories): Category[]` — 4 chips, ranked by kind match, amount shape, direction
+- [ ] 3.5 `summariseProgress(groups): { settledPaise, totalPaise, pct }`
+- [ ] 3.6 `sizeBucket(totalPaise, allGroups): "small"|"medium"|"large"` — used by Part 4's AI payload
+- [ ] 3.7 Add `bulkCommitImportRowsFn` to `mutations.functions.ts` — `{ rows: Array<{row_id, suggested_category_id}>, rules: UpsertImportRuleInput[] }`; one update per category, commit via RPC, rules written once
+- [ ] 3.8 Derive `match_field` from `keyKind` — `note` → `note`, `payee` → `payee`, `keyword` → `narration`
+
+### Testing checklist
+
+| # | Test | Asserts |
+|---|---|---|
+| T3.1 | note key groups across payees | the two `FAGS` fixtures land in one group |
+| T3.2 | month variants collapse | `RENT MAY/JUN/JUL` → one group of 3 |
+| T3.3 | keyword groups when no note | Swiggy + Zomato + EatSure → one `Dining` group |
+| T3.4 | payee groups when neither | repeated `Apurvasigamani`, no note → one group |
+| T3.5 | note beats keyword | Swiggy row with note `LUNCH` groups under `LUNCH` |
+| T3.6 | band split correct | 0.86 → settled; 0.4 → needs_input; single ₹120 → trivial |
+| T3.7 | needs_input sorted by money | ₹66,000 group precedes ₹4,320 group with more rows |
+| T3.8 | realistic collapse ratio | 100-row fixture → <= 35 groups |
+| T3.9 | chip ranking respects direction | income group offers no expense category |
+| T3.10 | chip ranking favours shape | ₹22,000 round monthly expense offers Rent first |
+| T3.11 | progress is money-weighted | clearing top group moves pct more than five small ones |
+| T3.12 | match_field derived from keyKind | note group → `note`; payee group → `payee` |
+| T3.13 | bulk commit writes all rows | one call categorizes every row in a group |
+| T3.14 | bulk commit writes one rule per group | rule count equals groups categorized |
+| T3.15 | bulk commit is atomic per group | a failing row does not half-commit the group |
+
+### Done when
+100-row fixture → <= 35 groups, top 6 groups >= 70% of value, `test:unit` green.
+
+---
+
+# Part 4 — AI categorization pass
+
+The model layer. Server function plus validation. Still no new UI — it improves
+`suggested_category_id` on staged rows, visible in the existing review surface.
+
+**Ships alone:** every import gets better suggestions, with or without the teach screen.
+
+### Action items
+
+- [ ] 4.1 Add `src/lib/categorize.functions.ts` — `categorizeGroupsFn` (`createServerFn`, `requireSupabaseAuth`)
+  - model `claude-haiku-5-5` (latency matters here, unlike the assistant's Opus)
+  - reuse the Anthropic → OpenRouter fallback shape from `assistant.functions.ts`
+- [ ] 4.2 Request payload per D11 — label, kind, count, direction, recurring, size bucket. Nothing else.
+- [ ] 4.3 System prompt
+  - Indian personal finance context
+  - given the user's category list, assign each group to one
+  - may propose at most 5 new categories, each flagged `isNew` with a `kind`
+  - **must return `null` for groups it cannot know** — person-to-person names especially
+  - must return every id it was given; must not invent ids
+- [ ] 4.4 Response validation per D13 — drop unknown ids, reject categories that are neither existing nor `isNew`, clamp confidence, cap new categories at 5. Malformed → treat as no response.
+- [ ] 4.5 Cap AI confidence at 0.75 per D14
+- [ ] 4.6 Apply only to groups still unresolved after rule/keyword/recurrence — never overwrite a deterministic hit
+- [ ] 4.7 Timeout at 8s, one retry, then give up silently
+- [ ] 4.8 Add `aiCategorization` user setting, default on, with a one-line explanation of what leaves the device
+- [ ] 4.9 Record D9–D14 in `docs/DECISIONS.md`
+
+### Testing checklist
+
+| # | Test | Asserts |
+|---|---|---|
+| T4.1 | payload carries no amounts | serialized request contains no paise, date or balance field |
+| T4.2 | payload carries no narration | request contains labels only |
+| T4.3 | unknown id dropped | fabricated id in response is ignored |
+| T4.4 | unlisted category rejected | category neither seeded nor `isNew` is dropped |
+| T4.5 | new categories capped | 9 proposals → 5 kept |
+| T4.6 | confidence clamped | returned 0.99 → stored 0.75 |
+| T4.7 | null is honoured | `Apurvasigamani` → null stays null, no guess |
+| T4.8 | never overrides deterministic | keyword-hit group unchanged by AI response |
+| T4.9 | failure is silent | API 500 → groups unchanged, no thrown error |
+| T4.10 | timeout is silent | 8s timeout → flow continues |
+| T4.11 | no key configured | missing env → pass skipped, no error |
+| T4.12 | setting off | `aiCategorization` false → no network call made |
+| T4.13 | auth required | unauthenticated call rejected |
+
+### Done when
+On a real fixture, AI resolves a measurable share of groups that keywords missed, returns
+null for person-to-person, and every failure mode leaves the import working.
+
+---
+
+# Part 5 — Teach screen and mandatory onboarding
+
+The user-facing deliverable. Separate component per Q1, mandatory flow per Q3.
+
+### Action items
+
+**Teach screen** — `src/components/onboarding/teach-screen.tsx`, standalone (Q1)
+
+- [ ] 5.1 Band 1 `settled` — one collapsed strip with category totals, expandable
+- [ ] 5.2 Band 2 `needs_input` — one card per group: label, `{n} payments · ₹{total} · {range}`, payee list, 4 chips + "Other"
+- [ ] 5.3 AI-proposed new categories render as marked chips (`+ Fitness`), created on tap only (D12)
+- [ ] 5.4 AI suggestions stream in and upgrade blank cards without re-ordering what is on screen (D10)
+- [ ] 5.5 Band 3 `trivial` — one strip, single "Skip these {n}" button
+- [ ] 5.6 Money-denominated progress bar, pinned (D5)
+- [ ] 5.7 "Import anyway" always enabled (D6)
+- [ ] 5.8 Undo toast per pick, 5s, reversible
+- [ ] 5.9 Keyboard path — number keys pick chips, `Enter` accepts, `Esc` skips
+- [ ] 5.10 Card transitions, focus moves to the next card after a pick
+
+**Onboarding route** — `src/routes/onboarding.tsx`
+
+- [ ] 5.11 Steps: `account → upload → teach → done`
+- [ ] 5.12 Mandatory (Q3) — a user with zero accounts is redirected here from every route, and cannot navigate away until the flow completes
+- [ ] 5.13 Account step — name and type only. No opening balance field.
+- [ ] 5.14 Upload step — reuse the existing parse path including password handling; show detected date range and row count as confirmation, not as a question
+- [ ] 5.15 Infer rather than ask — opening balance from the statement's balance column, account type from the detected preset, date range from parsed rows
+- [ ] 5.16 Done step — commit via `bulkCommitImportRowsFn`, then one line: "Next month's statement will mostly sort itself."
+- [ ] 5.17 Resume — re-entry returns to the furthest step reached
+- [ ] 5.18 Mobile first — 390px, one-handed reach, 44px targets
+- [ ] 5.19 Accessibility — chips are buttons, progress has `aria-valuenow`, bands are landmarks
+- [ ] 5.20 Update `CLAUDE.md` import pipeline line to name `keywords.ts`, `recurrence.ts`, `group.ts`, `categorize.functions.ts`
+
+### Testing checklist
+
+| # | Test | Asserts |
+|---|---|---|
+| T5.1 | fresh user is redirected | zero accounts → `/onboarding` from any route |
+| T5.2 | cannot escape onboarding | direct nav to `/transactions` bounces back |
+| T5.3 | existing user unaffected | user with accounts never sees it |
+| T5.4 | full happy path | account → upload → ~6 taps → dashboard with real charts |
+| T5.5 | AI chips appear after render | screen is interactive before the AI response lands |
+| T5.6 | AI failure invisible | API down → flow completes, more cards in band 2 |
+| T5.7 | new category created on tap | AI-proposed chip creates the category and assigns the group |
+| T5.8 | new category not created without tap | proposals alone write nothing to `categories` |
+| T5.9 | undo restores a group | category reverts, rule not written |
+| T5.10 | keyboard completes the flow | no mouse, teach step finished |
+| T5.11 | password-protected PDF | prompts in-flow, file never uploaded |
+| T5.12 | opening balance inferred | balance matches statement, no field shown |
+| T5.13 | resume mid-flow | reload during teach returns to teach |
+| T5.14 | zero-tap finish | "Import anyway" commits everything |
+| T5.15 | rules persisted | Settings lists one rule per group, correct `match_field` |
+| T5.16 | second import is quiet | later month leaves few groups in `needs_input` |
+| T5.17 | no-notes statement | groups by keyword and payee, no crash |
+| T5.18 | single-transaction statement | one card, no division by zero in progress |
+| T5.19 | fully-categorized statement | teach step auto-skips to done |
+| T5.20 | mobile viewport | 390×844, no horizontal scroll, targets >= 44px |
+| T5.21 | axe clean | no serious or critical violations on the teach screen |
+| T5.22 | full regression | `test:unit`, `test:e2e`, `lint`, `build` green |
+
+### Done when
 
 | Metric | Before (e59e3f0) | After P7 |
 |---|---|---|
@@ -365,21 +415,25 @@ The measurement table below is filled in from a real run.
 | Taps to cover 80% of value | | |
 | Time to populated dashboard | | |
 
+Target: populated dashboard in under 60 seconds, under 10 taps.
+
 ---
 
 ## Dependency order
 
 ```
-Part 1 ──► Part 2 ──► Part 3 ──► Part 4 ──► Part 5
- (pure)    (pure)    (engine+UI)  (route)   (polish)
+Part 1 ──► Part 2 ──► Part 3 ──┬──► Part 4 ──┐
+ (pure)    (pure)    (engine)  │   (AI)      ├──► Part 5
+                                └─────────────┘    (UI + route)
 ```
 
-Parts 1 and 2 are independently mergeable and carry no UI risk. Part 3 is the largest and
-depends on both. Parts 4 and 5 depend on Part 3.
+Parts 1–3 are pure and carry no UI or network risk. Part 4 needs Part 3's group shape.
+Part 5 needs both, but degrades cleanly without Part 4 (D10).
 
 ## Out of scope
 
-- Any ML model — embeddings, browser LLM, or server LLM categorization. D9.
-- OCR for scanned PDFs. Still governed by the existing "no OCR" decision in `DECISIONS.md`.
+- Browser-resident models — ONNX, transformers.js, WebLLM. The server call is cheaper,
+  better and already wired. Revisit only if the privacy stance in D11 tightens.
+- OCR for scanned PDFs. Still governed by the existing "no OCR" decision.
 - PDF layout generalization beyond HDFC savings. Separate track.
 - Changing the hash formula or the near-duplicate rule.
