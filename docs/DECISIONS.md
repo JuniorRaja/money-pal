@@ -196,3 +196,21 @@ an earlier day, so re-running it twice in one day cannot flatten the day change 
 
 There is no price history table. Only yesterday is kept, which is all a day change needs; the
 Portfolio-trend sparkline is still mock data and is what would justify real history.
+
+## Import — AI categorization is optional and progressive
+
+AI categorization runs only for groups still unresolved after rules, keywords, and recurrence
+propagation. It is an enhancement, not a prerequisite: the import renders and remains usable
+without an AI response. The user can disable it in Settings → Assistant; it defaults on.
+
+Only derived group labels, group kind, count, direction, cadence, amount stability, human-round
+shape, magnitude bucket, and the active category list are sent. A group label may be a normalized
+note, keyword category, or extracted payee. Statement files, amounts, dates, balances, account
+identifiers, and full narration are not sent. The model may suggest listed categories or up to five
+new categories, but a user must select a suggestion before any category is created or written.
+Unknown ids and invalid categories are rejected, confidence is capped at 0.75, and missing keys,
+timeouts, malformed responses, and provider errors leave groups unchanged after one retry.
+
+A large or recurring amount never implies Rent or Salary. Exact recurring amounts describe a
+contract-like shape only; the model must return no category when it cannot identify one, especially
+for person-to-person payments.

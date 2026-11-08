@@ -46,6 +46,18 @@ export { KEYWORD_RULES } from "./keywords";
 export { detectRecurring, propagateRecurringCategories } from "./recurrence";
 export type { RecurrenceShape } from "./recurrence";
 export {
+  buildCategorizationPayload,
+  requestCategorizationWithRetry,
+  unresolvedCategorizationGroups,
+  validateCategorizationResponse,
+} from "./categorize";
+export type {
+  CategorizationCategory,
+  CategorizationGroup,
+  CategorizationPayload,
+  CategorizationSuggestion,
+} from "./categorize";
+export {
   groupRowsForReview,
   magnitudeBucket,
   matchFieldForGroup,

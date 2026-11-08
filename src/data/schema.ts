@@ -387,6 +387,7 @@ export interface UserSettings {
   reduce_motion: boolean;
   assistant_tone: "concise" | "detailed";
   assistant_context: boolean;
+  ai_categorization: boolean;
   /** ISO timestamp the notification feed was last opened; null = never. */
   timeline_seen_at: string | null;
 }

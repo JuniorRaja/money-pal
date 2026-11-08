@@ -207,16 +207,16 @@ Server function + validation. No new UI; improves `suggested_category_id` on sta
 
 ### Action items
 
-- [ ] 4.1 `src/lib/categorize.functions.ts` — `categorizeGroupsFn` (`createServerFn`, `requireSupabaseAuth`), model `claude-haiku-5-5`, Anthropic → OpenRouter fallback as in `assistant.functions.ts`
-- [ ] 4.2 Payload per D11 — label, kind, count, direction, and the recurrence shape (cadence, amountStability, humanRound, magnitude). Nothing else. Shape is a fact for the model to reason from, not a category claim.
-- [ ] 4.3 System prompt — Indian personal finance; assign each group to a listed category; may propose <= 5 new ones flagged `isNew` with a `kind`; **must return `null` where it cannot know** (person-to-person especially); must return every id given; must not invent ids
+- [x] 4.1 `src/lib/categorize.functions.ts` — `categorizeGroupsFn` (`createServerFn`, `requireSupabaseAuth`), model `claude-haiku-5-5`, Anthropic → OpenRouter fallback as in `assistant.functions.ts`
+- [x] 4.2 Payload per D11 — label, kind, count, direction, and the recurrence shape (cadence, amountStability, humanRound, magnitude). Nothing else. Shape is a fact for the model to reason from, not a category claim.
+- [x] 4.3 System prompt — Indian personal finance; assign each group to a listed category; may propose <= 5 new ones flagged `isNew` with a `kind`; **must return `null` where it cannot know** (person-to-person especially); must return every id given; must not invent ids
   - state explicitly that a large or recurring amount does **not** imply Rent or Salary, and that `exact` stability suggests a contract (EMI, insurance, SIP) without saying which
-- [ ] 4.4 Validation per D13 — drop unknown ids, reject categories neither listed nor `isNew`, clamp confidence, cap new at 5, malformed → no response
-- [ ] 4.5 Cap AI confidence at 0.75 (D14)
-- [ ] 4.6 Apply only to groups unresolved after rule/keyword/recurrence
-- [ ] 4.7 8s timeout, one retry, then give up silently
-- [ ] 4.8 `aiCategorization` user setting, default on, one line on what leaves the device
-- [ ] 4.9 Record D9-D14 in `docs/DECISIONS.md`
+- [x] 4.4 Validation per D13 — drop unknown ids, reject categories neither listed nor `isNew`, clamp confidence, cap new at 5, malformed → no response
+- [x] 4.5 Cap AI confidence at 0.75 (D14)
+- [x] 4.6 Apply only to groups unresolved after rule/keyword/recurrence
+- [x] 4.7 8s timeout, one retry, then give up silently
+- [x] 4.8 `aiCategorization` user setting, default on, one line on what leaves the device
+- [x] 4.9 Record D9-D14 in `docs/DECISIONS.md`
 
 ### Tests
 

@@ -685,6 +685,7 @@ export interface SaveProfileInput {
   week_starts_on?: "Monday" | "Sunday";
   assistant_tone?: "concise" | "detailed";
   assistant_context?: boolean;
+  ai_categorization?: boolean;
   timeline_seen_at?: string;
 }
 
@@ -724,6 +725,7 @@ export const saveProfileFn = createServerFn({ method: "POST" })
     }
     if (data.assistant_tone !== undefined) patch.assistant_tone = data.assistant_tone;
     if (data.assistant_context !== undefined) patch.assistant_context = data.assistant_context;
+    if (data.ai_categorization !== undefined) patch.ai_categorization = data.ai_categorization;
     if (data.timeline_seen_at !== undefined) patch.timeline_seen_at = data.timeline_seen_at;
 
     const { error } = await supabase.from("profiles").update(patch).eq("user_id", userId);

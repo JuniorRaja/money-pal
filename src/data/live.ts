@@ -273,6 +273,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   reduce_motion: false,
   assistant_tone: "concise",
   assistant_context: true,
+  ai_categorization: true,
   timeline_seen_at: null,
 };
 
@@ -288,7 +289,7 @@ export const liveSettings = (): Promise<UserSettings> =>
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "user_id, display_name, email, week_starts_on, number_format, round_to_nearest, theme, accent, theme_pattern, sidebar, reduce_motion, assistant_tone, assistant_context, timeline_seen_at",
+        "user_id, display_name, email, week_starts_on, number_format, round_to_nearest, theme, accent, theme_pattern, sidebar, reduce_motion, assistant_tone, assistant_context, ai_categorization, timeline_seen_at",
       )
       .is("deleted_at", null)
       .maybeSingle();
@@ -310,6 +311,7 @@ export const liveSettings = (): Promise<UserSettings> =>
       reduce_motion: data.reduce_motion,
       assistant_tone: oneOf(data.assistant_tone, ["concise", "detailed"] as const, "concise"),
       assistant_context: data.assistant_context,
+      ai_categorization: data.ai_categorization,
       timeline_seen_at: data.timeline_seen_at,
     };
   }, DEFAULT_SETTINGS);

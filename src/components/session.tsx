@@ -25,6 +25,7 @@ export interface AppPrefs {
   numberFormat: "indian" | "international";
   assistantTone: "concise" | "detailed";
   assistantContext: boolean;
+  aiCategorization: boolean;
   /** ISO timestamp of the last time the notification feed was opened. "" = never. */
   timelineSeenAt: string;
   // --- Ephemeral: never persisted, resets on reload. ---
@@ -101,6 +102,7 @@ const defaultPrefs: AppPrefs = {
   numberFormat: "indian",
   assistantTone: "concise",
   assistantContext: true,
+  aiCategorization: true,
   timelineSeenAt: "",
   maskNumbers: false,
   sidebar: "expanded",
@@ -156,6 +158,7 @@ function settingsToPrefs(settings: UserSettings): Partial<AppPrefs> {
     numberFormat: settings.number_format,
     assistantTone: settings.assistant_tone,
     assistantContext: settings.assistant_context,
+    aiCategorization: settings.ai_categorization,
     timelineSeenAt: settings.timeline_seen_at ?? "",
   };
 }
@@ -176,6 +179,7 @@ function prefsToProfilePatch(patch: Partial<AppPrefs>): SaveProfileInput {
   if (patch.numberFormat !== undefined) out.number_format = patch.numberFormat;
   if (patch.assistantTone !== undefined) out.assistant_tone = patch.assistantTone;
   if (patch.assistantContext !== undefined) out.assistant_context = patch.assistantContext;
+  if (patch.aiCategorization !== undefined) out.ai_categorization = patch.aiCategorization;
   if (patch.timelineSeenAt) out.timeline_seen_at = patch.timelineSeenAt;
   return out;
 }

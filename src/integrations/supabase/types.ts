@@ -1277,6 +1277,7 @@ export type Database = {
       profiles: {
         Row: {
           accent: string | null;
+          ai_categorization: boolean;
           assistant_context: boolean;
           assistant_tone: string;
           base_currency: string;
@@ -1300,6 +1301,7 @@ export type Database = {
         };
         Insert: {
           accent?: string | null;
+          ai_categorization?: boolean;
           assistant_context?: boolean;
           assistant_tone?: string;
           base_currency?: string;
@@ -1323,6 +1325,7 @@ export type Database = {
         };
         Update: {
           accent?: string | null;
+          ai_categorization?: boolean;
           assistant_context?: boolean;
           assistant_tone?: string;
           base_currency?: string;

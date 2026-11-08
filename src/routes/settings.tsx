@@ -233,6 +233,12 @@ function SettingsPage() {
                 value={prefs.assistantContext}
                 onChange={(v) => setPrefs({ assistantContext: v })}
               />
+              <Toggle
+                label="AI import suggestions"
+                hint="Sends group labels, which may include extracted notes or payees, and coarse patterns; not full narration, amounts, dates, or balances."
+                value={prefs.aiCategorization}
+                onChange={(v) => setPrefs({ aiCategorization: v })}
+              />
             </Panel>
           )}
 
@@ -245,9 +251,10 @@ function SettingsPage() {
           {tab === "Privacy" && (
             <Panel title="Privacy & data">
               <p className="text-sm leading-relaxed text-muted-foreground">
-                This build runs on a local demo ledger pinned to 07 Aug 2026. Nothing leaves the
-                browser except the compact summary sent with assistant questions, and only while
-                that setting is on.
+                Assistant questions may include the compact ledger summary when sharing is on.
+                Import suggestions may include derived group labels and coarse payment patterns when
+                enabled. Statement files, amounts, dates, balances, and raw bank narration are never
+                sent for categorization.
               </p>
               <button className="mt-4 rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10">
                 Reset local session
