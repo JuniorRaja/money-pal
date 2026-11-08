@@ -29,7 +29,7 @@ Finishes P6 D3. Adds grouping, an AI pass, and a mandatory onboarding flow.
 | D5 | Progress measured in rupees, not row count. `needs_input` sorted by total value. |
 | D6 | No step inside the flow can trap the user. "Import anyway" always live. |
 | D7 | `KEYWORD_RULES` moves to `keywords.ts` as data. ~59 → ~400 entries. |
-| D8 | Recurrence is a signal: monthly + near-identical amount → Rent / EMI / Salary. |
+| D8 | Recurrence describes **shape**, never category. No category is inferred from rank or size — "largest expense is Rent" and "largest credit is Salary" are false. Shape narrows chips, reorders the queue, and feeds the AI as a fact. |
 | D9 | AI categorization is a layer on top of rule → keyword → recurrence, never the foundation. |
 | D10 | AI is progressive enhancement. Screen renders before the call returns; failure is invisible. |
 | D11 | Only derived labels leave the browser. No file, amounts, dates, balances, narration. Size is a coarse bucket. |
@@ -49,7 +49,8 @@ AI payload per group (D11):
 ```jsonc
 { "id": "g2", "label": "FAGS", "kind": "note",
   "count": 18, "direction": "expense",
-  "recurring": false, "size": "small" }   // small | medium | large
+  "cadence": "irregular", "amountStability": null,
+  "humanRound": null, "magnitude": "small" }
 ```
 
 ## Settled questions
@@ -116,12 +117,13 @@ Pure functions. Keyword table + recurrence.
   - Investments — Zerodha, Groww, Upstox, Kuvera, Coin, INDmoney, Smallcase, NPS, PPF, ELSS, SIP
   - EMI — Bajaj Finserv, HDB, Slice, LazyPay, Simpl, KreditBee
   - Insurance — LIC, HDFC Life, ICICI Pru, Star Health, Niva Bupa, Acko, Digit
-- [ ] 2.3 `src/lib/import/recurrence.ts` — `detectRecurring(rows): RecurrenceHint[]`; group by `note_key` else payee; recurs at >= 2 occurrences, 25-35 days apart, amounts within 5%
-  - `Rent` — expense, recurring, largest recurring expense, round thousand
-  - `EMI` — expense, recurring, exact to the rupee across occurrences
-  - `Salary` — income, recurring, largest recurring credit
-- [ ] 2.4 Apply in `parse.ts` after `buildMappedRows`, only where `suggested_category_name` is null
-- [ ] 2.5 Cap recurrence confidence at 0.75
+- [ ] 2.3 `src/lib/import/recurrence.ts` — `detectRecurring(rows): RecurrenceShape[]`; group by `note_key` else payee; recurs at >= 2 occurrences spaced 25-35 days. Emits shape only, **no category**:
+  - `cadence: "monthly" | "irregular"`
+  - `amountStability: "exact" | "near" | "variable"` — exact = identical paise, near = within 2%, variable = beyond
+  - `humanRound: boolean` — round to nearest 500 or 1000 (human-chosen vs contractual)
+  - `magnitude: "small" | "medium" | "large"` — relative to this statement's other groups, a soft prior only
+- [ ] 2.4 Propagate within a recurrence group — when any occurrence resolves a category via rule, keyword or user tap, apply it to the rest. Consistency, not inference. Never invents a category.
+- [ ] 2.5 Shape is carried on the group, consumed by Part 3 (chip narrowing, queue order) and Part 4 (AI payload). It sets no `suggested_category_name` on its own.
 
 ### Tests
 
@@ -130,13 +132,16 @@ Pure functions. Keyword table + recurrence.
 | T2.1 | no cross-category duplicate keywords, all uppercase, no empties |
 | T2.2 | every keyword category exists in seed |
 | T2.3 | >= 350 keywords (guards truncation) |
-| T2.4 | 3 rows ₹22,000 / 30 days apart → Rent |
-| T2.5 | 3 rows ₹4,317 / 30 days apart → EMI |
-| T2.6 | monthly credit, largest → Salary |
-| T2.7 | single occurrence → no hint |
-| T2.8 | 5 and 50 days apart → no hint |
-| T2.9 | already-categorized row unchanged |
-| T2.10 | confidence <= 0.75 |
+| T2.4 | 3 rows ₹22,000 / 30 days apart → `monthly`, `near`, `humanRound: true`, **category null** |
+| T2.5 | 3 rows ₹4,317.00 / 30 days apart → `monthly`, `exact`, `humanRound: false`, **category null** |
+| T2.6 | electricity ₹1,200 / ₹2,400 / ₹1,800 monthly → `monthly`, `variable` |
+| T2.7 | single occurrence → no shape emitted |
+| T2.8 | 5 and 50 days apart → `irregular` |
+| T2.9 | **largest recurring expense is NOT auto-Rent** — stays null |
+| T2.10 | **largest recurring credit is NOT auto-Salary** — stays null |
+| T2.11 | propagation — one occurrence keyword-hits Rent → siblings get Rent |
+| T2.12 | propagation never invents — no occurrence categorized → all stay null |
+| T2.13 | already-categorized row unchanged |
 
 **Done:** `test:unit` green. Auto-categorized share recorded against Part 1.
 
@@ -158,10 +163,15 @@ IMPS-...-KRISHNA KUMAR-...-RENT MAY    payee says nothing, note says everything
 - [ ] 3.1 `src/lib/import/group.ts` — `ReviewGroup = { id, key, keyKind: "note"|"keyword"|"payee", label, rowIds, rowCount, totalPaise, firstDate, lastDate, payees, suggestedCategoryName, confidence, source: "rule"|"keyword"|"recurrence"|"ai"|null, band }`
 - [ ] 3.2 `groupRowsForReview(rows, options): ReviewGroup[]` — key priority per D2
 - [ ] 3.3 Bands — `settled` (confidence >= 0.8 and category resolved), `trivial` (single occurrence, under ₹200), `needs_input` (rest)
-- [ ] 3.4 Sort `needs_input` by `totalPaise` descending
-- [ ] 3.5 `rankCategoriesForGroup(group, categories)` — 4 chips, ranked by kind match, amount shape, direction
+- [ ] 3.4 Sort `needs_input` by `totalPaise` descending, with monthly-recurring groups promoted above one-offs of similar value — a fixed commitment shapes every future budget, a one-off does not
+- [ ] 3.5 `rankCategoriesForGroup(group, categories)` — 4 chips, narrowed by recurrence shape and direction, never by rank
+  - monthly + `exact` + expense → EMI, Insurance, Investments, Utilities, Rent, Transfer
+  - monthly + `variable` + expense → Utilities, Transport, Groceries
+  - monthly + income → Salary, Freelance, Interest, Transfer
+  - non-recurring + `large` magnitude → drop Dining and Transport from the offer
+  - opposite direction is never offered
 - [ ] 3.6 `summariseProgress(groups): { settledPaise, totalPaise, pct }`
-- [ ] 3.7 `sizeBucket(totalPaise, allGroups): "small"|"medium"|"large"` — feeds Part 4 payload
+- [ ] 3.7 `magnitudeBucket(totalPaise, allGroups): "small"|"medium"|"large"` — relative to this statement, a soft prior for chip narrowing and the Part 4 payload. Not a rank claim.
 - [ ] 3.8 `bulkCommitImportRowsFn` in `mutations.functions.ts` — `{ rows: Array<{row_id, suggested_category_id}>, rules: UpsertImportRuleInput[] }`; one update per category, commit via RPC, rules written once
 - [ ] 3.9 `match_field` derived from `keyKind` — note→`note`, payee→`payee`, keyword→`narration`
 
@@ -178,7 +188,9 @@ IMPS-...-KRISHNA KUMAR-...-RENT MAY    payee says nothing, note says everything
 | T3.7 | ₹66,000 group precedes ₹4,320 group with more rows |
 | T3.8 | 100-row fixture → <= 35 groups |
 | T3.9 | income group offers no expense category |
-| T3.10 | ₹22,000 round monthly expense offers Rent first |
+| T3.10 | monthly `exact` expense offers EMI and Insurance, not Dining |
+| T3.10b | monthly `variable` expense offers Utilities, not EMI |
+| T3.10c | monthly commitment promoted above a one-off of similar value |
 | T3.11 | clearing top group moves pct more than five small ones |
 | T3.12 | note group → `match_field: note`; payee group → `payee` |
 | T3.13 | bulk commit categorizes every row in a group |
@@ -196,8 +208,9 @@ Server function + validation. No new UI; improves `suggested_category_id` on sta
 ### Action items
 
 - [ ] 4.1 `src/lib/categorize.functions.ts` — `categorizeGroupsFn` (`createServerFn`, `requireSupabaseAuth`), model `claude-haiku-5-5`, Anthropic → OpenRouter fallback as in `assistant.functions.ts`
-- [ ] 4.2 Payload per D11 — label, kind, count, direction, recurring, size. Nothing else.
+- [ ] 4.2 Payload per D11 — label, kind, count, direction, and the recurrence shape (cadence, amountStability, humanRound, magnitude). Nothing else. Shape is a fact for the model to reason from, not a category claim.
 - [ ] 4.3 System prompt — Indian personal finance; assign each group to a listed category; may propose <= 5 new ones flagged `isNew` with a `kind`; **must return `null` where it cannot know** (person-to-person especially); must return every id given; must not invent ids
+  - state explicitly that a large or recurring amount does **not** imply Rent or Salary, and that `exact` stability suggests a contract (EMI, insurance, SIP) without saying which
 - [ ] 4.4 Validation per D13 — drop unknown ids, reject categories neither listed nor `isNew`, clamp confidence, cap new at 5, malformed → no response
 - [ ] 4.5 Cap AI confidence at 0.75 (D14)
 - [ ] 4.6 Apply only to groups unresolved after rule/keyword/recurrence
@@ -216,6 +229,8 @@ Server function + validation. No new UI; improves `suggested_category_id` on sta
 | T4.5 | 9 proposals → 5 kept |
 | T4.6 | returned 0.99 → stored 0.75 |
 | T4.7 | `Apurvasigamani` → null stays null, no guess |
+| T4.7b | largest recurring credit, unknown label → null, not Salary |
+| T4.7c | largest recurring expense, unknown label → null, not Rent |
 | T4.8 | keyword-hit group unchanged by AI response |
 | T4.9 | API 500 → groups unchanged, no thrown error |
 | T4.10 | 8s timeout → flow continues |
