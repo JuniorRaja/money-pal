@@ -56,6 +56,8 @@ export type MappedImportRow = {
   matched_on: "note" | "narration" | null;
   /** Signed paise: negative = money out (matches `Transaction.amount`). */
   amount_paise: Paise;
+  /** Running statement balance after this row, when the source provides one. */
+  balance_paise?: Paise | null;
   type: Exclude<TransactionType, "transfer">;
   /** Empty until `attachHashesToRows` runs — the hash needs the destination account. */
   import_hash: string;

@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type {
   AccountKind,
   BankPreset,
+  Category,
   HoldingClass,
   ImportMapping,
   ImportMatchField,
@@ -143,8 +144,7 @@ export const updateTransactionFn = createServerFn({ method: "POST" })
   .validator((input: UpdateTransactionInput) => {
     if (!input.id && !input.transaction_id) throw new Error("id is required");
     if (input.amount !== undefined && input.amount <= 0) throw new Error("amount must be positive");
-    if (input.payee !== undefined && !input.payee.trim())
-      throw new Error("payee cannot be empty");
+    if (input.payee !== undefined && !input.payee.trim()) throw new Error("payee cannot be empty");
     if (input.type === "transfer" && input.to_account_id === null) {
       throw new Error("to_account_id is required for transfers");
     }
@@ -741,12 +741,12 @@ function isUniqueViolation(error: { code?: string } | null): boolean {
 // CATEGORY MUTATIONS
 // =============================================================================
 
-/** UI-facing category kind - maps to database category_kind enum */
-export type CategoryKind = "income" | "expense";
+/** UI-facing expense kind also supports the finer database category groups. */
+export type CategoryKind = Category["group"] | "expense";
 
 /** Map UI kind to database kind */
-function toDbKind(kind: CategoryKind): "income" | "essentials" | "lifestyle" | "transfer" | "investment" {
-  return kind === "income" ? "income" : "essentials";
+function toDbKind(kind: CategoryKind): Category["group"] {
+  return kind === "expense" ? "essentials" : kind;
 }
 
 export interface CreateCategoryInput {
@@ -1915,7 +1915,7 @@ export const commitImportRowFn = createServerFn({ method: "POST" })
   });
 
 export interface BulkCommitImportRowsInput {
-  rows: Array<{ row_id: string; suggested_category_id: string }>;
+  rows: Array<{ row_id: string; suggested_category_id: string | null }>;
   rules: UpsertImportRuleInput[];
 }
 
@@ -1927,8 +1927,8 @@ export const bulkCommitImportRowsFn = createServerFn({ method: "POST" })
     if (!Array.isArray(input.rules)) throw new Error("rules must be an array");
     const rowIds = new Set<string>();
     for (const row of input.rows) {
-      if (!row.row_id || !row.suggested_category_id) {
-        throw new Error("row_id and suggested_category_id are required");
+      if (!row.row_id || (row.suggested_category_id !== null && !row.suggested_category_id)) {
+        throw new Error("row_id is required and category id must be valid or null");
       }
       if (rowIds.has(row.row_id)) throw new Error("row ids must be unique");
       rowIds.add(row.row_id);
@@ -1947,7 +1947,7 @@ export const bulkCommitImportRowsFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { data: result, error } = await context.supabase.rpc("fn_bulk_commit_import_rows", {
       p_rows: data.rows,
-      p_rules: data.rules,
+      p_rules: data.rules as unknown as Json,
     });
     if (error) throw error;
     return result as {

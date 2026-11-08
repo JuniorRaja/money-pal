@@ -17,6 +17,7 @@ import { Route as GoalsRouteImport } from './routes/goals'
 import { Route as ImportsRouteRouteImport } from './routes/imports/route'
 import { Route as InvestmentsRouteImport } from './routes/investments'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TimelineRouteImport } from './routes/timeline'
@@ -65,6 +66,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/goals': typeof GoalsRoute
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/timeline': typeof TimelineRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/goals': typeof GoalsRoute
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/timeline': typeof TimelineRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/goals': typeof GoalsRoute
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/timeline': typeof TimelineRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/goals'
     | '/investments'
     | '/login'
+    | '/onboarding'
     | '/reports'
     | '/settings'
     | '/timeline'
@@ -179,6 +189,7 @@ export interface FileRouteTypes {
     | '/goals'
     | '/investments'
     | '/login'
+    | '/onboarding'
     | '/reports'
     | '/settings'
     | '/timeline'
@@ -196,6 +207,7 @@ export interface FileRouteTypes {
     | '/goals'
     | '/investments'
     | '/login'
+    | '/onboarding'
     | '/reports'
     | '/settings'
     | '/timeline'
@@ -214,6 +226,7 @@ export interface RootRouteChildren {
   GoalsRoute: typeof GoalsRoute
   InvestmentsRoute: typeof InvestmentsRoute
   LoginRoute: typeof LoginRoute
+  OnboardingRoute: typeof OnboardingRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
   TimelineRoute: typeof TimelineRoute
@@ -276,6 +289,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -355,6 +375,7 @@ const rootRouteChildren: RootRouteChildren = {
   GoalsRoute: GoalsRoute,
   InvestmentsRoute: InvestmentsRoute,
   LoginRoute: LoginRoute,
+  OnboardingRoute: OnboardingRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
   TimelineRoute: TimelineRoute,

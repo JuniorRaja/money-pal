@@ -31,6 +31,7 @@ import {
   copyBudgetFromPreviousFn,
   upsertImportProfileFn,
   stageImportFn,
+  bulkCommitImportRowsFn,
   commitImportRowFn,
   skipImportRowFn,
   reopenImportRowFn,
@@ -596,6 +597,7 @@ export type {
   SaveProfileInput,
   UpsertImportProfileInput,
   StageImportInput,
+  BulkCommitImportRowsInput,
   CommitImportRowInput,
   SkipImportRowInput,
   HoldImportRowInput,
@@ -617,6 +619,10 @@ export async function stageImport(input: StageImportInput) {
   } catch (error) {
     throw new Error(mutationErrorMessage(error, "Could not stage this import"));
   }
+}
+
+export async function bulkCommitImportRows(input: BulkCommitImportRowsInput) {
+  return bulkCommitImportRowsFn({ data: input });
 }
 
 export async function commitImportRow(input: CommitImportRowInput) {
@@ -685,7 +691,7 @@ export async function saveNotificationChannel(input: SaveNotificationChannelInpu
 
 export interface NewCategoryInput {
   name: string;
-  kind: "income" | "expense";
+  kind: "income" | "expense" | "essentials" | "lifestyle" | "transfer" | "investment";
   parent_id?: string | null;
   icon: string;
   color_token: string;

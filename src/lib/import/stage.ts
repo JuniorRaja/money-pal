@@ -1,4 +1,4 @@
-import type { Category, ImportMapping, ImportRule } from "@/data/schema";
+import type { AccountKind, Category, ImportMapping, ImportRule, Paise } from "@/data/schema";
 import type {
   BankPresetId,
   ColumnMapping,
@@ -153,4 +153,18 @@ export function toStageDrafts(
         confidence: fromRule ? Math.max(row.confidence, 0.9) : row.confidence,
       };
     });
+}
+
+export function inferOpeningBalance(
+  rows: readonly Pick<MappedImportRow, "occurred_on" | "amount_paise" | "balance_paise">[],
+  kind: AccountKind,
+): Paise {
+  const firstWithBalance = [...rows]
+    .filter((row): row is typeof row & { balance_paise: number } => row.balance_paise != null)
+    .sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))[0];
+  if (!firstWithBalance) return 0;
+
+  const liability = kind === "credit_card" || kind === "loan";
+  const closingBalance = Math.abs(firstWithBalance.balance_paise) * (liability ? -1 : 1);
+  return closingBalance - firstWithBalance.amount_paise;
 }

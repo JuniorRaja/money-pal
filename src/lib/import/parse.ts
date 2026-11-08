@@ -147,6 +147,7 @@ function buildMappedRows(
     date: string;
     narration: string;
     amount_paise: number;
+    balance_paise: number | null;
     type: "income" | "expense";
   }>,
 ): MappedImportRow[] {
@@ -161,6 +162,7 @@ function buildMappedRows(
       note: heuristic.note,
       note_key: heuristic.note_key,
       amount_paise: row.amount_paise,
+      balance_paise: row.balance_paise,
       type: row.type,
       import_hash: "",
       occurrence_index: index,
@@ -220,6 +222,7 @@ export function parseImportGrid(
     date: string;
     narration: string;
     amount_paise: number;
+    balance_paise: number | null;
     type: "income" | "expense";
   }> = [];
   let skippedRowCount = 0;
@@ -239,6 +242,7 @@ export function parseImportGrid(
       date: mapped.date,
       narration: mapped.narration,
       amount_paise: mapped.amount.amount_paise,
+      balance_paise: mapped.balance_paise,
       type: mapped.amount.type,
     });
   }

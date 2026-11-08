@@ -4,8 +4,15 @@ import { toast } from "sonner";
 
 import { FileDrop } from "@/components/import/file-drop";
 import { MappingEditor } from "@/components/import/mapping-editor";
-import { stageImport } from "@/data/mutations";
-import type { Account, Category, ImportProfile, ImportRule, ImportSource } from "@/data/schema";
+import { createAccount, stageImport } from "@/data/mutations";
+import type {
+  Account,
+  AccountKind,
+  Category,
+  ImportProfile,
+  ImportRule,
+  ImportSource,
+} from "@/data/schema";
 import {
   asColumnMapping,
   attachHashesToRows,
@@ -19,6 +26,7 @@ import {
 } from "@/lib/import";
 import type { BankPresetId, ColumnMapping, StatementParseResult } from "@/lib/import";
 import { mutationErrorMessage } from "@/lib/mutation-error";
+import { inferOpeningBalance } from "@/lib/import/stage";
 import { cn } from "@/lib/utils";
 
 export type StageResult = {
@@ -42,6 +50,9 @@ export function ImportWizard({
   rules,
   sourceId,
   initialFile,
+  onboardingAccount,
+  onboardingAccountId,
+  onAccountCreated,
   onStaged,
 }: {
   accounts: Account[];
@@ -51,6 +62,9 @@ export function ImportWizard({
   rules: ImportRule[];
   sourceId?: string | undefined;
   initialFile?: File | null;
+  onboardingAccount?: { name: string; institution: string; kind: AccountKind } | null;
+  onboardingAccountId?: string | null;
+  onAccountCreated?: (account: Account) => void;
   onStaged: (result: StageResult) => void;
 }) {
   const source = sources.find((row) => row.id === sourceId && row.kind === "csv") ?? null;
@@ -63,7 +77,7 @@ export function ImportWizard({
   const [grid, setGrid] = useState<string[][] | null>(null);
   const [parsed, setParsed] = useState<StatementParseResult | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping | null>(asColumnMapping(profile?.mapping));
-  const [accountId, setAccountId] = useState(source?.account_id ?? "");
+  const [accountId, setAccountId] = useState(source?.account_id ?? onboardingAccountId ?? "");
   const [step, setStep] = useState<WizardStep>("file");
   const [busy, setBusy] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -134,6 +148,10 @@ export function ImportWizard({
         await confirmStage(source.account_id, result, result.mapping);
         return;
       }
+      if (onboardingAccount) {
+        setStep("account");
+        return;
+      }
       const suggested = suggestImportAccounts(accounts, {
         detectedPreset: result.detectedPreset,
         filename: result.filename,
@@ -178,7 +196,7 @@ export function ImportWizard({
   }
 
   async function confirmStage(nextAccountId: string, current = parsed, currentMapping = mapping) {
-    if (!current || !currentMapping || !nextAccountId) return;
+    if (!current || !currentMapping) return;
     if (validateMapping(currentMapping, current.headers).length > 0) return;
     if (current.rows.length === 0) {
       toast.error("No statement rows found in this file.");
@@ -186,18 +204,43 @@ export function ImportWizard({
     }
     setBusy(true);
     try {
-      const hashed = await attachHashesToRows(nextAccountId, current.rows);
-      const drafts = toStageDrafts(hashed, categories, rules, nextAccountId);
+      let destinationAccountId = nextAccountId || accountId;
+      let destinationAccount = accounts.find((row) => row.id === destinationAccountId);
+      if (!destinationAccountId && onboardingAccount) {
+        const kind =
+          current.detectedPreset === "hdfc_cc"
+            ? "credit_card"
+            : current.detectedPreset === "hdfc_savings" || current.detectedPreset === "dbs"
+              ? "bank"
+              : onboardingAccount.kind;
+        destinationAccount = await createAccount({
+          name: onboardingAccount.name,
+          institution: current.detectedPreset
+            ? bankPresetLabel(current.detectedPreset)
+            : onboardingAccount.institution,
+          kind,
+          balance: inferOpeningBalance(current.rows, kind),
+          credit_limit: null,
+        });
+        destinationAccountId = destinationAccount.id;
+        setAccountId(destinationAccountId);
+        onAccountCreated?.(destinationAccount);
+      }
+      if (!destinationAccountId) return;
+
+      const hashed = await attachHashesToRows(destinationAccountId, current.rows);
+      const drafts = toStageDrafts(hashed, categories, rules, destinationAccountId);
       if (drafts.length === 0) {
         toast.error("No valid amounts to import.");
         return;
       }
       const preset: BankPresetId = current.detectedPreset ?? source?.bank_preset ?? "custom";
-      const account = accounts.find((row) => row.id === nextAccountId);
       const result = await stageImport({
-        account_id: nextAccountId,
+        account_id: destinationAccountId,
         bank_preset: preset,
-        source_name: source?.name ?? `${account?.name ?? "Account"} · ${bankPresetLabel(preset)}`,
+        source_name:
+          source?.name ??
+          `${destinationAccount?.name ?? onboardingAccount?.name ?? "Account"} · ${bankPresetLabel(preset)}`,
         source_id: source?.id ?? null,
         mapping: currentMapping,
         title: current.filename,
@@ -211,7 +254,7 @@ export function ImportWizard({
     }
   }
 
-  if (importableAccounts(accounts).length === 0) {
+  if (!onboardingAccount && importableAccounts(accounts).length === 0) {
     return (
       <div className="px-1 py-2">
         <p className="text-sm font-medium text-foreground">Add an account first</p>
@@ -241,7 +284,15 @@ export function ImportWizard({
           <PipelineCard
             key={id}
             depth={behind}
-            label={id === "file" ? "Statement" : id === "map" ? "Columns" : "Account"}
+            label={
+              id === "file"
+                ? "Statement"
+                : id === "map"
+                  ? "Columns"
+                  : onboardingAccount
+                    ? "Confirm statement"
+                    : "Account"
+            }
             active={behind === 0}
           >
             {id === "file" && behind === 0 && step === "password" && file && (
@@ -301,23 +352,35 @@ export function ImportWizard({
                 </div>
               </div>
             )}
-            {id === "account" && behind === 0 && (
-              <AccountStep
-                accounts={candidates}
-                accountId={accountId}
-                busy={busy}
-                onChange={setAccountId}
-                onBack={() => setStep(file && mappingOk ? "file" : "map")}
-                onContinue={() => void confirmStage(accountId || candidates[0]?.id || "")}
-              />
-            )}
+            {id === "account" &&
+              behind === 0 &&
+              (onboardingAccount && parsed ? (
+                <StatementConfirmStep
+                  parsed={parsed}
+                  accountName={onboardingAccount.name}
+                  busy={busy}
+                  onBack={() => setStep("file")}
+                  onContinue={() => void confirmStage(onboardingAccountId ?? "")}
+                />
+              ) : (
+                <AccountStep
+                  accounts={candidates}
+                  accountId={accountId}
+                  busy={busy}
+                  onChange={setAccountId}
+                  onBack={() => setStep(file && mappingOk ? "file" : "map")}
+                  onContinue={() => void confirmStage(accountId || candidates[0]?.id || "")}
+                />
+              ))}
             {behind > 0 && (
               <p className="text-xs text-muted-foreground">
                 {id === "file"
                   ? (file?.name ?? "Drop a statement")
                   : id === "map"
                     ? "Column map"
-                    : "Pick account"}
+                    : onboardingAccount
+                      ? "Statement details"
+                      : "Pick account"}
               </p>
             )}
           </PipelineCard>
@@ -424,6 +487,55 @@ function AccountStep({
           onClick={onContinue}
         >
           {busy ? "Staging…" : "Review rows"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StatementConfirmStep({
+  parsed,
+  accountName,
+  busy,
+  onBack,
+  onContinue,
+}: {
+  parsed: StatementParseResult;
+  accountName: string;
+  busy: boolean;
+  onBack: () => void;
+  onContinue: () => void;
+}) {
+  const dates = parsed.rows.map((row) => row.occurred_on).sort();
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium text-foreground">{parsed.filename}</p>
+      <p className="text-sm text-muted-foreground">
+        {parsed.rows.length} rows · {dates[0] ?? "No dates"}
+        {dates.length > 1 ? ` to ${dates.at(-1)}` : ""}
+        {parsed.skippedRowCount > 0 ? ` · ${parsed.skippedRowCount} rows skipped` : ""}
+      </p>
+      {parsed.detectedPreset && (
+        <p className="text-xs text-muted-foreground">
+          Detected {bankPresetLabel(parsed.detectedPreset)}
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">Will be added to {accountName}.</p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="min-h-11 rounded-md border border-border px-3 text-sm"
+          onClick={onBack}
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          disabled={busy || parsed.rows.length === 0}
+          className="min-h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          onClick={onContinue}
+        >
+          {busy ? "Preparing statement…" : "Use this statement"}
         </button>
       </div>
     </div>

@@ -119,12 +119,19 @@ export function recordFromRow(
 export function mapRawRecord(
   record: Record<string, string>,
   mapping: ColumnMapping,
-): { date: string; narration: string; amount: DirectedAmount } | null {
+): {
+  date: string;
+  narration: string;
+  amount: DirectedAmount;
+  balance_paise: number | null;
+} | null {
   const date = parseStatementDate(record[mapping.dateColumn] ?? "", mapping.dateFormat);
   if (!date) return null;
   const narration = (record[mapping.descriptionColumn] ?? "").trim();
   if (!narration) return null;
   const amount = resolveDirectedAmount(record, mapping);
   if (!amount) return null;
-  return { date, narration, amount };
+  const rawBalance = mapping.balanceColumn ? (record[mapping.balanceColumn] ?? "").trim() : "";
+  const balance = rawBalance ? parseAmountToPaise(rawBalance) : null;
+  return { date, narration, amount, balance_paise: balance };
 }

@@ -1,20 +1,24 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  useNavigate,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import { type ReactNode, useEffect } from "react";
 
 import appCss from "../styles.css?url";
-import { ACCENTS, PAINT_CACHE_KEY, SessionProvider } from "../components/session";
+import { ACCENTS, PAINT_CACHE_KEY, SessionProvider, useSession } from "../components/session";
 import { AuthErrorHandler } from "../components/auth-error-handler";
 import { Toaster } from "../components/ui/sonner";
 import { isAuthError } from "../data/live";
+import { getAccounts } from "../data/repository";
 import { supabase } from "../integrations/supabase/client";
+import { onboardingRedirect, readOnboardingProgress } from "../lib/onboarding";
 
 function NotFoundComponent() {
   return (
@@ -162,10 +166,40 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
         <AuthErrorHandler />
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <OnboardingGate>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </OnboardingGate>
         <Toaster position="bottom-right" />
       </SessionProvider>
     </QueryClientProvider>
   );
+}
+
+function OnboardingGate({ children }: { children: ReactNode }) {
+  const { hydrated, isAuthenticated, user } = useSession();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const navigate = useNavigate();
+  const enabled = hydrated && isAuthenticated && pathname !== "/login";
+  const {
+    data: accounts = [],
+    isPending,
+    isError,
+  } = useQuery({
+    queryKey: ["onboarding-accounts", user?.id],
+    queryFn: getAccounts,
+    enabled,
+  });
+  const progress = readOnboardingProgress(user?.id);
+  const target =
+    enabled && !isPending && !isError
+      ? onboardingRedirect(pathname, accounts.length, progress)
+      : null;
+
+  useEffect(() => {
+    if (target) void navigate({ to: target, replace: true });
+  }, [navigate, target]);
+
+  if (target || (enabled && isPending)) return null;
+  return children;
 }

@@ -244,4 +244,30 @@ describe("bulk import commit RPC", { skip: !canRun }, () => {
     if (rulesError) throw rulesError;
     assert.equal(savedRules?.length, 0);
   });
+
+  it("commits an unresolved row without assigning a category", async () => {
+    const fixture = await createPendingRows(1);
+    const { data, error } = await supabase.rpc("fn_bulk_commit_import_rows", {
+      p_rows: [{ row_id: fixture.rowIds[0]!, suggested_category_id: null }],
+      p_rules: [],
+    });
+    if (error) throw error;
+
+    const result = data as { rows: { transaction_id: string | null }[] };
+    transactionIds.push(
+      ...result.rows.flatMap((row) => (row.transaction_id ? [row.transaction_id] : [])),
+    );
+    assert.equal(result.rows.length, 1);
+    assert.ok(result.rows[0]?.transaction_id);
+
+    const { data: saved, error: savedError } = await supabase
+      .from("import_job_rows")
+      .select("status, suggested_category_id, transaction_id")
+      .eq("id", fixture.rowIds[0]!)
+      .single();
+    if (savedError) throw savedError;
+    assert.equal(saved.status, "imported");
+    assert.equal(saved.suggested_category_id, null);
+    assert.equal(saved.transaction_id, result.rows[0]?.transaction_id);
+  });
 });

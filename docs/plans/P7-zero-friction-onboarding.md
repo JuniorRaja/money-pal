@@ -246,29 +246,29 @@ Server function + validation. No new UI; improves `suggested_category_id` on sta
 
 ### Action items — teach screen (`src/components/onboarding/teach-screen.tsx`)
 
-- [ ] 5.1 Band `settled` — collapsed strip, category totals, expandable
-- [ ] 5.2 Band `needs_input` — card per group: label, `{n} payments · ₹{total} · {range}`, payee list, 4 chips + "Other"
-- [ ] 5.3 AI-proposed categories render as marked chips (`+ Fitness`), created on tap only (D12)
-- [ ] 5.4 AI suggestions stream in and upgrade blank cards without re-ordering on-screen cards (D10)
-- [ ] 5.5 Band `trivial` — one strip, single "Skip these {n}"
-- [ ] 5.6 Money-denominated progress bar, pinned (D5)
-- [ ] 5.7 "Import anyway" always enabled (D6)
-- [ ] 5.8 Undo toast per pick, 5s
-- [ ] 5.9 Keyboard — number keys pick chips, `Enter` accepts, `Esc` skips
-- [ ] 5.10 Card transition out, focus moves to next card
+- [x] 5.1 Band `settled` — collapsed strip, category totals, expandable
+- [x] 5.2 Band `needs_input` — card per group: label, `{n} payments · ₹{total} · {range}`, payee list, 4 chips + "Other"
+- [x] 5.3 AI-proposed categories render as marked chips (`+ Fitness`), created on tap only (D12)
+- [x] 5.4 AI suggestions upgrade blank cards without re-ordering on-screen cards (D10)
+- [x] 5.5 Band `trivial` — one strip, single "Skip these {n}"
+- [x] 5.6 Money-denominated progress bar, pinned (D5)
+- [x] 5.7 "Import anyway" always enabled (D6)
+- [x] 5.8 Undo toast per pick, 5s
+- [x] 5.9 Keyboard — number keys pick chips, `Enter` accepts, `Esc` skips
+- [x] 5.10 Card transition out, focus moves to next card
 
 ### Action items — route (`src/routes/onboarding.tsx`)
 
-- [ ] 5.11 Steps `account → upload → teach → done`
-- [ ] 5.12 Mandatory — zero-account user redirected here from every route, cannot navigate away
-- [ ] 5.13 Account step — name and type only, no opening balance field
-- [ ] 5.14 Upload step — reuse existing parse path incl. password handling; show date range and row count as confirmation
-- [ ] 5.15 Infer, don't ask — opening balance from statement balance column, account type from detected preset, date range from parsed rows
-- [ ] 5.16 Done step — commit via `bulkCommitImportRowsFn`, one line: "Next month's statement will mostly sort itself."
-- [ ] 5.17 Resume returns to furthest step reached
-- [ ] 5.18 Mobile first — 390px, one-handed reach, 44px targets
-- [ ] 5.19 A11y — chips are buttons, progress has `aria-valuenow`, bands are landmarks
-- [ ] 5.20 Update `CLAUDE.md` import pipeline line with `keywords.ts`, `recurrence.ts`, `group.ts`, `categorize.functions.ts`
+- [x] 5.11 Steps `account → upload → teach → done`
+- [x] 5.12 Mandatory — zero-account user redirected here from every route, cannot navigate away
+- [x] 5.13 Account step — name and type only, no opening balance field
+- [x] 5.14 Upload step — reuse existing parse path incl. password handling; show date range and row count as confirmation
+- [x] 5.15 Infer, don't ask — opening balance from statement balance column, account type from detected preset, date range from parsed rows
+- [x] 5.16 Done step — commit via `bulkCommitImportRowsFn`, one line: "Next month's statement will mostly sort itself."
+- [x] 5.17 Resume returns to furthest step reached
+- [x] 5.18 Mobile first — 390px, one-handed reach, 44px targets
+- [x] 5.19 A11y — chips are buttons, progress has `aria-valuenow`, bands are landmarks
+- [x] 5.20 Update `CLAUDE.md` import pipeline line with `keywords.ts`, `recurrence.ts`, `group.ts`, `categorize.functions.ts`
 
 ### Tests
 

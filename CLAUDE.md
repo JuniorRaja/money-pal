@@ -44,8 +44,10 @@ UI/type code; same thing. `SliceKind` + `Slice` in `src/data/schema.ts`; invaria
 Client-side only — the statement file is never uploaded. `src/lib/import/`:
 
 `parse.ts` → `map.ts`/`presets.ts` (per-bank columns) → `normalize.ts` → `hash.ts` (dedupe; formula
-in DECISIONS.md) → `heuristics.ts` (merchant categorization) → `stage.ts` → review UI in
-`src/routes/imports/`. Plus `match-accounts.ts` (account matching).
+in DECISIONS.md) → `heuristics.ts`/`keywords.ts` (merchant categorization) → `recurrence.ts` →
+`stage.ts` → `group.ts`/`teach.ts` → review UI in `src/routes/imports/` and first-run flow in
+`src/routes/onboarding.tsx`. AI suggestions use `src/lib/categorize.functions.ts`; statements remain
+client-parsed. Plus `match-accounts.ts` (account matching).
 
 ## AI assistant
 
