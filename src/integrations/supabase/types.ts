@@ -2243,6 +2243,10 @@ export type Database = {
         Args: { p_row_id: string };
         Returns: string;
       };
+      fn_bulk_commit_import_rows: {
+        Args: { p_rows: Json; p_rules: Json };
+        Returns: Json;
+      };
       fn_delete_transaction: {
         Args: { p_transaction_id: string };
         Returns: boolean;

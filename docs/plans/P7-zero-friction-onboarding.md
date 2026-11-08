@@ -160,20 +160,20 @@ IMPS-...-KRISHNA KUMAR-...-RENT MAY    payee says nothing, note says everything
 
 ### Action items
 
-- [ ] 3.1 `src/lib/import/group.ts` — `ReviewGroup = { id, key, keyKind: "note"|"keyword"|"payee", label, rowIds, rowCount, totalPaise, firstDate, lastDate, payees, suggestedCategoryName, confidence, source: "rule"|"keyword"|"recurrence"|"ai"|null, band }`
-- [ ] 3.2 `groupRowsForReview(rows, options): ReviewGroup[]` — key priority per D2
-- [ ] 3.3 Bands — `settled` (confidence >= 0.8 and category resolved), `trivial` (single occurrence, under ₹200), `needs_input` (rest)
-- [ ] 3.4 Sort `needs_input` by `totalPaise` descending, with monthly-recurring groups promoted above one-offs of similar value — a fixed commitment shapes every future budget, a one-off does not
-- [ ] 3.5 `rankCategoriesForGroup(group, categories)` — 4 chips, narrowed by recurrence shape and direction, never by rank
+- [x] 3.1 `src/lib/import/group.ts` — `ReviewGroup = { id, key, keyKind: "note"|"keyword"|"payee", label, rowIds, rowCount, totalPaise, firstDate, lastDate, payees, suggestedCategoryName, confidence, source: "rule"|"keyword"|"recurrence"|"ai"|null, band }`
+- [x] 3.2 `groupRowsForReview(rows, options): ReviewGroup[]` — key priority per D2
+- [x] 3.3 Bands — `settled` (confidence >= 0.8 and category resolved), `trivial` (single occurrence, under ₹200), `needs_input` (rest)
+- [x] 3.4 Sort `needs_input` by `totalPaise` descending, with monthly-recurring groups promoted above one-offs of similar value — a fixed commitment shapes every future budget, a one-off does not
+- [x] 3.5 `rankCategoriesForGroup(group, categories)` — 4 chips, narrowed by recurrence shape and direction, never by rank
   - monthly + `exact` + expense → EMI, Insurance, Investments, Utilities, Rent, Transfer
   - monthly + `variable` + expense → Utilities, Transport, Groceries
   - monthly + income → Salary, Freelance, Interest, Transfer
   - non-recurring + `large` magnitude → drop Dining and Transport from the offer
   - opposite direction is never offered
-- [ ] 3.6 `summariseProgress(groups): { settledPaise, totalPaise, pct }`
-- [ ] 3.7 `magnitudeBucket(totalPaise, allGroups): "small"|"medium"|"large"` — relative to this statement, a soft prior for chip narrowing and the Part 4 payload. Not a rank claim.
-- [ ] 3.8 `bulkCommitImportRowsFn` in `mutations.functions.ts` — `{ rows: Array<{row_id, suggested_category_id}>, rules: UpsertImportRuleInput[] }`; one update per category, commit via RPC, rules written once
-- [ ] 3.9 `match_field` derived from `keyKind` — note→`note`, payee→`payee`, keyword→`narration`
+- [x] 3.6 `summariseProgress(groups): { settledPaise, totalPaise, pct }`
+- [x] 3.7 `magnitudeBucket(totalPaise, allGroups): "small"|"medium"|"large"` — relative to this statement, a soft prior for chip narrowing and the Part 4 payload. Not a rank claim.
+- [x] 3.8 `bulkCommitImportRowsFn` in `mutations.functions.ts` — `{ rows: Array<{row_id, suggested_category_id}>, rules: UpsertImportRuleInput[] }`; one update per category, commit via RPC, rules written once
+- [x] 3.9 `match_field` derived from `keyKind` — note→`note`, payee→`payee`, keyword→`narration`
 
 ### Tests
 

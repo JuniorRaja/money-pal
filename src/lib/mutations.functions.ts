@@ -11,6 +11,7 @@ import type {
   BankPreset,
   HoldingClass,
   ImportMapping,
+  ImportMatchField,
   SliceKind,
   ThemePattern,
   TransactionType,
@@ -1911,6 +1912,48 @@ export const commitImportRowFn = createServerFn({ method: "POST" })
     return { row_id: data.row_id, transaction_id: txnId as string | null, rule_id };
   });
 
+export interface BulkCommitImportRowsInput {
+  rows: Array<{ row_id: string; suggested_category_id: string }>;
+  rules: UpsertImportRuleInput[];
+}
+
+export const bulkCommitImportRowsFn = createServerFn({ method: "POST" })
+  .validator((input: BulkCommitImportRowsInput) => {
+    if (!Array.isArray(input.rows) || input.rows.length === 0) {
+      throw new Error("at least one row is required");
+    }
+    if (!Array.isArray(input.rules)) throw new Error("rules must be an array");
+    const rowIds = new Set<string>();
+    for (const row of input.rows) {
+      if (!row.row_id || !row.suggested_category_id) {
+        throw new Error("row_id and suggested_category_id are required");
+      }
+      if (rowIds.has(row.row_id)) throw new Error("row ids must be unique");
+      rowIds.add(row.row_id);
+    }
+    for (const rule of input.rules) {
+      if (!rule.pattern?.trim() || !rule.category_id) {
+        throw new Error("each rule needs a pattern and category_id");
+      }
+      if (rule.match_field && !["note", "narration", "payee"].includes(rule.match_field)) {
+        throw new Error("invalid rule match_field");
+      }
+    }
+    return input;
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { data: result, error } = await context.supabase.rpc("fn_bulk_commit_import_rows", {
+      p_rows: data.rows,
+      p_rules: data.rules,
+    });
+    if (error) throw error;
+    return result as {
+      rows: Array<{ row_id: string; transaction_id: string | null }>;
+      rule_ids: string[];
+    };
+  });
+
 export interface SkipImportRowInput {
   row_id: string;
 }
@@ -1960,7 +2003,7 @@ export interface UpsertImportRuleInput {
   pattern: string;
   category_id: string;
   account_id?: string | null;
-  match_field?: string;
+  match_field?: ImportMatchField;
 }
 
 export const upsertImportRuleFn = createServerFn({ method: "POST" })

@@ -45,6 +45,14 @@ export { applyHeuristics, extractMerchant, extractNote, normalizeNoteKey } from 
 export { KEYWORD_RULES } from "./keywords";
 export { detectRecurring, propagateRecurringCategories } from "./recurrence";
 export type { RecurrenceShape } from "./recurrence";
+export {
+  groupRowsForReview,
+  magnitudeBucket,
+  matchFieldForGroup,
+  rankCategoriesForGroup,
+  summariseProgress,
+} from "./group";
+export type { GroupBand, GroupSource, GroupableImportRow, ReviewGroup } from "./group";
 
 export {
   cellToString,
