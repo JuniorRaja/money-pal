@@ -1,157 +1,6 @@
 import type { HeuristicSuggestion } from "./types";
 import { normalizeNarration } from "./normalize";
-
-type KeywordRule = {
-  category: string;
-  keywords: readonly string[];
-  /** When set, only apply if the row type matches. */
-  type?: "income" | "expense";
-  confidence: number;
-};
-
-/**
- * Keyword → global category **name** (see seed categories).
- * UI/data-layer should resolve name → category_id for the current user.
- */
-const KEYWORD_RULES: readonly KeywordRule[] = [
-  {
-    category: "Salary",
-    type: "income",
-    confidence: 0.92,
-    keywords: ["SALARY", "PAYROLL", "MONTHLY PAY"],
-  },
-  {
-    category: "Interest",
-    type: "income",
-    confidence: 0.88,
-    keywords: ["INT.PD", "INTEREST CREDIT", "SB INT", "INTEREST PAID"],
-  },
-  {
-    category: "Dining",
-    type: "expense",
-    confidence: 0.86,
-    keywords: [
-      "SWIGGY",
-      "ZOMATO",
-      "EATSURE",
-      "DOMINOS",
-      "DOMINO'S",
-      "PIZZA HUT",
-      "STARBUCKS",
-      "CAFE COFFEE",
-      "BURGER KING",
-      "MCDONALD",
-      "KFC",
-      "BARBEQUE",
-      "EATCLUB",
-      "MAGICPIN",
-    ],
-  },
-  {
-    category: "Groceries",
-    type: "expense",
-    confidence: 0.86,
-    keywords: [
-      "BIGBASKET",
-      "BLINKIT",
-      "ZEPTO",
-      "INSTAMART",
-      "DMART",
-      "D-MART",
-      "RELIANCE FRESH",
-      "NATURES BASKET",
-    ],
-  },
-  {
-    category: "Transport",
-    type: "expense",
-    confidence: 0.84,
-    keywords: [
-      "UBER",
-      "OLA ",
-      "OLA-",
-      "/OLA/",
-      "RAPIDO",
-      "IRCTC",
-      "FASTAG",
-      "HPCL",
-      "BPCL",
-      "IOCL",
-      "PETROL",
-      "PARK+",
-    ],
-  },
-  {
-    category: "Shopping",
-    type: "expense",
-    confidence: 0.84,
-    keywords: ["AMAZON", "FLIPKART", "MYNTRA", "AJIO", "NYKAA", "MEESHO", "CROMA"],
-  },
-  {
-    category: "Entertainment",
-    type: "expense",
-    confidence: 0.84,
-    keywords: [
-      "NETFLIX",
-      "SPOTIFY",
-      "HOTSTAR",
-      "PRIME VIDEO",
-      "YOUTUBE",
-      "BOOKMYSHOW",
-      "PVR",
-      "INOX",
-      "SONY LIV",
-    ],
-  },
-  {
-    category: "Utilities",
-    type: "expense",
-    confidence: 0.8,
-    keywords: [
-      "AIRTEL",
-      "JIO",
-      "BSNL",
-      "TATASKY",
-      "ACT FIBERNET",
-      "BESCOM",
-      "MSEDCL",
-      "ELECTRICITY",
-    ],
-  },
-  {
-    category: "Healthcare",
-    type: "expense",
-    confidence: 0.82,
-    keywords: ["PHARMEASY", "NETMEDS", "APOLLO", "1MG", "PRACTO"],
-  },
-  {
-    category: "Travel",
-    type: "expense",
-    confidence: 0.82,
-    keywords: [
-      "MAKEMYTRIP",
-      "GOIBIBO",
-      "CLEARTRIP",
-      "INDIGO",
-      "AIR INDIA",
-      "SPICEJET",
-      "AIRBNB",
-      "BOOKING.COM",
-    ],
-  },
-  {
-    category: "Investments",
-    type: "expense",
-    confidence: 0.8,
-    keywords: ["GROWW", "ZERODHA", "UPSTOX", "KUVERA", "MF UTILITY", "CAMS", "KFINTECH"],
-  },
-  {
-    category: "EMI",
-    type: "expense",
-    confidence: 0.8,
-    keywords: ["LOAN EMI", "BILLDESK EMI", "EMI "],
-  },
-];
+import { KEYWORD_RULES } from "./keywords";
 
 /** Payment rails that prefix Indian narration but never name a merchant. */
 const RAIL_PREFIX = /^(?:UPI|NEFT|IMPS|ACH|POS|ATM|RTGS|MMT|CMS|P2P|P2A|PCD|INF)\b[\s.:-]*/i;
@@ -265,6 +114,21 @@ function matchRule(
   return null;
 }
 
+export function normalizeNoteKey(note: string | null): string {
+  if (!note) return "";
+  return note
+    .toUpperCase()
+    .replace(
+      /\b(?:JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:T(?:EMBER)?)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\b/g,
+      " ",
+    )
+    .replace(/\b\d+(?:ST|ND|RD|TH)?\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[\s.,;:!?-]+$/, "")
+    .trim();
+}
+
 export function applyHeuristics(input: {
   narration: string;
   type: "income" | "expense";
@@ -272,15 +136,20 @@ export function applyHeuristics(input: {
   const haystack = normalizeNarration(input.narration);
   const payee = extractMerchant(input.narration);
   const note = extractNote(input.narration);
-  const hit = matchRule(haystack, input.type);
+  const noteKey = normalizeNoteKey(note);
+  const noteHit = noteKey ? matchRule(noteKey, input.type) : null;
+  const narrationHit = noteHit ? null : matchRule(haystack, input.type);
+  const hit = noteHit ?? narrationHit;
 
   if (hit) {
     return {
       payee: payee || hit.category,
       narration: input.narration,
       note,
+      note_key: noteKey || null,
       suggested_category_name: hit.category,
-      confidence: hit.confidence,
+      matched_on: noteHit ? "note" : "narration",
+      confidence: noteHit ? Math.min(hit.confidence + 0.06, 0.95) : hit.confidence,
     };
   }
 
@@ -289,7 +158,9 @@ export function applyHeuristics(input: {
       payee,
       narration: input.narration,
       note,
+      note_key: noteKey || null,
       suggested_category_name: null,
+      matched_on: null,
       confidence: 0.4,
     };
   }
@@ -298,7 +169,9 @@ export function applyHeuristics(input: {
     payee: payee || input.narration.trim().slice(0, 48),
     narration: input.narration,
     note,
+    note_key: noteKey || null,
     suggested_category_name: null,
+    matched_on: null,
     confidence: 0.2,
   };
 }

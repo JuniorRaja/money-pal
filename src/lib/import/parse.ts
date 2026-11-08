@@ -43,7 +43,11 @@ function detectFileType(bytes: ArrayBuffer): "xls" | "xlsx" | "pdf" | "text" {
   }
 
   // XLSX/DOCX/etc (ZIP): 50 4B 03 04 or 50 4B 05 06 or 50 4B 07 08
-  if (arr[0] === 0x50 && arr[1] === 0x4b && (arr[2] === 0x03 || arr[2] === 0x05 || arr[2] === 0x07)) {
+  if (
+    arr[0] === 0x50 &&
+    arr[1] === 0x4b &&
+    (arr[2] === 0x03 || arr[2] === 0x05 || arr[2] === 0x07)
+  ) {
     return "xlsx";
   }
 
@@ -155,11 +159,13 @@ function buildMappedRows(
       narration: heuristic.narration,
       descriptor: row.narration,
       note: heuristic.note,
+      note_key: heuristic.note_key,
       amount_paise: row.amount_paise,
       type: row.type,
       import_hash: "",
       occurrence_index: index,
       suggested_category_name: heuristic.suggested_category_name,
+      matched_on: heuristic.matched_on,
       confidence: heuristic.confidence,
     };
   });

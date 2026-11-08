@@ -52,6 +52,8 @@ export type MappedImportRow = {
   descriptor: string;
   /** Trailing free text you typed at payment time, when the narration has one. */
   note: string | null;
+  note_key: string | null;
+  matched_on: "note" | "narration" | null;
   /** Signed paise: negative = money out (matches `Transaction.amount`). */
   amount_paise: Paise;
   type: Exclude<TransactionType, "transfer">;
@@ -84,7 +86,9 @@ export type HeuristicSuggestion = {
   payee: string;
   narration: string;
   note: string | null;
+  note_key: string | null;
   suggested_category_name: string | null;
+  matched_on: "note" | "narration" | null;
   confidence: number;
 };
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { applyHeuristics, extractMerchant, extractNote } from "./heuristics.ts";
+import { applyHeuristics, extractMerchant, extractNote, normalizeNoteKey } from "./heuristics.ts";
 
 describe("merchant extraction", () => {
   it("keeps the whole name out of a hyphenated UPI narration", () => {
@@ -93,5 +93,51 @@ describe("payment note extraction", () => {
     });
     assert.equal(result.note, "TEA");
     assert.equal(result.payee, "M O Cool Bar");
+  });
+
+  it("normalizes month names, digits, ordinals, and punctuation from note keys", () => {
+    assert.equal(normalizeNoteKey("RENT MAY"), "RENT");
+    assert.equal(normalizeNoteKey("RENT JUN"), "RENT");
+    assert.equal(normalizeNoteKey("Rent July"), "RENT");
+    assert.equal(normalizeNoteKey("RENT 2"), "RENT");
+    assert.equal(normalizeNoteKey("RENT MAY 25"), "RENT");
+    assert.equal(normalizeNoteKey("123"), "");
+    assert.equal(normalizeNoteKey("--"), "");
+    assert.equal(normalizeNoteKey(""), "");
+  });
+
+  it("matches the note before narration and gives note matches a confidence boost", () => {
+    const result = applyHeuristics({
+      narration: "UPI-SWIGGY-ORDER@YBL-HDFC0001234-123456-GROCERIES",
+      type: "expense",
+    });
+    const narrationMatch = applyHeuristics({
+      narration: "NEFT CR-SBIN0000123-GROCERY STORE",
+      type: "expense",
+    });
+    assert.equal(result.suggested_category_name, "Groceries");
+    assert.equal(result.note_key, "GROCERIES");
+    assert.equal(result.matched_on, "note");
+    assert.equal(narrationMatch.suggested_category_name, "Groceries");
+    assert.ok(result.confidence > narrationMatch.confidence);
+  });
+
+  it("categorizes Rent and self transfers, but only income invoices as Freelance", () => {
+    const rent = applyHeuristics({
+      narration: "IMPS-616232121393-KRISHNA KUMAR-SBIN-XXXXXXX1893-RENT MAY",
+      type: "expense",
+    });
+    const transfer = applyHeuristics({
+      narration: "UPI-SELF-OWNACCOUNT@YBL-HDFC0001234-123456-TRANSFER",
+      type: "expense",
+    });
+    const invoiceExpense = applyHeuristics({
+      narration: "UPI-INVOICE@YBL-HDFC0001234-123456",
+      type: "expense",
+    });
+    assert.equal(rent.suggested_category_name, "Rent");
+    assert.equal(rent.matched_on, "note");
+    assert.equal(transfer.suggested_category_name, "Transfer");
+    assert.equal(invoiceExpense.suggested_category_name, null);
   });
 });

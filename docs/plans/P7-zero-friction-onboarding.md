@@ -69,15 +69,15 @@ Pure functions. Completes P6 D3.
 
 ### Action items
 
-- [ ] 1.1 `normalizeNoteKey(note): string` in `heuristics.ts` — uppercase, collapse whitespace, strip month names (full + 3-letter), strip standalone digit runs and ordinals, strip trailing punctuation, `""` when nothing remains
-- [ ] 1.2 Match keywords against normalized note before narration
-- [ ] 1.3 Note hit returns `min(rule.confidence + 0.06, 0.95)`
-- [ ] 1.4 Keyword rules for the three orphaned categories
+- [x] 1.1 `normalizeNoteKey(note): string` in `heuristics.ts` — uppercase, collapse whitespace, strip month names (full + 3-letter), strip standalone digit runs and ordinals, strip trailing punctuation, `""` when nothing remains
+- [x] 1.2 Match keywords against normalized note before narration
+- [x] 1.3 Note hit returns `min(rule.confidence + 0.06, 0.95)`
+- [x] 1.4 Keyword rules for the three orphaned categories
   - `Rent` — RENT, HOUSE RENT, ROOM RENT, LANDLORD, MAINTENANCE, SOCIETY
   - `Transfer` — SELF, OWN ACCOUNT, TRANSFER TO, SWEEP, CREDIT CARD PAYMENT
   - `Freelance` — FREELANCE, CONSULTING, INVOICE, RETAINER, CONTRACT (income only)
-- [ ] 1.5 `HeuristicSuggestion` gains `note_key: string | null`, `matched_on: "note" | "narration" | null`
-- [ ] 1.6 Thread `note_key` through `MappedImportRow` and `buildMappedRows`
+- [x] 1.5 `HeuristicSuggestion` gains `note_key: string | null`, `matched_on: "note" | "narration" | null`
+- [x] 1.6 Thread `note_key` through `MappedImportRow` and `buildMappedRows`
 
 ### Tests
 
@@ -104,8 +104,8 @@ Pure functions. Keyword table + recurrence.
 
 ### Action items
 
-- [ ] 2.1 Extract `KEYWORD_RULES` to `src/lib/import/keywords.ts`
-- [ ] 2.2 Grow to ~400 keywords, India-weighted
+- [x] 2.1 Extract `KEYWORD_RULES` to `src/lib/import/keywords.ts`
+- [x] 2.2 Grow to ~400 keywords, India-weighted
   - Dining — Box8, Faasos, Behrouz, Wow Momo, Chaayos, Third Wave, Blue Tokai, Haldiram, Bikanervala
   - Groceries — JioMart, Licious, Country Delight, Milkbasket, Reliance Fresh, More, Spencers, Star Bazaar
   - Transport — Namma Yatri, Blusmart, Quick Ride, Shell, Nayara, Jio-bp, Chalo, DMRC, BMRCL, CMRL
@@ -117,13 +117,13 @@ Pure functions. Keyword table + recurrence.
   - Investments — Zerodha, Groww, Upstox, Kuvera, Coin, INDmoney, Smallcase, NPS, PPF, ELSS, SIP
   - EMI — Bajaj Finserv, HDB, Slice, LazyPay, Simpl, KreditBee
   - Insurance — LIC, HDFC Life, ICICI Pru, Star Health, Niva Bupa, Acko, Digit
-- [ ] 2.3 `src/lib/import/recurrence.ts` — `detectRecurring(rows): RecurrenceShape[]`; group by `note_key` else payee; recurs at >= 2 occurrences spaced 25-35 days. Emits shape only, **no category**:
+- [x] 2.3 `src/lib/import/recurrence.ts` — `detectRecurring(rows): RecurrenceShape[]`; group by `note_key` else payee; recurs at >= 2 occurrences spaced 25-35 days. Emits shape only, **no category**:
   - `cadence: "monthly" | "irregular"`
   - `amountStability: "exact" | "near" | "variable"` — exact = identical paise, near = within 2%, variable = beyond
   - `humanRound: boolean` — round to nearest 500 or 1000 (human-chosen vs contractual)
   - `magnitude: "small" | "medium" | "large"` — relative to this statement's other groups, a soft prior only
-- [ ] 2.4 Propagate within a recurrence group — when any occurrence resolves a category via rule, keyword or user tap, apply it to the rest. Consistency, not inference. Never invents a category.
-- [ ] 2.5 Shape is carried on the group, consumed by Part 3 (chip narrowing, queue order) and Part 4 (AI payload). It sets no `suggested_category_name` on its own.
+- [x] 2.4 Propagate within a recurrence group — when any occurrence resolves a category via rule, keyword or user tap, apply it to the rest. Consistency, not inference. Never invents a category.
+- [x] 2.5 Shape is carried on the group, consumed by Part 3 (chip narrowing, queue order) and Part 4 (AI payload). It sets no `suggested_category_name` on its own.
 
 ### Tests
 

@@ -41,7 +41,10 @@ export {
   sha256Hex,
 } from "./hash";
 
-export { applyHeuristics, extractMerchant, extractNote } from "./heuristics";
+export { applyHeuristics, extractMerchant, extractNote, normalizeNoteKey } from "./heuristics";
+export { KEYWORD_RULES } from "./keywords";
+export { detectRecurring, propagateRecurringCategories } from "./recurrence";
+export type { RecurrenceShape } from "./recurrence";
 
 export {
   cellToString,
