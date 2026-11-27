@@ -22,9 +22,9 @@ where they disagree ("Import — categorisation and default slice", lines 81-83)
 - The default slice of a bank or cash account is created by `trg_account_default_slice`
   (`20260811150100_core_money.sql:173-191`), named **`Mine`**, kind `owned`, with the account's
   opening balance. The old PRD called it `Unassigned`; the live name is `Mine`. At most one default
-  per account (`labels_slice_default_uq`, `core_money.sql:117`).
+  per account (`labels_slice_default_uq`, `core_money.sql:116-118`).
 - Accounts that cannot hold slices (`credit_card`, `investment`, `loan`; `fn_slice_guard`,
-  `core_money.sql:124`, allows bank and cash only) have no default, so `v_label` is null and the
+  `core_money.sql:144-145`, allows bank and cash only) have no default, so `v_label` is null and the
   entry is written with no slice. The UI shows that as "Unallocated"
   (`src/routes/transactions.tsx:504-512`).
 - Staged rows carry no slice. `import_job_rows` has no label column
@@ -65,7 +65,7 @@ is counted in net worth until the user moves it by hand.
 | --- | --- | --- |
 | Account slice management | `src/components/manage-slices-dialog.tsx` (opened from `src/routes/accounts.tsx:355`); server `createSliceFn`, `updateSliceFn`, `archiveSliceFn` in `src/lib/mutations.functions.ts:416`, `550`, `479` | Create, rename, change kind, set opening amount, archive. Creating carves the amount out of the default slice's `opening_amount` (`mutations.functions.ts:458-466`). Does not touch any transaction. |
 | New transaction | `AddRecordDialog` slice chips (`src/components/add-record-dialog.tsx:890-940`) -> `createTransactionFn` (`mutations.functions.ts:79`, `label_id` at line 74) | Picks one slice per side. |
-| Edit a transaction | `DetailPanel` "Change Slice" (`src/routes/transactions.tsx:372`, handler at 431-445) and `EditTransactionDialog` (`transactions.tsx:665`, select at 868-890) -> `updateTransaction` -> `p_from_label` / `p_clear_from_label` (`mutations.functions.ts:190-193`) | Reassigns one transaction to one slice, or clears it. |
+| Edit a transaction | `DetailPanel` "Change Slice" (`src/routes/transactions.tsx:542`, handler at 431-445) and `EditTransactionDialog` (`transactions.tsx:665`, select at 874-886) -> `updateTransaction` -> `p_from_label` / `p_clear_from_label` (`mutations.functions.ts:190-193`) | Reassigns one transaction to one slice, or clears it. |
 | Split across slices | **Not found.** `PRODUCT.md` lists "split across slices", but `createTransactionFn` and `fn_record_transaction` take a single `p_from_label` / `p_to_label` (`category_centric.sql:102-103`), so a transaction has one slice per account side. The only "split" in the UI is splitting an account balance into slices (`manage-slices-dialog.tsx:169`). | n/a |
 
 **None of these is part of the import or onboarding flow.** `src/routes/onboarding.tsx` has no
@@ -96,7 +96,7 @@ change the slice by hand.
 
 All three keep the account-match guard above as the backstop. Without a fallback, a bad slice raises
 inside `fn_commit_import_row`; only `unique_violation` is caught there
-(`category_centric.sql:433-453`), so the error aborts the whole `fn_bulk_commit_import_rows` call and
+(`category_centric.sql:435-459`), so the error aborts the whole `fn_bulk_commit_import_rows` call and
 the batch rolls back.
 
 ### Option A: slice on the import rule
@@ -180,13 +180,13 @@ Out of scope for ticket 1: the review-deck picker, onboarding wording, auto-crea
 2. **Which are custodial?** These change net worth the moment a rule moves money into them, so list
    them explicitly (for example Mom's money, trip money).
 3. **How would you describe them at onboarding?** Onboarding creates accounts and imports
-   (`onboarding.tsx:273-350`) but never creates slices. Do you want a "Do you hold money for
+   (`onboarding.tsx:273-350`, commit call at `onboarding.tsx:206`) but never creates slices. Do you want a "Do you hold money for
    anyone?" step, or keep that in Accounts?
 4. **Same payee, two slices?** If one payee can be both personal and held-for-someone, is a rule
    enough, or must it be per row (Option B first)?
 5. **When a rule's slice is archived,** should the rule clear its slice, pause, or keep pointing and
    fall back at commit?
-6. **Credit card, loan and investment accounts** have no slices (`core_money.sql:124`). Confirm
+6. **Credit card, loan and investment accounts** have no slices (`core_money.sql:144-145`). Confirm
    that rules should be ignored there rather than allowing slices on those kinds.
 7. **Existing imports:** do already-committed rows need a bulk re-slice, or only new statements?
 8. **Doc drift:** `docs/PRD.md` is gone but `CLAUDE.md` and `DECISIONS.md` still cite it and its
