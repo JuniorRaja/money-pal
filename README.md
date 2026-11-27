@@ -118,6 +118,20 @@ npm run test:unit    # import-pipeline unit tests (tsx --test)
 npm run test:e2e     # playwright
 ```
 
+## Agent team
+
+A small team of Claude subagents (`pm`, `dev`, `qa`, `scrum` in `.claude/agents/`) runs daily: it
+plans PRDs into tickets, builds one approved ticket as a draft pull request, and posts a standup.
+[`team/PLAYBOOK.md`](team/PLAYBOOK.md) is the source of truth for roles, rules, checks, and the
+full label table.
+
+Work is tracked with GitHub issue labels:
+
+- PRDs: `prd` → `prd:planned` (once split into tickets)
+- Tickets: `status:proposed` → `status:approved` (set by the owner) → `status:in-progress` →
+  `status:in-review` → merge closes the issue
+- `status:blocked` while a question is waiting on a human answer
+
 ## Notes
 
 - Money is always an integer number of paise. Never floats.
