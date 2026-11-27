@@ -1,8 +1,9 @@
 ---
-status: new
+name: PRD
+about: A feature request for the agent team to plan
+title: "PRD: "
+labels: prd
 ---
-
-# PRD: <name>
 
 ## Problem
 Who has it, and why it hurts. 2-3 lines.
@@ -22,6 +23,3 @@ What "done" looks like for the user.
 
 ## Constraints
 Rules, deadlines, things not to touch.
-
-## questions:
-<!-- Agents write open questions here. Answer inline, then set status: new again to re-plan. -->
