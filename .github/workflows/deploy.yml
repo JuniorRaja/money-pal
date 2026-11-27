@@ -65,9 +65,7 @@ jobs:
           command: deploy
           secrets: |
             SUPABASE_SERVICE_ROLE_KEY
-            ANTHROPIC_API_KEY
             OPENROUTER_API_KEY
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
