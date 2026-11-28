@@ -60,7 +60,8 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4"
-          workingDirectory: .output/server
+          # Run from the repo root: the build writes .wrangler/deploy/config.json pointing at
+          # .output/server/wrangler.json. From .output/server wrangler sees two configs and refuses.
           command: versions upload --preview-alias pr-${{ github.event.pull_request.number }}
       - name: Post preview link on the PR
         env:

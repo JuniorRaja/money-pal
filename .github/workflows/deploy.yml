@@ -62,7 +62,8 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4"
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: .output/server
+          # Repo root, not .output/server: the build writes .wrangler/deploy/config.json that points
+          # wrangler at .output/server/wrangler.json; from inside .output/server it sees two configs and refuses.
           command: deploy
           secrets: |
             SUPABASE_SERVICE_ROLE_KEY
