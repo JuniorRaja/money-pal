@@ -60,3 +60,6 @@ test-results/
 .playwright-mcp/
 .impeccable
 .vscode
+
+# Real bank statements and personal exports — never commit
+docs/files/

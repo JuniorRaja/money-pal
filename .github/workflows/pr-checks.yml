@@ -1,0 +1,77 @@
+name: PR checks
+
+# Every PR (including the agent team's draft PRs) gets lint + build + unit tests,
+# and — for branches in this repo — a preview link to click and test.
+on:
+  pull_request:
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # test:unit reads .env; empty values = DB-backed tests stay out (they live in test:db).
+      - run: cp .env.example .env
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run build
+
+  preview:
+    # Forks get no secrets; only branches in this repo get a preview.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: npm run build
+        env:
+          NITRO_PRESET: cloudflare_module
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+      # `versions upload` makes a preview version WITHOUT sending live traffic to it.
+      # Never pass `secrets:` here — `wrangler secret put` deploys to production.
+      - name: Upload preview version
+        id: upload
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
+          workingDirectory: .output/server
+          command: versions upload --preview-alias pr-${{ github.event.pull_request.number }}
+      - name: Post preview link on the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUT: ${{ steps.upload.outputs.command-output }}
+        run: |
+          URL=$(printf '%s' "$OUT" | grep -oE 'https://pr-[^ ]+\.workers\.dev' | head -1)
+          [ -z "$URL" ] && URL=$(printf '%s' "$OUT" | grep -oE 'https://[^ ]+\.workers\.dev' | head -1)
+          [ -z "$URL" ] && { echo "No preview URL in wrangler output"; exit 1; }
+          echo "Preview: $URL" >> "$GITHUB_STEP_SUMMARY"
+          BODY="🔎 **Preview to test:** $URL
+          Uses your real data (same database). Database changes in this PR are not applied here."
+          gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --edit-last --body "$BODY" \
+            || gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$BODY"

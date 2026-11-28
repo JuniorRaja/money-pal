@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test:unit": "tsx --env-file=.env --test \"src/**/*.test.ts\"",
+    "test:db": "tsx --env-file=.env --test \"src/**/*.db-test.ts\"",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "screenshots": "playwright test scripts/capture-screenshots.ts --project=chromium"

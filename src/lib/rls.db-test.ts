@@ -14,7 +14,7 @@
  *
  * Global categories (user_id IS NULL) are readable by everyone but writable by none.
  *
- * Run with: npm run test:unit -- --test-name-pattern="RLS"
+ * Run with: npm run test:db -- --test-name-pattern="RLS"
  * Requires: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_PUBLISHABLE_KEY
  */
 import assert from "node:assert/strict";
@@ -287,11 +287,14 @@ describe("RLS: Cross-user data isolation", { skip: !canRun }, () => {
 
   after(async () => {
     // Clean up test data in reverse dependency order
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const cleanup = async (table: string, ids: string[]) => {
       if (ids.length === 0) return;
       // Type assertion needed for dynamic table name
-      await (adminClient as any).from(table).delete().in("id", ids);
+      await adminClient
+        .from(table as "holdings")
+        .delete()
+        .in("id", ids);
     };
 
     await cleanup("holdings", testIds.holdings);
@@ -435,10 +438,11 @@ describe("RLS: Cross-user data isolation", { skip: !canRun }, () => {
     }
 
     // If successful, verify no foreign data
-    const foreign = data?.filter((row) => {
-      const userId = (row as { user_id?: string }).user_id;
-      return userId && userId !== userA.id;
-    }) ?? [];
+    const foreign =
+      data?.filter((row) => {
+        const userId = (row as { user_id?: string }).user_id;
+        return userId && userId !== userA.id;
+      }) ?? [];
     assert.equal(foreign.length, 0, "View should not expose User B's data to User A");
   });
 
@@ -447,10 +451,11 @@ describe("RLS: Cross-user data isolation", { skip: !canRun }, () => {
 
     if (error) return; // View might not exist
 
-    const foreign = data?.filter((row) => {
-      const userId = (row as { user_id?: string }).user_id;
-      return userId && userId !== userA.id;
-    }) ?? [];
+    const foreign =
+      data?.filter((row) => {
+        const userId = (row as { user_id?: string }).user_id;
+        return userId && userId !== userA.id;
+      }) ?? [];
     assert.equal(foreign.length, 0, "View should not expose User B's transactions");
   });
 
@@ -468,13 +473,11 @@ describe("RLS: Cross-user data isolation", { skip: !canRun }, () => {
   });
 
   it("Users cannot insert global categories (user_id = null)", async () => {
-    const { error } = await userA.client
-      .from("categories")
-      .insert({
-        name: "RLS Attack - Global Category",
-        kind: "lifestyle",
-        user_id: null as unknown as string, // Type coercion to test RLS
-      });
+    const { error } = await userA.client.from("categories").insert({
+      name: "RLS Attack - Global Category",
+      kind: "lifestyle",
+      user_id: null as unknown as string, // Type coercion to test RLS
+    });
 
     // Should fail - either RLS blocks it or the check constraint
     assert.ok(error, "Should not be able to create a global category");
@@ -482,13 +485,11 @@ describe("RLS: Cross-user data isolation", { skip: !canRun }, () => {
 
   it("Users can only create categories for themselves", async () => {
     // Try to create a category with User B's ID while logged in as User A
-    const { error } = await userA.client
-      .from("categories")
-      .insert({
-        name: "RLS Attack - Wrong User Category",
-        kind: "lifestyle",
-        user_id: userB.id,
-      });
+    const { error } = await userA.client.from("categories").insert({
+      name: "RLS Attack - Wrong User Category",
+      kind: "lifestyle",
+      user_id: userB.id,
+    });
 
     // Should fail due to RLS
     assert.ok(error, "Should not be able to create a category for another user");
