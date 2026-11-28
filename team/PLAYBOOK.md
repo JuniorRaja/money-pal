@@ -6,12 +6,12 @@ Read `CLAUDE.md` and `docs/DECISIONS.md` before any code change.
 
 ## Team (subagents in `.claude/agents/`)
 
-| Role | Job |
-| --- | --- |
-| `pm` | Turns a PRD issue into small ticket issues |
-| `dev` | Builds one approved ticket on a `claude/` branch |
-| `qa` | Runs checks and reviews the diff. Never edits code |
-| `scrum` | Writes the standup |
+| Role    | Job                                                |
+| ------- | -------------------------------------------------- |
+| `pm`    | Turns a PRD issue into small ticket issues         |
+| `dev`   | Builds one approved ticket on a `claude/` branch   |
+| `qa`    | Runs checks and reviews the diff. Never edits code |
+| `scrum` | Writes the standup                                 |
 
 You are the lead. Delegate to these roles. Keep your own work small.
 
@@ -19,16 +19,16 @@ You are the lead. Delegate to these roles. Keep your own work small.
 
 Repo: `JuniorRaja/money-pal`. Use `gh api` REST only (GraphQL is blocked in cloud runs).
 
-| Label | Meaning | Who sets it |
-| --- | --- | --- |
-| `prd` | A PRD to plan | PR |
-| `prd:planned` | PRD already split into tickets | pm |
-| `status:proposed` | Ticket waiting for PR | pm |
-| `status:approved` | PR said yes. Build it | PR |
-| `status:in-progress` | Being built | dev |
-| `status:in-review` | Draft PR open | dev |
-| `status:blocked` | Needs an answer from PR | any |
-| `size:S`, `size:M` | Effort | pm |
+| Label                | Meaning                        | Who sets it |
+| -------------------- | ------------------------------ | ----------- |
+| `prd`                | A PRD to plan                  | PR          |
+| `prd:planned`        | PRD already split into tickets | pm          |
+| `status:proposed`    | Ticket waiting for PR          | pm          |
+| `status:approved`    | PR said yes. Build it          | PR          |
+| `status:in-progress` | Being built                    | dev         |
+| `status:in-review`   | Draft PR open                  | dev         |
+| `status:blocked`     | Needs an answer from PR        | any         |
+| `size:S`, `size:M`   | Effort                         | pm          |
 
 Done = PR merges the pull request, which closes the issue (`Closes #N`).
 
@@ -80,7 +80,10 @@ Issues with a `pull_request` key are PRs. Skip them when reading tickets.
 3. Follow every rule in `CLAUDE.md`. Money is integer paise. No direct Supabase in components.
 4. Add or update unit tests (`src/**/*.test.ts`) for logic changes.
 5. `qa` runs checks and reviews the diff against the acceptance list.
-6. Fix findings. Push. Open a **draft** PR. Body: what changed, how tested, risks, `Closes #N`.
+6. Fix findings. Push. Open a **draft** PR. Body: what changed, how tested, risks, `Closes #N`,
+   and a **How to test** section: 3–6 plain steps PR can click through on the preview link
+   (which page, what to upload from `src/lib/import/fixtures/`, what they should see).
+   The `PR checks` workflow runs lint/unit/build on the PR and posts the preview link itself.
 7. Labels: remove `status:in-progress`, add `status:in-review`. Comment the PR link.
 
 ## Checks (cloud run has no Docker, so no local Supabase)
@@ -93,8 +96,15 @@ npm run build
 npm run test:unit
 ```
 
-Skip `test:e2e` (needs Docker). Say so in the PR body.
-If a check already fails on `main`, note it in the PR. Don't fix unrelated failures.
+Skip `test:e2e` and `test:db` (they need a real database). Say so in the PR body.
+
+## Test data
+
+- Statement samples live in `src/lib/import/fixtures/`. They are **synthetic** copies of PR's real
+  bank layouts (HDFC savings .xls, IndusInd card .xls, Money Manager .xlsx).
+- Need another sample? Add it to `scripts/make-import-fixtures.ts` and regenerate. Made-up values only:
+  this repo is public. Never commit a real statement (`docs/files/` is git-ignored for that reason).
+  If a check already fails on `main`, note it in the PR. Don't fix unrelated failures.
 
 ## Standup (`scrum`)
 

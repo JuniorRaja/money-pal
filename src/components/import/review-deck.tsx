@@ -119,14 +119,14 @@ export function ReviewDeck({
 
   const suggestedId = current
     ? resolveSuggestedCategoryId({
-      payee: current.payee,
-      narration: current.narration ?? current.descriptor,
-      note: current.note,
-      suggestedCategoryId: current.suggested_category_id,
-      categories,
-      rules,
-      accountId: current.account_id,
-    })
+        payee: current.payee,
+        narration: current.narration ?? current.descriptor,
+        note: current.note,
+        suggestedCategoryId: current.suggested_category_id,
+        categories,
+        rules,
+        accountId: current.account_id,
+      })
     : null;
 
   const [edit, setEdit] = useState<EditState | null>(null);
@@ -135,21 +135,33 @@ export function ReviewDeck({
   const [remember, setRemember] = useState(true);
 
   // The rule that categorised this row, if any — the "from your rule" marker.
-  const matchedRule = current ? findImportRule(
-    { payee: current.payee, narration: current.narration ?? current.descriptor, note: current.note },
-    rules,
-    current.account_id,
-  ) : null;
+  const matchedRule = current
+    ? findImportRule(
+        {
+          payee: current.payee,
+          narration: current.narration ?? current.descriptor,
+          note: current.note,
+        },
+        rules,
+        current.account_id,
+      )
+    : null;
 
   const payeeText = edit?.payee.trim() ?? "";
   const nextCategory = edit?.category_id || null;
   const categoryChanged = Boolean(nextCategory) && nextCategory !== suggestedId;
   const merchantRule =
-    current && payeeText ? findImportRule(
-      { payee: payeeText, narration: current.narration ?? current.descriptor, note: current.note },
-      rules,
-      current.account_id,
-    ) : null;
+    current && payeeText
+      ? findImportRule(
+          {
+            payee: payeeText,
+            narration: current.narration ?? current.descriptor,
+            note: current.note,
+          },
+          rules,
+          current.account_id,
+        )
+      : null;
   // An account-scoped rule already covering this merchant is corrected in place —
   // the unique index allows no second row for it. A broader global rule is left
   // alone: fixing one account must not silently re-teach the others.
@@ -228,15 +240,15 @@ export function ReviewDeck({
           },
           ...(showRemember && remember && nextCategory
             ? {
-              rule: {
-                // Correcting a rule targets the existing row, so the upsert
-                // updates it instead of adding a narrower rule that would
-                // never win against it.
-                pattern: ruleTarget?.pattern ?? payeeText,
-                category_id: nextCategory,
-                account_id: current.account_id,
-              },
-            }
+                rule: {
+                  // Correcting a rule targets the existing row, so the upsert
+                  // updates it instead of adding a narrower rule that would
+                  // never win against it.
+                  pattern: ruleTarget?.pattern ?? payeeText,
+                  category_id: nextCategory,
+                  account_id: current.account_id,
+                },
+              }
             : {}),
         });
         remove(current.id);
@@ -413,12 +425,8 @@ export function ReviewDeck({
   const SummaryBanner = breakdown.total > 0 && (
     <div className="mb-4 flex flex-wrap items-center justify-center gap-3 text-sm">
       <span className="text-foreground">{breakdown.total} to review</span>
-      {breakdown.high > 0 && (
-        <span className="text-success">{breakdown.high} high confidence</span>
-      )}
-      {breakdown.low > 0 && (
-        <span className="text-destructive">{breakdown.low} need review</span>
-      )}
+      {breakdown.high > 0 && <span className="text-success">{breakdown.high} high confidence</span>}
+      {breakdown.low > 0 && <span className="text-destructive">{breakdown.low} need review</span>}
     </div>
   );
 
@@ -605,9 +613,7 @@ export function ReviewDeck({
               <p className="mt-1 text-sm text-foreground">
                 {formatDay(current.possible_duplicate.occurred_at)} ·{" "}
                 {formatMoney(current.possible_duplicate.amount_paise)}
-                {current.possible_duplicate.payee
-                  ? ` · ${current.possible_duplicate.payee}`
-                  : ""}
+                {current.possible_duplicate.payee ? ` · ${current.possible_duplicate.payee}` : ""}
               </p>
               <p className="mt-1 text-[11px] text-muted-foreground">
                 Same account, same amount, within a day. Skip unless this really is a second,

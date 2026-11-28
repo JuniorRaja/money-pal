@@ -30,6 +30,8 @@ describe("ledger invariants", { skip: SKIP_REASON }, () => {
   let db: any;
   let userId = "";
   let diningCatId = "";
+  // ponytail: cleanup can leave accounts behind; a per-run suffix keeps reruns from colliding on ux_accounts_name.
+  const RUN = Date.now().toString(36);
 
   // IDs to delete in after() — accounts cascade-delete labels + entries.
   const cleanupAccounts: string[] = [];
@@ -52,13 +54,14 @@ describe("ledger invariants", { skip: SKIP_REASON }, () => {
     if (userErr || !user) throw userErr ?? new Error("could not get test user");
     userId = user.id as string;
 
+    // Categories are per-user since the category-centric migration; any visible one will do.
     const { data: cat, error: catErr } = await db
       .from("categories")
       .select("id")
-      .eq("name", "Dining")
-      .is("user_id", null)
+      .order("name")
+      .limit(1)
       .single();
-    if (catErr || !cat) throw new Error("Dining category not found — run migrations first");
+    if (catErr || !cat) throw new Error("test account has no categories — finish onboarding first");
     diningCatId = cat.id as string;
   });
 
@@ -75,7 +78,7 @@ describe("ledger invariants", { skip: SKIP_REASON }, () => {
   async function makeAccount(name: string, kind: "bank" | "cash" = "bank") {
     const { data, error } = await db
       .from("accounts")
-      .insert({ user_id: userId, name, kind, currency_code: "INR" })
+      .insert({ user_id: userId, name: `${name} ${RUN}`, kind, currency_code: "INR" })
       .select("id")
       .single();
     if (error) throw error;
@@ -132,10 +135,7 @@ describe("ledger invariants", { skip: SKIP_REASON }, () => {
   }
 
   async function sliceSum(accountId: string): Promise<number> {
-    const { data } = await db
-      .from("v_account_slices")
-      .select("amount")
-      .eq("account_id", accountId);
+    const { data } = await db.from("v_account_slices").select("amount").eq("account_id", accountId);
     return ((data ?? []) as { amount: number }[]).reduce((s, r) => s + r.amount, 0);
   }
 
@@ -407,7 +407,15 @@ describe("ledger invariants", { skip: SKIP_REASON }, () => {
       .eq("category_id", diningCatId)
       .single();
 
-    assert.equal(progressB.planned, 100_00, "July 2099 planned must be its own value, not rolled over");
-    assert.equal(progressB.spent, 0, "July 2099 spent must start at zero regardless of June overspend");
+    assert.equal(
+      progressB.planned,
+      100_00,
+      "July 2099 planned must be its own value, not rolled over",
+    );
+    assert.equal(
+      progressB.spent,
+      0,
+      "July 2099 spent must start at zero regardless of June overspend",
+    );
   });
 });

@@ -46,12 +46,7 @@ function SkeletonTableRow({ columns = 5, className }: { columns?: number; classN
 /** Stat card placeholder matching the StatCard component layout. */
 function SkeletonStatCard({ className }: { className?: string }) {
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-border bg-card p-4 space-y-3",
-        className,
-      )}
-    >
+    <div className={cn("rounded-xl border border-border bg-card p-4 space-y-3", className)}>
       <div className="flex items-center justify-between">
         <Skeleton className="h-3 w-20" />
         <Skeleton className="h-5 w-5 rounded-full" />

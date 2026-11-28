@@ -118,10 +118,11 @@ function SettingsPage() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`w-full rounded-lg px-3 py-1.5 text-left text-[13px] transition-colors ${tab === t
-                ? "bg-accent font-medium text-foreground"
-                : "text-muted-foreground hover:bg-accent/60"
-                }`}
+              className={`w-full rounded-lg px-3 py-1.5 text-left text-[13px] transition-colors ${
+                tab === t
+                  ? "bg-accent font-medium text-foreground"
+                  : "text-muted-foreground hover:bg-accent/60"
+              }`}
             >
               {t}
             </button>
@@ -139,16 +140,18 @@ function SettingsPage() {
                     <button
                       key={mode}
                       onClick={() => setPrefs({ theme: mode })}
-                      className={`rounded-2xl border p-4 text-left transition-colors ${prefs.theme === mode
-                        ? "border-primary bg-accent/50"
-                        : "border-border hover:bg-accent/40"
-                        }`}
+                      className={`rounded-2xl border p-4 text-left transition-colors ${
+                        prefs.theme === mode
+                          ? "border-primary bg-accent/50"
+                          : "border-border hover:bg-accent/40"
+                      }`}
                     >
                       <div
-                        className={`mb-3 h-14 rounded-xl border border-border ${mode === "light"
-                          ? "bg-[oklch(0.98_0.008_84)]"
-                          : "bg-[oklch(0.22_0.012_84)]"
-                          }`}
+                        className={`mb-3 h-14 rounded-xl border border-border ${
+                          mode === "light"
+                            ? "bg-[oklch(0.98_0.008_84)]"
+                            : "bg-[oklch(0.22_0.012_84)]"
+                        }`}
                       />
                       <p className="text-sm capitalize text-foreground">{mode} mode</p>
                       <p className="text-xs text-muted-foreground">
@@ -165,10 +168,11 @@ function SettingsPage() {
                       key={a.name}
                       onClick={() => setPrefs({ accent: a.name })}
                       aria-pressed={prefs.accent === a.name}
-                      className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors ${prefs.accent === a.name
-                        ? "border-primary text-foreground"
-                        : "border-border text-muted-foreground"
-                        }`}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors ${
+                        prefs.accent === a.name
+                          ? "border-primary text-foreground"
+                          : "border-border text-muted-foreground"
+                      }`}
                     >
                       <span className="h-4 w-4 rounded-full" style={{ background: a.swatch }} />
                       {a.name}
@@ -202,9 +206,7 @@ function SettingsPage() {
             </>
           )}
 
-          {tab === "Categories" && (
-            <CategoriesTab categories={categories} />
-          )}
+          {tab === "Categories" && <CategoriesTab categories={categories} />}
 
           {/* Every control here is parked. `formatMoney` is a plain module
               function with no route to preferences, and nothing in the app
@@ -698,7 +700,10 @@ function ImportRulesTab({
                         value={rule.match_field}
                         disabled={busyId === rule.id}
                         onChange={(event) =>
-                          void apply({ id: rule.id, match_field: event.target.value as ImportRule["match_field"] })
+                          void apply({
+                            id: rule.id,
+                            match_field: event.target.value as ImportRule["match_field"],
+                          })
                         }
                         className="h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-primary/60 disabled:opacity-50 sm:w-28"
                       >
@@ -877,8 +882,9 @@ function PatternPicker({
           key={pattern}
           onClick={() => onChange(pattern)}
           aria-pressed={value === pattern}
-          className={`rounded-xl border p-2 text-left transition-colors ${value === pattern ? "border-primary bg-accent/50" : "border-border hover:bg-accent/40"
-            }`}
+          className={`rounded-xl border p-2 text-left transition-colors ${
+            value === pattern ? "border-primary bg-accent/50" : "border-border hover:bg-accent/40"
+          }`}
         >
           <span className="relative block h-16 overflow-hidden rounded-lg border border-border bg-gradient-to-b from-accent/50 to-background">
             <Signature variant="overview" pattern={pattern} />
@@ -932,8 +938,9 @@ function Toggle({
         className={`h-6 w-11 rounded-full p-0.5 transition-colors ${value ? "bg-primary" : "bg-muted"}`}
       >
         <span
-          className={`block h-5 w-5 rounded-full bg-card shadow transition-transform duration-300 ${value ? "translate-x-5" : "translate-x-0"
-            }`}
+          className={`block h-5 w-5 rounded-full bg-card shadow transition-transform duration-300 ${
+            value ? "translate-x-5" : "translate-x-0"
+          }`}
         />
       </button>
     </div>
@@ -959,10 +966,11 @@ function Choice({
           <button
             key={o}
             onClick={() => onChange(o)}
-            className={`rounded-md px-3 py-1 text-xs capitalize transition-colors ${value === o
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground"
-              }`}
+            className={`rounded-md px-3 py-1 text-xs capitalize transition-colors ${
+              value === o
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
             {o}
           </button>
@@ -993,7 +1001,9 @@ function CategoriesTab({ categories }: { categories: Category[] }) {
 
     // Group by kind - only show parent categories (no parent_id) at top level
     const income = active.filter((c) => c.group === "income" && !c.parent_id);
-    const expense = active.filter((c) => c.group !== "income" && c.group !== "transfer" && !c.parent_id);
+    const expense = active.filter(
+      (c) => c.group !== "income" && c.group !== "transfer" && !c.parent_id,
+    );
 
     return {
       incomeCategories: income,
@@ -1189,8 +1199,8 @@ function CategoriesTab({ categories }: { categories: Category[] }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Archive "{confirmArchive?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              Archived categories won't appear in transaction forms or reports. You can restore
-              them anytime by enabling "Show archived" and editing the category.
+              Archived categories won't appear in transaction forms or reports. You can restore them
+              anytime by enabling "Show archived" and editing the category.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -20,7 +20,7 @@ const BRAILLE_MAP: Record<string, string> = {
   "-": "⠤", // minus
   "+": "⠖", // plus
   "₹": "⠷", // rupee
-  "$": "⠫", // dollar
+  $: "⠫", // dollar
   "€": "⠑", // euro
   "£": "⠇", // pound
   " ": " ", // preserve spaces

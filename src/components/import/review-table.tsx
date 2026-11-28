@@ -79,7 +79,8 @@ export function ReviewTable({
     const pending = rows.filter((row) => row.status === "pending" || row.status === "held");
     if (filter === "all") return pending;
     if (filter === "high") return pending.filter((row) => (row.confidence ?? 0) >= 0.9);
-    if (filter === "low") return pending.filter((row) => (row.confidence ?? 0) < IMPORT_LOW_CONFIDENCE_MAX);
+    if (filter === "low")
+      return pending.filter((row) => (row.confidence ?? 0) < IMPORT_LOW_CONFIDENCE_MAX);
     if (filter === "needs_review") {
       return pending.filter(
         (row) =>
@@ -98,7 +99,13 @@ export function ReviewTable({
     );
     const low = pending.filter((row) => (row.confidence ?? 0) < IMPORT_LOW_CONFIDENCE_MAX);
     const duplicates = pending.filter((row) => row.possible_duplicate != null);
-    return { total: pending.length, high: high.length, medium: medium.length, low: low.length, duplicates: duplicates.length };
+    return {
+      total: pending.length,
+      high: high.length,
+      medium: medium.length,
+      low: low.length,
+      duplicates: duplicates.length,
+    };
   }, [rows]);
 
   const allSelected = visible.length > 0 && visible.every((row) => selected.has(row.id));
@@ -479,7 +486,9 @@ export function ReviewTable({
                     })}
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm text-foreground">{categoryName(categories, categoryId)}</span>
+                    <span className="text-sm text-foreground">
+                      {categoryName(categories, categoryId)}
+                    </span>
                   </TableCell>
                   <TableCell>{confidenceBadge(row.confidence)}</TableCell>
                 </TableRow>

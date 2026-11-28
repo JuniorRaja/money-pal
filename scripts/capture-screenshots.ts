@@ -133,7 +133,9 @@ test.describe("Documentation Screenshots", () => {
     });
 
     // Click the add button (usually has a + icon)
-    const addButton = page.locator('button:has-text("Add"), button:has-text("New"), [aria-label*="add" i]').first();
+    const addButton = page
+      .locator('button:has-text("Add"), button:has-text("New"), [aria-label*="add" i]')
+      .first();
     if (await addButton.isVisible()) {
       await addButton.click();
       await page.waitForTimeout(300);
@@ -154,7 +156,9 @@ test.describe("Documentation Screenshots", () => {
     });
 
     // Look for the import button
-    const importButton = page.locator('button:has-text("Import"), button:has-text("Upload")').first();
+    const importButton = page
+      .locator('button:has-text("Import"), button:has-text("Upload")')
+      .first();
     if (await importButton.isVisible()) {
       await importButton.click();
       await page.waitForTimeout(300);

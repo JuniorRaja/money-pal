@@ -7,7 +7,8 @@ npm run dev         # :3000
 npm run build
 npm run lint
 npm run format
-npm run test:unit   # tsx --test, import pipeline only
+npm run test:unit   # tsx --test, pure logic (no database); CI runs this on every PR
+npm run test:db     # ledger/RLS/bulk-commit against the real Supabase test account — opt-in
 npm run test:e2e    # playwright (starts/reuses the dev server)
 ```
 

@@ -953,10 +953,7 @@ export function AddRecordDialog({
                     </Field>
                   )}
 
-                  <Field
-                    label={isTransfer ? "Payee (optional)" : "Payee"}
-                    error={errors["payee"]}
-                  >
+                  <Field label={isTransfer ? "Payee (optional)" : "Payee"} error={errors["payee"]}>
                     <input
                       className={fieldBase}
                       list="payee-history"

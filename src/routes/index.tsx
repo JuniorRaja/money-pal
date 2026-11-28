@@ -543,8 +543,9 @@ function Row({
       <span className="flex items-baseline gap-2">
         {delta != null && (
           <span
-            className={`numeric text-xs ${delta === 0 ? "text-muted-foreground" : good ? "text-success" : "text-destructive"
-              }`}
+            className={`numeric text-xs ${
+              delta === 0 ? "text-muted-foreground" : good ? "text-success" : "text-destructive"
+            }`}
           >
             {formatPct(delta)}
           </span>
