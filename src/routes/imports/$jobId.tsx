@@ -89,12 +89,14 @@ function ImportReviewPage() {
       const rules = groups.flatMap((group) => {
         const category_id = categoryForGroup.get(group.id);
         if (!category_id || !group.key.trim()) return [];
-        return [{
-          pattern: group.key,
-          category_id,
-          account_id: null,
-          match_field: matchFieldForGroup(group),
-        }];
+        return [
+          {
+            pattern: group.key,
+            category_id,
+            account_id: null,
+            match_field: matchFieldForGroup(group),
+          },
+        ];
       });
       if (rows.length) await bulkCommitImportRows({ rows, rules });
       toast.success(rows.length ? "Statement imported." : "Nothing left to import.");

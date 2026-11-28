@@ -230,7 +230,7 @@ async function fetchReportData(
   supabase: ReturnType<typeof import("@supabase/supabase-js").createClient>,
   userId: string,
   period: string,
-  displayName: string
+  displayName: string,
 ): Promise<MonthlyReportData> {
   const periodMonth = `${period}-01`;
 

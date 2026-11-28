@@ -133,9 +133,7 @@ export function IconPicker({
                   onClick={() => onColorChange(color)}
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded border transition-colors",
-                    isSelected
-                      ? "border-primary"
-                      : "border-transparent hover:border-border",
+                    isSelected ? "border-primary" : "border-transparent hover:border-border",
                   )}
                 >
                   <span

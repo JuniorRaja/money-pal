@@ -400,7 +400,7 @@ export const liveTransactions = (period?: string): Promise<Transaction[]> =>
       const counterparty =
         row.type === "transfer"
           ? ((siblings.find((s) => s.entry_id !== row.entry_id)?.account_id as
-            string | undefined) ?? null)
+              string | undefined) ?? null)
           : null;
       return {
         id: row.entry_id as string,

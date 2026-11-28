@@ -140,7 +140,9 @@ function InvestmentsPage() {
                     <td className="px-2 py-3 text-xs text-muted-foreground">
                       {classLabel[h.asset_class]}
                     </td>
-                    <td className="numeric px-2 py-3 text-right text-muted-foreground">{h.units}</td>
+                    <td className="numeric px-2 py-3 text-right text-muted-foreground">
+                      {h.units}
+                    </td>
                     <td className="numeric px-2 py-3 text-right text-muted-foreground">
                       {formatMoney(h.invested, { whole: true })}
                     </td>
@@ -157,12 +159,13 @@ function InvestmentsPage() {
                       </span>
                     </td>
                     <td
-                      className={`numeric px-5 py-3 text-right ${h.day_change_pct === 0
-                        ? "text-muted-foreground"
-                        : h.day_change_pct > 0
-                          ? "text-success"
-                          : "text-destructive"
-                        }`}
+                      className={`numeric px-5 py-3 text-right ${
+                        h.day_change_pct === 0
+                          ? "text-muted-foreground"
+                          : h.day_change_pct > 0
+                            ? "text-success"
+                            : "text-destructive"
+                      }`}
                     >
                       {/* No previous close stored yet — an em dash, not a green 0.0%. */}
                       {h.prev_price > 0 ? formatPct(h.day_change_pct) : "—"}
@@ -206,7 +209,9 @@ function InvestmentsPage() {
                           borderRadius: 12,
                           fontSize: 12,
                         }}
-                        formatter={(v: number | string) => `\u20B9${Number(v).toLocaleString("en-IN")}`}
+                        formatter={(v: number | string) =>
+                          `\u20B9${Number(v).toLocaleString("en-IN")}`
+                        }
                       />
                     </PieChart>
                   </ResponsiveContainer>

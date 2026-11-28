@@ -91,14 +91,14 @@ async function sendViaResend(config: EmailConfig, message: EmailMessage): Promis
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { message?: string };
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
     return {
       success: false,
       error: body.message || `Resend returned ${res.status}`,
     };
   }
 
-  const data = await res.json() as { id?: string };
+  const data = (await res.json()) as { id?: string };
   return { success: true, messageId: data.id };
 }
 
@@ -131,14 +131,14 @@ async function sendViaSMTP2GO(config: EmailConfig, message: EmailMessage): Promi
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { data?: { error?: string } };
+    const body = (await res.json().catch(() => ({}))) as { data?: { error?: string } };
     return {
       success: false,
       error: body.data?.error || `SMTP2GO returned ${res.status}`,
     };
   }
 
-  const data = await res.json() as { data?: { email_id?: string } };
+  const data = (await res.json()) as { data?: { email_id?: string } };
   return { success: true, messageId: data.data?.email_id };
 }
 
@@ -167,7 +167,8 @@ export async function sendEmail(config: EmailConfig, message: EmailMessage): Pro
   if (!provider) {
     return {
       success: false,
-      error: `Unsupported email provider. Use smtp.resend.com or mail.smtp2go.com. ` +
+      error:
+        `Unsupported email provider. Use smtp.resend.com or mail.smtp2go.com. ` +
         `Raw SMTP is not available on Cloudflare Workers.`,
     };
   }

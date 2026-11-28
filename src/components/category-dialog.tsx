@@ -123,11 +123,7 @@ export function CategoryDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {isEditing
-              ? "Edit category"
-              : isSubCategory
-                ? "Add sub-category"
-                : "Add category"}
+            {isEditing ? "Edit category" : isSubCategory ? "Add sub-category" : "Add category"}
           </DialogTitle>
           <DialogDescription>
             {isEditing
@@ -230,9 +226,7 @@ export function CategoryDialog({
             <span className="text-xs text-muted-foreground">Preview:</span>
             <div className="flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1">
               <Icon className="h-3.5 w-3.5" style={{ color: previewColor }} />
-              <span className="text-sm text-foreground">
-                {name.trim() || "Category name"}
-              </span>
+              <span className="text-sm text-foreground">{name.trim() || "Category name"}</span>
             </div>
           </div>
 

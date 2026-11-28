@@ -39,7 +39,9 @@ test.describe("Slices", () => {
     let card = manageable.first();
     for (let i = 0; i < count; i++) {
       const candidate = manageable.nth(i);
-      const name = ((await candidate.locator("p.text-sm.font-medium").first().textContent()) ?? "").trim();
+      const name = (
+        (await candidate.locator("p.text-sm.font-medium").first().textContent()) ?? ""
+      ).trim();
       if (txnAccountNames.has(name)) {
         card = candidate;
         accountName = name;
@@ -48,7 +50,9 @@ test.describe("Slices", () => {
     }
     await expect(card).toBeVisible();
     if (!accountName) {
-      accountName = ((await card.locator("p.text-sm.font-medium").first().textContent()) ?? "").trim();
+      accountName = (
+        (await card.locator("p.text-sm.font-medium").first().textContent()) ?? ""
+      ).trim();
     }
     const balanceBefore = await card.locator("p.numeric.maskable").first().textContent();
 

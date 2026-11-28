@@ -172,7 +172,7 @@ export function formatMonthlyReportHtml(data: MonthlyReportData): string | null 
         <span style="display: inline-block; background: ${tokenToHex(c.colorToken)}15; color: ${tokenToHex(c.colorToken)}; padding: 4px 12px; border-radius: 16px; margin: 4px 4px 4px 0; font-size: 13px;">
           ${c.name}: ${formatRupees(c.spent)}
         </span>
-      `
+      `,
     )
     .join("");
 
@@ -375,7 +375,9 @@ export function formatMonthlyReportText(data: MonthlyReportData): string | null 
     lines.push("BUDGET PROGRESS");
     data.budgets.slice(0, 6).forEach((b) => {
       const pct = progressPercent(b.spent, b.planned);
-      lines.push(`  ${b.categoryName}: ${formatRupees(b.spent)} / ${formatRupees(b.planned)} (${pct}%)`);
+      lines.push(
+        `  ${b.categoryName}: ${formatRupees(b.spent)} / ${formatRupees(b.planned)} (${pct}%)`,
+      );
     });
     lines.push("");
   }

@@ -57,7 +57,10 @@ export default defineTask({
           .limit(200);
 
         if (eventsError) {
-          console.error(`[telegram:digest] Failed to fetch events for ${channel.user_id}:`, eventsError);
+          console.error(
+            `[telegram:digest] Failed to fetch events for ${channel.user_id}:`,
+            eventsError,
+          );
           failed++;
           continue;
         }
@@ -91,14 +94,14 @@ export default defineTask({
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ chat_id: channel.telegram_chat_id, text }),
-          }
+          },
         );
 
         if (!res.ok) {
-          const payload = await res.json().catch(() => ({})) as { description?: string };
+          const payload = (await res.json().catch(() => ({}))) as { description?: string };
           console.error(
             `[telegram:digest] Telegram rejected message for ${channel.user_id}:`,
-            payload.description ?? res.status
+            payload.description ?? res.status,
           );
           failed++;
           continue;
@@ -111,7 +114,10 @@ export default defineTask({
           .eq("user_id", channel.user_id);
 
         if (updateError) {
-          console.error(`[telegram:digest] Failed to update timestamp for ${channel.user_id}:`, updateError);
+          console.error(
+            `[telegram:digest] Failed to update timestamp for ${channel.user_id}:`,
+            updateError,
+          );
         }
 
         sent++;

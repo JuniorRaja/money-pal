@@ -62,14 +62,14 @@ export default defineConfig({
           enabled: true,
           head_sampling_rate: 1,
           persist: true,
-          invocation_logs: true
+          invocation_logs: true,
         },
         traces: {
           enabled: false,
           persist: true,
-          head_sampling_rate: 1
-        }
-      }
+          head_sampling_rate: 1,
+        },
+      },
     },
   },
 });

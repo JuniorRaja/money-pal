@@ -25,9 +25,7 @@ export async function ensureSignedIn(
   await page.waitForLoadState("networkidle");
   if (page.url().includes("/login")) {
     if (!email || !password) {
-      throw new Error(
-        "E2E tests need TESTING_USERID and TESTING_PASSWORD set (see .env.example).",
-      );
+      throw new Error("E2E tests need TESTING_USERID and TESTING_PASSWORD set (see .env.example).");
     }
     await page.getByLabel(/email/i).fill(email);
     await page.getByLabel(/password/i).fill(password);

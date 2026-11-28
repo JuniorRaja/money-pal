@@ -16,7 +16,11 @@ export const Route = createFileRoute("/imports/history")({
   }),
   loader: async () => ({ jobs: await getImportJobHistory() }),
   pendingComponent: () => (
-    <AppShell title="Import history" subtitle="Every job, including the ones you dismissed." signature="imports">
+    <AppShell
+      title="Import history"
+      subtitle="Every job, including the ones you dismissed."
+      signature="imports"
+    >
       <Panel title="Past imports">
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (

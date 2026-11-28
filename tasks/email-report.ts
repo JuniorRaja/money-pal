@@ -83,7 +83,7 @@ export default defineTask({
           ch.user_id,
           period,
           periodMonth,
-          profile.display_name || ""
+          profile.display_name || "",
         );
 
         const html = formatMonthlyReportHtml(reportData);
@@ -121,10 +121,7 @@ export default defineTask({
         });
 
         if (!result.success) {
-          console.error(
-            `[email:report] Failed to send for ${ch.user_id}:`,
-            result.error
-          );
+          console.error(`[email:report] Failed to send for ${ch.user_id}:`, result.error);
           failed++;
           continue;
         }
@@ -136,7 +133,10 @@ export default defineTask({
           .eq("user_id", ch.user_id);
 
         if (updateError) {
-          console.error(`[email:report] Failed to update timestamp for ${ch.user_id}:`, updateError);
+          console.error(
+            `[email:report] Failed to update timestamp for ${ch.user_id}:`,
+            updateError,
+          );
         }
 
         sent++;
@@ -160,7 +160,7 @@ async function fetchReportDataForUser(
   userId: string,
   period: string,
   periodMonth: string,
-  displayName: string
+  displayName: string,
 ): Promise<MonthlyReportData> {
   // Fetch all data in parallel
   const [cashflowRes, categoryRes, budgetRes, goalRes, holdingRes] = await Promise.all([
@@ -194,12 +194,10 @@ async function fetchReportDataForUser(
 
   // Get category names for top spend
   const categoryIds = (categoryRes.data ?? []).map((c) => c.category_id).filter(Boolean);
-  const { data: categories } = categoryIds.length > 0
-    ? await supabaseAdmin
-        .from("categories")
-        .select("id, name, color_token")
-        .in("id", categoryIds)
-    : { data: [] };
+  const { data: categories } =
+    categoryIds.length > 0
+      ? await supabaseAdmin.from("categories").select("id, name, color_token").in("id", categoryIds)
+      : { data: [] };
 
   const categoryMap = new Map((categories ?? []).map((c) => [c.id, c]));
 

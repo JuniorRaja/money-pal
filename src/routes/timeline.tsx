@@ -53,10 +53,11 @@ export function TimelinePage() {
         <button
           key={k.id}
           onClick={() => setKind(k.id)}
-          className={`h-9 rounded-full border px-4 text-sm transition-colors ${kind === k.id
-            ? "border-primary/50 bg-primary/12 text-foreground"
-            : "border-border bg-card text-muted-foreground hover:bg-accent"
-            }`}
+          className={`h-9 rounded-full border px-4 text-sm transition-colors ${
+            kind === k.id
+              ? "border-primary/50 bg-primary/12 text-foreground"
+              : "border-border bg-card text-muted-foreground hover:bg-accent"
+          }`}
         >
           {k.label}
         </button>
@@ -103,8 +104,9 @@ export function TimelinePage() {
                             </div>
                             {e.amount !== null && (
                               <span
-                                className={`numeric shrink-0 text-sm ${e.amount > 0 ? "text-success" : "text-destructive"
-                                  }`}
+                                className={`numeric shrink-0 text-sm ${
+                                  e.amount > 0 ? "text-success" : "text-destructive"
+                                }`}
                               >
                                 {formatMoney(e.amount, { sign: true })}
                               </span>
